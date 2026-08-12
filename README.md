@@ -49,13 +49,23 @@ externally-installed codebase-memory-mcp still works unchanged.
 Register the MCP server with your agent:
 
 ```json
-{ "mcpServers": { "chronos": {
-    "command": "chronos-mcp",
-    "env": { "CHRONOS_GROUP_ID": "myrepo" } } } }
+{ "mcpServers": {
+    "chronos": {
+      "command": "chronos-mcp",
+      "env": { "CHRONOS_GROUP_ID": "myrepo" }
+    },
+    "codebase-memory": {
+      "command": "vendor/codebase-memory-mcp/build/c/codebase-memory-mcp"
+    } } }
 ```
 
-Tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`, `index_health`.
-Times accept ISO-8601, `now`, or relative (`7d`, `12h`).
+Two servers by design: **Chronos answers temporal questions, upstream answers
+current-state ones.** Chronos does not proxy upstream's tools — it would be a
+pass-through for queries it doesn't own, and agents already handle multiple MCP
+servers. See `STATUS.md` D-1.
+
+Chronos tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
+`index_health`. Times accept ISO-8601, `now`, or relative (`7d`, `12h`).
 
 ## How it fits together
 

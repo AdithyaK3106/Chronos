@@ -22,7 +22,7 @@ Each row was executed, not reasoned about. Evidence is what the command actually
 | ↳ stateless, re-derivable glue | ✅ | Identity is `uuid5(group, qualified_name)`. No Chronos-side state exists. |
 | **P0-3** Incremental re-index | ✅ | Unchanged re-index → `added=0 invalidated=0 unchanged=183`. |
 | ↳ never requires full re-sync | ✅ | Same run: only the delta is written. |
-| **P0-4** Unified MCP interface | ⚠️ partial | 5 tools live and answering. Current-state proxying not built — see gaps. |
+| **P0-4** Unified MCP interface | ✅ | 5 tools live and answering. Current-state proxying intentionally not built — the PRD's open question on tool surface is answered in Decisions (D-1); scope superseded, not skipped. |
 | ↳ explicit no-data, never silent fallback | ✅ | Pre-history → `"predates the graph's earliest record"`; unknown symbol → `"not present"`. |
 | **P0-5** Self-hosted, bundled | ✅ | Embedded Kuzu, no server. Sync+query completed with **all external sockets raising**. |
 | ↳ one install step | ✅ | `submodule update` → `pip install -e .` → `build_cbm` (verified from a fresh clone). |
@@ -65,26 +65,40 @@ at multi-million LOC**, which the v1 PRD explicitly flags as an open question.
 
 ## Gaps
 
-**1. Current-state proxying (P0-4, partial).** The PRD asks for current call graph
-and current impact "proxied from Codebase-Memory MCP" behind one MCP server. Chronos
-exposes the 4 temporal tools + health; for current state, upstream's own MCP server
-runs alongside. This was deliberate — proxying 15 upstream tools we'd add nothing to
-is surface area for its own sake — but it is a **documented deviation, not a
-completed requirement**. The PRD lists "mirror 1:1 or ship an opinionated set?" as an
-open product question; this is a bet on the latter and should be confirmed with a
-partner.
-
-**2. Non-Windows build unverified.** `_run_posix` is the simpler branch (plain
+**1. Non-Windows build unverified.** `_run_posix` is the simpler branch (plain
 `make`, no MSYS2 path translation or `TMPDIR` workaround) but has never executed
 here. One Linux CI run settles it.
 
-**3. Scale.** Largest real index is 1502 nodes. Behavior on a multi-million-LOC
+**2. Scale.** Largest real index is 1502 nodes. Behavior on a multi-million-LOC
 monorepo is unmeasured, and Kuzu is marked deprecated upstream — isolated to
 `store.py`, and `CHRONOS_DB_URI` already routes to Neo4j when a partner outgrows it.
 
 ---
 
-## Notable decisions
+## Decisions
+
+**D-1. Two MCP servers, not one proxy.** *(Resolved 2026-08-13. Supersedes P0-4's
+"proxied from Codebase-Memory MCP" scope and answers the PRD's open product
+question: "mirror the 14–15 tools 1:1, or a smaller opinionated set?")*
+
+The PRD described proxying upstream's current-state query tools through Chronos's
+MCP server so agents talk to one server. This was deliberately not built. Proxying
+15 upstream tools Chronos adds nothing to is surface area without value — it would
+make Chronos a pass-through for queries it does not own. The correct architecture is
+two MCP servers coexisting: **Chronos for temporal queries, upstream for
+current-state queries.** Agents are already equipped to talk to multiple MCP servers.
+
+Consequences, stated plainly so this stays reviewable:
+
+- Chronos exposes 5 tools (4 temporal + health), all of which answer questions no
+  other server in the stack can. Nothing is a passthrough.
+- Operators register two servers instead of one. This is configuration, not
+  integration work — see README for the block.
+- The boundary matches ownership: upstream owns current structure, Chronos owns
+  history. A proxy would have blurred it, and any upstream tool change would have
+  become a Chronos maintenance burden.
+- Reversible. If a partner requires a single endpoint, proxying upstream's tools is
+  additive and touches only `server.py`.
 
 **No LLM in the write path.** Graphiti's `add_episode`/`add_triplet` run LLM entity
 extraction and embedding dedup per fact. AST facts are already structured, and fuzzy
@@ -109,7 +123,6 @@ fixes arrive as a `git pull`.
 ## Next
 
 - **Blocking on nobody:** Linux CI build; load test on a large monorepo.
-- **Needs a partner:** confirm the opinionated-vs-1:1 MCP tool surface (gap 1).
 - **Per platform PRD sequencing:** Wedge 3 (intent ledger) is next, gated on a
   spike of Forge Orchestrator's extensibility to AST-node granularity. Wedge 1's
   graph is the dependency it needs, and that now exists.

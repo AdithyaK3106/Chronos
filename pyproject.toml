@@ -11,6 +11,7 @@ dependencies = [
 [project.scripts]
 chronos = "chronos.cli:main"
 chronos-mcp = "chronos.server:main"
+chronos-ledger-mcp = "chronos.wedge3_mcp:main"
 
 [build-system]
 requires = ["hatchling"]

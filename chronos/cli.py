@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import contextlib
 import json
 import subprocess
 import sys
@@ -133,6 +134,15 @@ async def do_doctor(args):
     print(f"chronos     : {h['status']} | {h['nodes']} nodes | "
           f"{h['facts_current']}/{h['facts_total']} facts current | last {h['last_sync']}")
     await drv.close()
+
+    from . import ledger
+    try:
+        with contextlib.closing(ledger.connect()) as lc:
+            s = ledger.status(lc)
+        print(f"ledger      : {'ok' if s['tables_ok'] else 'TABLES MISSING'} | "
+              f"{s['active_locks']} active locks | {s['events']} events | {s['path']}")
+    except Exception as e:
+        print(f"ledger      : ERROR {e}")
 
 
 def main():

@@ -67,6 +67,31 @@ servers. See `STATUS.md` D-1.
 Chronos tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
 `index_health`. Times accept ISO-8601, `now`, or relative (`7d`, `12h`).
 
+### Intent locks & provenance (Wedge 3)
+
+Concurrent agents declare intent on a node before touching it, and every change is
+stamped with who made it and why. Node ids are Wedge 1 identities, so a lock names
+the same symbol the temporal graph does — locking is per-function, not per-file.
+
+```json
+{ "mcpServers": { "chronos-ledger": { "command": "chronos-ledger-mcp" } } }
+```
+
+`chronos_acquire_lock`, `chronos_release_lock`, `chronos_check_conflicts`,
+`chronos_log_provenance`, `chronos_who_touched`.
+
+```
+acquire(createClient, agent-a, "refactor to async")  → acquired
+acquire(createClient, agent-b, "add retry logic")    → conflict: held by agent-a,
+                                                       intent "refactor to async"
+```
+
+Locks carry a TTL (default 300s) and expired ones are swept on the next
+acquisition, so a crashed agent can't wedge a node — no background process.
+`agent_id`/`session_id` are caller-supplied strings: they identify, they do not
+authenticate. This prevents collisions between cooperating agents, not hostile
+ones.
+
 ## How it fits together
 
 ```

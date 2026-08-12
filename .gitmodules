@@ -1,0 +1,3 @@
+[submodule "vendor/codebase-memory-mcp"]
+	path = vendor/codebase-memory-mcp
+	url = https://github.com/DeusData/codebase-memory-mcp

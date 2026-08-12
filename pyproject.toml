@@ -1,0 +1,20 @@
+[project]
+name = "chronos"
+version = "0.1.0"
+description = "Bi-temporal AST knowledge graph for AI coding agents"
+requires-python = ">=3.10"
+dependencies = [
+    "graphiti-core[kuzu]>=0.29",
+    "mcp>=1.2",
+]
+
+[project.scripts]
+chronos = "chronos.cli:main"
+chronos-mcp = "chronos.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["chronos"]

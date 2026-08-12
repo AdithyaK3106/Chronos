@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 os.environ.pop("OPENAI_API_KEY", None)  # must never be needed
 
@@ -199,5 +200,54 @@ async def main():
     print("\nALL PASS")
 
 
+async def roundtrip(repo: str | None = None):
+    """Every symbol the indexer writes must be findable through the query path.
+
+    This is the one test that crosses both input paths -- indexer writes, graph
+    reads -- which is exactly the seam the qualified_name bug lived in: the two
+    sides disagreed on identity and nothing failed. Skipped (not failed) when the
+    vendored indexer isn't built, since it needs a real index to be meaningful.
+    """
+    from chronos import indexer
+
+    if indexer.binary_path() is None:
+        print("skip roundtrip: vendored indexer not built "
+              f"({indexer.BUILD_CMD})")
+        return
+    repo = repo or str(Path(__file__).parent)
+    tmp = tempfile.mkdtemp()
+    os.environ["CHRONOS_DB"] = os.path.join(tmp, "rt.kz")
+    G = "roundtrip"
+
+    nodes, edges = indexer.index_repo_graph(repo)
+    assert nodes, f"indexer returned no nodes for {repo}"
+
+    from chronos.store import open_driver
+    drv = open_driver()
+    await ensure_schema(drv)
+    await Syncer(drv, G).sync(nodes, edges)
+
+    # Ask for each symbol the same way as_of_callers does: by derived uuid.
+    from chronos.sync import _uuid
+    from chronos.sync import node_identity as ident
+    missing = []
+    for n in nodes.values():
+        u = _uuid(G, "node", ident(n))
+        if not await query._rows(drv, "MATCH (x:Entity) WHERE x.uuid=$u RETURN 1 AS o", u=u):
+            missing.append(n.get("qname") or f"{n['path']}::{n['name']}")
+
+    found = len(nodes) - len(missing)
+    if missing:
+        print(f"FAIL roundtrip: {found}/{len(nodes)} found, {len(missing)} missing")
+        for q in missing[:5]:
+            print(f"    missing: {q}")
+    assert not missing, f"{len(missing)} of {len(nodes)} nodes did not round-trip"
+    print(f"ok  round-trip: {found}/{len(nodes)} indexed nodes found via the query path")
+
+    await drv.close()
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     asyncio.run(main())
+    asyncio.run(roundtrip())

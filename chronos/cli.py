@@ -110,6 +110,27 @@ async def do_index(args):
     await drv.close()
 
 
+async def do_gc(args):
+    """Delete nodes whose facts have all been superseded (dry-run by default)."""
+    drv = open_driver()
+    await ensure_schema(drv)
+    if not args.execute:
+        o = await query.orphans(drv, args.group)
+        print(f"{o['orphans']} orphaned nodes of {o['nodes_total']} ({o['pct']}%) in "
+              f"group '{args.group}'")
+        for s in o["sample"]:
+            print(f"   would delete: {s['name']}  [{s['path'] or 'no path'}]")
+        if o["orphans"] > len(o["sample"]):
+            print(f"   ... and {o['orphans'] - len(o['sample'])} more")
+        print("\ndry run -- nothing deleted. Re-run with --execute to delete."
+              if o["orphans"] else "\nnothing to collect.")
+    else:
+        r = await query.collect_orphans(drv, args.group)
+        print(f"deleted {r['deleted']} orphaned nodes from '{args.group}': "
+              f"{r['nodes_before']} -> {r['nodes_after']} nodes")
+    await drv.close()
+
+
 async def do_doctor(args):
     from .indexer import toolchain_report
     t = toolchain_report()
@@ -133,6 +154,10 @@ async def do_doctor(args):
     h = await query.health(drv, args.group)
     print(f"chronos     : {h['status']} | {h['nodes']} nodes | "
           f"{h['facts_current']}/{h['facts_total']} facts current | last {h['last_sync']}")
+    o = await query.orphans(drv, args.group, sample=0)
+    if o["pct"] > 10:
+        print(f"              WARNING: {o['orphans']} orphaned nodes ({o['pct']}% of total) "
+              f"-- run: chronos --group {args.group} gc")
     await drv.close()
 
     from . import ledger
@@ -158,9 +183,11 @@ def main():
     w.add_argument("--interval", type=int, default=30)
     sub.add_parser("health", help="index health (exit 1 if not fresh)")
     sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
+    gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
+    gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
     args = ap.parse_args()
     fn = {"index": do_index, "sync": do_sync, "watch": do_watch,
-          "health": do_health, "doctor": do_doctor}[args.cmd]
+          "health": do_health, "doctor": do_doctor, "gc": do_gc}[args.cmd]
     try:
         asyncio.run(fn(args))
     except KeyboardInterrupt:

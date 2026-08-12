@@ -86,6 +86,64 @@ async def changes(driver, group_id: str, since: datetime, until: datetime | None
             "count": len(added) + len(removed)}
 
 
+# A node is orphaned only if it once had facts and every one is now superseded.
+# A node with NO facts at all is NOT an orphan -- we sync every upstream symbol but
+# only edges of TEMPORAL_EDGE_TYPES, so most nodes legitimately have no edges and
+# deleting them would destroy valid symbols (16,726 of them on one real repo).
+_ORPHAN_MATCH = """
+MATCH (x:Entity) WHERE x.group_id = $g
+  AND EXISTS { MATCH (x)-[:RELATES_TO]->(a:RelatesToNode_) WHERE a.invalid_at IS NOT NULL }
+  AND NOT EXISTS { MATCH (x)-[:RELATES_TO]->(b:RelatesToNode_) WHERE b.invalid_at IS NULL }
+  AND NOT EXISTS { MATCH (c:RelatesToNode_)-[:RELATES_TO]->(x) WHERE c.invalid_at IS NULL }
+"""
+
+
+async def orphans(driver, group_id: str, sample: int = 10) -> dict:
+    """Nodes whose every fact has been superseded -- left behind by identity
+    migrations. Reports counts plus a sample so a dry run is reviewable."""
+    total = await _rows(driver, "MATCH (x:Entity) WHERE x.group_id=$g RETURN count(x) AS c",
+                        g=group_id)
+    n = await _rows(driver, _ORPHAN_MATCH + "RETURN count(x) AS c", g=group_id)
+    rows = await _rows(driver, _ORPHAN_MATCH + "RETURN x.name AS name, x.summary AS path LIMIT $k",
+                       g=group_id, k=max(0, int(sample)))
+    tot = total[0]["c"] if total else 0
+    cnt = n[0]["c"] if n else 0
+    return {"group_id": group_id, "nodes_total": tot, "orphans": cnt,
+            "pct": round(100.0 * cnt / tot, 1) if tot else 0.0,
+            "sample": [dict(r) for r in rows]}
+
+
+async def collect_orphans(driver, group_id: str) -> dict:
+    """Delete orphaned nodes and the superseded facts attached to them.
+
+    Destructive; callers gate this behind an explicit flag. History for nodes that
+    still matter is untouched -- only nodes with no current fact in either
+    direction are removed.
+    """
+    before = await orphans(driver, group_id)
+    if before["orphans"]:
+        # Resolve the victims up front. Deleting their fact nodes first would stop
+        # them matching _ORPHAN_MATCH (it requires a superseded fact), leaving the
+        # entities behind -- so capture uuids, then delete facts, then entities.
+        victims = [r["u"] for r in await _rows(driver, _ORPHAN_MATCH + "RETURN x.uuid AS u",
+                                               g=group_id)]
+        for i in range(0, len(victims), 1000):
+            chunk = victims[i:i + 1000]
+            await driver.execute_query("""
+                MATCH (x:Entity)-[:RELATES_TO]->(e:RelatesToNode_)
+                WHERE list_contains($us, x.uuid) DETACH DELETE e""", us=chunk)
+            await driver.execute_query("""
+                MATCH (e:RelatesToNode_)-[:RELATES_TO]->(x:Entity)
+                WHERE list_contains($us, x.uuid) DETACH DELETE e""", us=chunk)
+            await driver.execute_query(
+                "MATCH (x:Entity) WHERE list_contains($us, x.uuid) DETACH DELETE x", us=chunk)
+    after = await _rows(driver, "MATCH (x:Entity) WHERE x.group_id=$g RETURN count(x) AS c",
+                        g=group_id)
+    return {"group_id": group_id, "deleted": before["orphans"],
+            "nodes_before": before["nodes_total"],
+            "nodes_after": after[0]["c"] if after else 0}
+
+
 async def health(driver, group_id: str, upstream_path=None) -> dict:
     """P0-6: answer 'is this graph safe to rely on right now' at a glance."""
     b = await _rows(driver, _BOUNDS, g=group_id)

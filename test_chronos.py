@@ -190,6 +190,29 @@ async def main():
     assert ge == [("1", "CALLS", "2")], ge
     print("ok  indexer path preserves qualified_name identity")
 
+    # --- gc removes only nodes whose facts are ALL superseded, and never touches
+    #     a live fact. A node with no facts at all is a valid symbol, not an
+    #     orphan: we sync every upstream node but only TEMPORAL_EDGE_TYPES edges. ---
+    gnodes = {k: {"name": k, "path": "g.py", "kind": "Function", "qname": f"gc.{k}"}
+              for k in ("keep_a", "keep_b", "dies", "lonely")}
+    gs = Syncer(drv, "gc")
+    await gs.sync(gnodes, [("keep_a", "CALLS", "keep_b"), ("dies", "CALLS", "keep_b")], T0)
+    await gs.sync(gnodes, [("keep_a", "CALLS", "keep_b")], T1)  # dies-> is superseded
+    pre = await query.health(drv, "gc")
+    o = await query.orphans(drv, "gc", sample=5)
+    assert o["orphans"] == 1, f"only 'dies' is orphaned: {o}"
+    assert o["sample"][0]["name"] == "dies", o["sample"]
+    g_res = await query.collect_orphans(drv, "gc")
+    post = await query.health(drv, "gc")
+    assert g_res["deleted"] == 1, g_res
+    assert post["facts_current"] == pre["facts_current"], "gc destroyed a live fact"
+    assert (await query.callers(drv, "gc", "keep_b"))["count"] == 1, "live edge lost"
+    assert (await query.orphans(drv, "gc", sample=0))["orphans"] == 0
+    # 'lonely' has no facts at all and must survive
+    assert await query._rows(drv, "MATCH (x:Entity) WHERE x.group_id='gc' AND x.name='lonely' "
+                                  "RETURN 1 AS o"), "gc deleted a symbol that never had facts"
+    print(f"ok  gc: deleted {g_res['deleted']} orphan, kept live facts and fact-less symbols")
+
     # --- hash is stable and change-sensitive ---
     assert content_hash(nodes, edges) == content_hash(nodes, edges)
     assert content_hash(nodes, edges) != content_hash(nodes2, edges2)

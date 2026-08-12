@@ -168,6 +168,27 @@ async def main():
     assert ident(no_qn) == "x.py::f::Function", ident(no_qn)  # fallback intact
     print("ok  qualified_name identity disambiguates same-name symbols")
 
+    # --- the indexer path must carry qname through to identity, or every node it
+    #     writes silently downgrades to the colliding path+name scheme ---
+    import chronos.indexer as indexer
+    fake_rows = [
+        {"kind": "node", "id": "1", "name": "getAll", "path": "p.ts",
+         "node_kind": "Function", "qname": "app.p.outer.getAll"},
+        {"kind": "node", "id": "2", "name": "getAll", "path": "p.ts",
+         "node_kind": "Function", "qname": "app.p.other.getAll"},
+        {"kind": "edge", "src": "1", "type": "CALLS", "dst": "2"},
+    ]
+    orig = indexer.index_repo
+    indexer.index_repo = lambda *a, **k: fake_rows
+    try:
+        gn, ge = indexer.index_repo_graph("ignored")
+    finally:
+        indexer.index_repo = orig
+    assert all(v.get("qname") for v in gn.values()), f"indexer dropped qname: {gn}"
+    assert ident(gn["1"]) != ident(gn["2"]), "indexer path must not collapse distinct symbols"
+    assert ge == [("1", "CALLS", "2")], ge
+    print("ok  indexer path preserves qualified_name identity")
+
     # --- hash is stable and change-sensitive ---
     assert content_hash(nodes, edges) == content_hash(nodes, edges)
     assert content_hash(nodes, edges) != content_hash(nodes2, edges2)

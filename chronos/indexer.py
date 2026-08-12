@@ -94,7 +94,8 @@ def index_repo(repo_path: str, mode: str = "fast", timeout: int = 1800) -> list[
         g.close()
 
     out: list[dict] = [
-        {"kind": "node", "id": nid, "name": n["name"], "path": n["path"], "node_kind": n["kind"]}
+        {"kind": "node", "id": nid, "name": n["name"], "path": n["path"],
+         "node_kind": n["kind"], "qname": n.get("qname", "")}
         for nid, n in nodes.items()
     ]
     out += [{"kind": "edge", "src": s, "type": t, "dst": d} for s, t, d in edges]
@@ -104,7 +105,10 @@ def index_repo(repo_path: str, mode: str = "fast", timeout: int = 1800) -> list[
 def index_repo_graph(repo_path: str, **kw) -> tuple[dict[str, dict], list[tuple[str, str, str]]]:
     """index_repo() in the (nodes, edges) shape Syncer.sync() takes."""
     rows = index_repo(repo_path, **kw)
-    nodes = {r["id"]: {"name": r["name"], "path": r["path"], "kind": r["node_kind"]}
+    # qname must survive: node_identity() prefers it, and dropping it silently
+    # downgrades every indexed node to the colliding path+name identity.
+    nodes = {r["id"]: {"name": r["name"], "path": r["path"], "kind": r["node_kind"],
+                       "qname": r.get("qname", "")}
              for r in rows if r["kind"] == "node"}
     edges = [(r["src"], r["type"], r["dst"]) for r in rows if r["kind"] == "edge"]
     return nodes, edges

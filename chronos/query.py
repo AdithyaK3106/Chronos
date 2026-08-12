@@ -112,4 +112,20 @@ async def health(driver, group_id: str, upstream_path=None) -> dict:
     }
     if upstream_path:
         out["upstream_db"] = str(upstream_path)
+        # Parse coverage comes from upstream's own reporting -- a graph that is
+        # fresh but only parsed 60% of files is not safe to rely on, and P0-6 is
+        # about answering exactly that question.
+        try:
+            from .upstream import UpstreamGraph
+            g = UpstreamGraph(upstream_path)
+            cov = g.coverage()
+            g.close()
+            if cov:
+                out["coverage"] = cov
+                # Upstream reports problem files, not a parsed/total ratio, so we
+                # flag their presence rather than inventing a percentage.
+                if cov.get("files_with_issues") and out["status"] == "fresh":
+                    out["status"] = "fresh-partial"
+        except Exception as e:  # coverage is advisory; never fail health on it
+            out["coverage_error"] = str(e)
     return out

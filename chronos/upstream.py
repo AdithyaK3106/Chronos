@@ -143,5 +143,43 @@ class UpstreamGraph:
             out.append((str(r["s"]), et, str(r["d"])))
         return out
 
+    def coverage(self) -> dict:
+        """Parse success/failure counts from upstream's own reporting (P0-1).
+
+        Upstream owns this: it knows which files it failed to parse. Chronos must
+        not silently present a partial index as complete, so we surface it rather
+        than recompute it. Returns {} if the table isn't present.
+        """
+        tables = _tables(self.con)
+        out: dict = {}
+
+        meta = next((t for t in tables if "coverage_meta" in t.lower()), None)
+        if meta:
+            cols = tables[meta]
+            row = self.con.execute(f'SELECT * FROM "{meta}" LIMIT 1').fetchone()
+            if row is not None:
+                low = {c.lower(): row[i] for i, c in enumerate(cols)}
+                for key, names in (
+                    ("recording_status", ("recording_status", "status")),
+                    ("index_mode", ("index_mode", "mode")),
+                    ("recorded_at", ("recorded_at", "indexed_at", "updated_at")),
+                    ("ignored_files", ("ignored_files_total", "ignored_files_stored")),
+                ):
+                    v = next((low[n] for n in names if n in low), None)
+                    if v is not None:
+                        out[key] = v
+
+        # One row per file upstream could not fully parse, keyed by kind
+        # (parse_partial, etc.). Counting by kind tells a platform engineer which
+        # parts of the graph are incomplete without dumping every path.
+        cov = next((t for t in tables if t.lower() == "index_coverage"), None)
+        if cov and "kind" in [c.lower() for c in tables[cov]]:
+            by_kind = {k: n for k, n in self.con.execute(
+                f'SELECT kind, count(*) FROM "{cov}" GROUP BY kind')}
+            if by_kind:
+                out["issues_by_kind"] = by_kind
+                out["files_with_issues"] = sum(by_kind.values())
+        return out
+
     def close(self):
         self.con.close()

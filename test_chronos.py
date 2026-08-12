@@ -120,6 +120,26 @@ async def main():
     assert h["facts_total"] == 3 and h["facts_current"] == 2, h
     print(f"ok  health: {h['facts_current']}/{h['facts_total']} facts current")
 
+    # --- parse coverage from upstream's own reporting (P0-1): a partial index
+    #     must never be presented as a clean one ---
+    con = sqlite3.connect(up_path)
+    con.execute("CREATE TABLE index_coverage (project TEXT, rel_path TEXT, kind TEXT, detail TEXT)")
+    con.execute("CREATE TABLE index_coverage_meta (project TEXT, index_mode TEXT, "
+                "recording_status TEXT, ignored_files_total INT)")
+    con.execute("INSERT INTO index_coverage VALUES ('p','a.py','parse_partial','1-2')")
+    con.execute("INSERT INTO index_coverage VALUES ('p','b.css','parse_partial','5-5')")
+    con.execute("INSERT INTO index_coverage_meta VALUES ('p','fast','complete',3)")
+    con.commit(); con.close()
+    cov = UpstreamGraph(up_path).coverage()
+    assert cov["files_with_issues"] == 2, cov
+    assert cov["issues_by_kind"]["parse_partial"] == 2, cov
+    hc = await query.health(drv, G, up_path)
+    assert hc["coverage"]["files_with_issues"] == 2, hc
+    # status is 'stale' here because the fixture's facts are backdated; the
+    # partial-flag only downgrades an otherwise-fresh graph.
+    assert hc["status"] in ("stale", "fresh-partial"), hc["status"]
+    print(f"ok  parse coverage surfaced ({hc['coverage']['issues_by_kind']}) -> status={hc['status']}")
+
     # --- the UNWIND fast path must write rows graphiti itself can read back,
     #     otherwise we have silently forked the schema ---
     from graphiti_core.edges import EntityEdge

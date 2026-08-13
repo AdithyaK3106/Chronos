@@ -169,6 +169,18 @@ async def do_doctor(args):
     except Exception as e:
         print(f"ledger      : ERROR {e}")
 
+    # Wedge 2. Unconfigured is a normal state (Packmind is optional), so say so
+    # plainly rather than reporting it as an error.
+    from .playbook import Packmind, PackmindError
+    try:
+        h = Packmind().health()
+        if h["status"] == "ok":
+            print(f"packmind    : ok | {h['total']} rules | last proposal {h['last_proposal'] or 'none'}")
+        else:
+            print(f"packmind    : UNREACHABLE {h.get('error')}")
+    except PackmindError as e:
+        print(f"packmind    : not configured ({e})")
+
 
 def main():
     ap = argparse.ArgumentParser(prog="chronos", description="bi-temporal AST knowledge graph")

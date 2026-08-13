@@ -1,10 +1,12 @@
 # Chronos — Status
 
 **Updated:** 2026-08-13
-**Scope:** Wedge 1 (Bi-Temporal AST Graph) and Wedge 3 (Intent & Provenance Ledger).
-Wedges 2 and 4 not started.
+**Scope:** Wedges 1 (Bi-Temporal AST Graph), 2 (Policy Playbook), and 3 (Intent &
+Provenance Ledger). Wedge 4 not started.
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
-against four real third-party repos. Two gaps remain, neither blocking a demo.
+against four real third-party repos. Wedge 2 is **feature-complete but
+mock-verified only** — it has never made a call to a running Packmind or a real
+LLM, and should not be demoed as working until it has.
 
 ---
 
@@ -63,6 +65,114 @@ any caller can claim any id, so this prevents collisions between *cooperating*
 agents. And locks cover exactly the nodes named; structurally-adjacent conflicts
 (two agents on functions that call each other) are not yet detected. Expanding the
 lock set via `as_of_callers`/`callees` needs no schema change.
+
+---
+
+## Wedge 2 — Agentic Context Engineering (Policy Playbook)
+
+**Status: mock-verified, not live-verified.** Every capability below is proven
+against mocks. No call has ever been made to a running Packmind or a real LLM —
+see "Live verification: attempted, blocked" at the end of this section before
+relying on any of it.
+
+Agent mistakes become coding standards. Reflector (LLM, grounded in Wedge 1
+history) → Curator (dedup + quality gate) → Packmind, which owns storage,
+versioning, and distribution to CLAUDE.md/`.cursor/rules`.
+
+Unlike the Wedge 1 and 3 tables above, ✅ here means "passes against a mock",
+not "executed against the real thing". The distinction is load-bearing.
+
+| Capability | Status | Evidence | Verified against |
+|---|---|---|---|
+| Reflector extracts a grounded rule | ✅ | Candidate carries `evidence_node`, `evidence_valid_at`, and a superseded-version count from the graph. | stub LLM + stub driver |
+| Low-signal traces rejected | ✅ | LLM `null` → None; confidence 0.39 → None, 0.40 → kept. | stub LLM |
+| Dedup before submission | ✅ | Cosine > 0.85 on rule embeddings → discarded, nothing created. | stub embeddings |
+| Quality gate | ✅ | `passes_gate:false` → discarded with the model's reason logged. | stub LLM |
+| Submission to Packmind | ✅ | Creates an unpublished standard; returns its id. | **fake client — never a real HTTP call** |
+| Loud failure when unreachable | ✅ | `PackmindError` naming `docs/wedge2-setup.md`. Traces are never silently dropped. | fake client |
+| Doctor integration | ✅ | `packmind: ok \| N rules \| last proposal <ts>` / `not configured` / `UNREACHABLE`. | real CLI, unconfigured path only |
+| Evidence node resolves in the graph | ✅ | 40/40 real indexed symbols resolve through the query path. | **real index, no mock** |
+
+**Suite:** `python tests/test_wedge2.py` → ALL PASS (13 checks, LLM and Packmind
+both mocked; the suite needs neither running).
+**Size:** 367 lines across `reflector.py` + `curator.py` + `wedge2_mcp.py`
+(400-line budget), plus a 180-line Packmind client.
+
+**Round-trip:** 40/40 real indexed symbols used as evidence nodes resolve back
+through the query path — a rule whose `evidence_node` the graph can't resolve
+isn't grounded, it's decorated.
+
+### Packmind API — what's actually there (researched, not assumed)
+
+Read from the TypeScript source; the REST API is undocumented externally.
+NestJS, `/api/v0`, `Authorization: Bearer <key>`. Hierarchy is
+organization → space → standard → rule.
+
+- **No MCP server exists.** The PRD asked us to prefer MCP over HTTP if available.
+  It isn't — the only `*mcp*` files in the repo are Playwright demo tooling. Raw
+  HTTP, isolated to `playbook.py`.
+- **No rule-proposal object, and no status field.** `Standard` is
+  `{id, name, slug, description, version, userId, scope, spaceId, movedTo, updatedAt}`.
+  The PRD's `status: "proposed"` cannot be set.
+- **Create and publish are separate calls — and that gives us the gate for free.**
+  Only `POST /deployments/standards/publish` writes CLAUDE.md/`.cursor/rules`.
+  Chronos never calls it, so proposed rules are inert until a human publishes
+  them. That is the PRD's approval requirement in Packmind's real lifecycle
+  rather than an invented field.
+- **No semantic search.** `chronos_query_playbook` filters client-side. Fine at
+  OSS scale; anything more is a Packmind feature request, not something to build
+  around here.
+
+**Known gap — evidence metadata has no home in Packmind's schema.** Neither
+`Standard` nor `Rule` has a custom-metadata, tags, or annotations field, so
+Chronos writes evidence (`evidence_node`, `evidence_valid_at`,
+`evidence_commit_context`, `source`, `agent_id`) into the standard's
+`description` behind a `--- chronos evidence ---` marker and parses it back out
+on read. This is the one place the Packmind data model is bent rather than used
+as designed. It is a real cost: a human editing that description in the UI can
+corrupt the block, and `list_rules` silently ignores an unparseable one (treating
+it as a hand-authored standard, which is the correct fallback but hides the
+damage). The alternative was a Chronos-side rule store, which would have
+duplicated the exact component we deliberately did not reimplement. Upstreaming a
+metadata field to Packmind is the clean fix.
+
+**Scope limit:** Wedge 2 is the first component that requires an LLM and network
+egress. Wedges 1 and 3 remain fully offline; this is opt-in and unconfigured by
+default (`chronos doctor` says `not configured`, not `ERROR`).
+
+### Live verification: attempted, blocked
+
+A full live end-to-end run (start Packmind → mint a key → `capture_lesson` on a
+real node → verify the standard via `GET /standards/<id>`) was attempted on
+2026-08-13 and **did not run**. Two blockers, both environmental:
+
+1. **No container runtime.** `docker` is not installed — no `Program Files\Docker`,
+   no service, no PATH entry, and WSL has zero distributions. `%LOCALAPPDATA%\Docker`
+   holds only orphaned logs from an install that never finished:
+   `[2026-02-28T13:30:17][Installer][I] No installation found` followed by a UAC
+   relaunch that was never completed. Packmind ships only as a Compose stack.
+2. **No LLM credentials.** `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` are unset, so
+   the Reflector and Curator calls could not have executed even with Packmind up.
+
+Nothing was stubbed to work around this and no result was reported as passing.
+
+**What this leaves unproven — the honest risk list:**
+
+- Every HTTP request in `playbook.py` is built from *reading* Packmind's
+  TypeScript, never from a response. Paths, payload shapes, and status codes are
+  inferred.
+- **Highest-risk single call: `GET /auth/me`.** `_scope()` expects
+  `{organization: {id}, spaces: [{id}]}`. If the real shape nests differently,
+  `Packmind()` fails at construction and *nothing* in Wedge 2 works. Setting
+  `PACKMIND_ORG_ID`/`PACKMIND_SPACE_ID` explicitly bypasses this path.
+- The evidence-in-`description` round-trip is verified only as a string operation,
+  not through a real create-then-read cycle.
+- `create_standard` reads the id as `r["id"]` with a fallback to
+  `r["standard"]["id"]` because the controller's return type and the use-case
+  response type disagree in the source. One live call settles which is right.
+
+Clearing this needs Docker Desktop (admin/UAC) and one LLM key; the procedure is
+`docs/wedge2-setup.md`.
 
 ---
 
@@ -182,8 +292,15 @@ fixes arrive as a `git pull`.
 
 - **Blocking on nobody:** Linux CI build; load test on a large monorepo;
   adjacent-node conflict expansion for Wedge 3.
-- **Per platform PRD sequencing:** Wedges 1 and 3 are done. Wedge 2 (ACE playbook,
-  wiring Packmind OSS + Kayba ACE) is next, then Wedge 4 (enforcement). Wedge 3 was
+- **Blocking Wedge 2's completion:** a live run against a real Packmind stack.
+  Blocked on a container runtime and an LLM key, not on code — see "Live
+  verification: attempted, blocked". This is the top item; the API shape is read
+  from source, and reading is not running.
+- **Per platform PRD sequencing:** Wedges 1 and 3 are done, Wedge 2 is built but
+  unproven live; Wedge 4
+  (enforcement) is next. Wedge 2's Reflector/Curator was built in-house because
+  the ACE framework is FSL-licensed; Packmind OSS (Apache 2.0) is used unmodified
+  as the store. Wedge 3 was
   built in-house on SQLite rather than by extending Forge Orchestrator — the PRD's
   spike question ("can its file locking extend to AST-node granularity without a
   fork?") was bypassed: node-level locking keyed on Wedge 1 identities is ~260

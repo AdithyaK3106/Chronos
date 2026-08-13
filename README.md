@@ -92,6 +92,32 @@ acquisition, so a crashed agent can't wedge a node — no background process.
 authenticate. This prevents collisions between cooperating agents, not hostile
 ones.
 
+### Self-improving playbook (Wedge 2) — mock-verified only
+
+> Built and tested against mocks; it has **never run against a live Packmind or a
+> real LLM**. The HTTP layer is written from reading Packmind's source, so treat
+> it as unproven until `docs/wedge2-setup.md` has been walked end to end.
+> `docs/STATUS.md` lists exactly what that leaves at risk.
+
+Agent gets corrected → Reflector extracts a candidate rule, grounded in Wedge 1
+history ("this broke on a node refactored 2 weeks ago") → Curator dedups and
+quality-gates it → the rule is created in Packmind, unpublished, for a human to
+approve. Static CLAUDE.md files rot; this one updates itself from real mistakes.
+
+```json
+{ "mcpServers": { "chronos-playbook": { "command": "chronos-playbook-mcp" } } }
+```
+
+`chronos_capture_lesson`, `chronos_query_playbook`, `chronos_propose_rule`,
+`chronos_playbook_health`. Needs a running Packmind and an LLM —
+see `docs/wedge2-setup.md`. Packmind (Apache 2.0) is the rule store; Chronos does
+not reimplement storage, versioning, or distribution.
+
+**Approval gate:** Packmind's OSS API has no proposal/status field, but creating
+and *publishing* a standard are separate calls, and only publishing writes
+CLAUDE.md. Chronos never publishes — proposed rules sit inert until a human
+approves them in the UI.
+
 ## How it fits together
 
 ```
@@ -105,6 +131,26 @@ identity, so the store is fully re-derivable if the process dies mid-run (P0-2).
 
 Run upstream's own MCP server alongside this one for current-state search; Chronos
 deliberately does not proxy its 15 tools.
+
+## Layout
+
+```
+chronos/      upstream.py  read upstream's SQLite (schema by introspection)
+              indexer.py   run the vendored indexer   build_cbm.py  build it
+              sync.py      upstream rows -> bi-temporal nodes/edges
+              store.py     Kuzu/Neo4j driver          query.py  as-of reads
+              cli.py       chronos                    server.py  chronos-mcp
+              ledger.py    intent locks + provenance  wedge3_mcp.py  its server
+              reflector.py trace -> candidate rule    curator.py  gate + submit
+              playbook.py  Packmind REST client       wedge2_mcp.py  its server
+docs/         STATUS.md (what's verified, decisions), prd-v1.md, prd-platform.md
+tests/        test_chronos.py (bi-temporal contract), test_wedge2.py (playbook),
+              test_wedge3.py (ledger)
+vendor/       codebase-memory-mcp submodule, pinned
+```
+
+Dependencies run one way: `cli`/`server` → `query`/`sync` → `store`/`upstream`.
+The ledger is independent of the graph — it shares only node identity strings.
 
 ## Key design decisions
 

@@ -6,12 +6,14 @@ requires-python = ">=3.10"
 dependencies = [
     "graphiti-core[kuzu]>=0.29",
     "mcp>=1.2",
+    "litellm>=1.50",
 ]
 
 [project.scripts]
 chronos = "chronos.cli:main"
 chronos-mcp = "chronos.server:main"
 chronos-ledger-mcp = "chronos.wedge3_mcp:main"
+chronos-playbook-mcp = "chronos.wedge2_mcp:main"
 
 [build-system]
 requires = ["hatchling"]

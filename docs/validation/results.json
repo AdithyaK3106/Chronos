@@ -1,8 +1,8 @@
 {
   "section1": {
-    "Setu": {
-      "repo": "Setu",
-      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Setu",
+    "<repo-setu>": {
+      "repo": "<repo-setu>",
+      "path": "<repo-setu>",
       "index_seconds": 13.85,
       "nodes": 1502,
       "edges": 322,
@@ -104,9 +104,9 @@
       "orphan_pct": 0.0,
       "gc_warning": false
     },
-    "MediAssist": {
-      "repo": "MediAssist",
-      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\MediAssist",
+    "<repo-mediassist>": {
+      "repo": "<repo-mediassist>",
+      "path": "<repo-mediassist>",
       "index_seconds": 18.79,
       "nodes": 2415,
       "edges": 398,
@@ -205,9 +205,9 @@
       "orphan_pct": 0.0,
       "gc_warning": false
     },
-    "Opencode": {
-      "repo": "Opencode",
-      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode",
+    "<repo-opencode>": {
+      "repo": "<repo-opencode>",
+      "path": "<repo-opencode>",
       "index_seconds": 14.83,
       "nodes": 9907,
       "edges": 3034,
@@ -247,7 +247,7 @@
           "c": 52
         },
         {
-          "name": "freellmapi/server/src/db/index.ts",
+          "name": "<repo-freellmapi>/server/src/db/index.ts",
           "c": 39
         },
         {
@@ -255,7 +255,7 @@
           "c": 37
         },
         {
-          "name": "freellmapi/shared/types.ts",
+          "name": "<repo-freellmapi>/shared/types.ts",
           "c": 28
         }
       ],
@@ -271,7 +271,7 @@
           "c": 59
         },
         {
-          "name": "freellmapi/server/src/routes/proxy.ts",
+          "name": "<repo-freellmapi>/server/src/routes/proxy.ts",
           "c": 52
         }
       ],
@@ -309,9 +309,9 @@
       "orphan_pct": 0.0,
       "gc_warning": false
     },
-    "ortho": {
-      "repo": "ortho",
-      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho",
+    "<repo-ortho>": {
+      "repo": "<repo-ortho>",
+      "path": "<repo-ortho>",
       "index_seconds": 15.31,
       "nodes": 10889,
       "edges": 5678,
@@ -415,17 +415,17 @@
     }
   },
   "section2": {
-    "Setu": {
-      "repo": "Setu",
+    "<repo-setu>": {
+      "repo": "<repo-setu>",
       "node_ids": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-Setu",
+        "<repo-setu-id>",
         "main",
         ".oxlintrc.json",
         "github_issues_data.json",
         "index.html"
       ],
       "agentA_locked": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-Setu",
+        "<repo-setu-id>",
         "main",
         ".oxlintrc.json"
       ],
@@ -480,17 +480,17 @@
         "max": 0.65
       }
     },
-    "MediAssist": {
-      "repo": "MediAssist",
+    "<repo-mediassist>": {
+      "repo": "<repo-mediassist>",
       "node_ids": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-MediAssist",
+        "<repo-mediassist-id>",
         "main",
         ".env.example",
         "DEMO_TEST_CASES.md",
         "PROJECT_STRUCTURE.md"
       ],
       "agentA_locked": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-MediAssist",
+        "<repo-mediassist-id>",
         "main",
         ".env.example"
       ],
@@ -545,17 +545,17 @@
         "max": 0.77
       }
     },
-    "Opencode": {
-      "repo": "Opencode",
+    "<repo-opencode>": {
+      "repo": "<repo-opencode>",
       "node_ids": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-Opencode",
+        "<repo-opencode-id>",
         "master",
         "BENCHMARK-EXECUTION-LOG.md",
         "CLAUDE.md",
         "COMPLETE-MODEL-COMPARISON.md"
       ],
       "agentA_locked": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-Opencode",
+        "<repo-opencode-id>",
         "master",
         "BENCHMARK-EXECUTION-LOG.md"
       ],
@@ -610,17 +610,17 @@
         "max": 0.83
       }
     },
-    "ortho": {
-      "repo": "ortho",
+    "<repo-ortho>": {
+      "repo": "<repo-ortho>",
       "node_ids": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-ortho",
+        "<repo-ortho-id>",
         "master",
         ".mcp.json",
         "AGENTS.md",
         "CLAUDE.md"
       ],
       "agentA_locked": [
-        "C-Users-urbra-OneDrive-Desktop-Projects-ortho",
+        "<repo-ortho-id>",
         "master",
         ".mcp.json"
       ],
@@ -677,8 +677,8 @@
     }
   },
   "section3": {
-    "Opencode": {
-      "repo": "Opencode",
+    "<repo-opencode>": {
+      "repo": "<repo-opencode>",
       "language": "typescript",
       "llm": "STUBBED (no API key in this environment)",
       "candidate_function": "getDb",
@@ -692,9 +692,9 @@
       "false_positive_risk": false,
       "detectability_details": "matched 1 in the positive example",
       "files_checked": [
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\services\\api\\openaiShim.test.ts",
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\screens\\REPL.tsx",
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\main.tsx"
+        "<repo-opencode>\\openclaude\\src\\services\\api\\openaiShim.test.ts",
+        "<repo-opencode>\\openclaude\\src\\screens\\REPL.tsx",
+        "<repo-opencode>\\openclaude\\src\\main.tsx"
       ],
       "warn_phase": [
         {
@@ -804,8 +804,8 @@
         "note": "blocks are sourced from provenance_events; warn/pass verdicts are returned live by chronos_enforce and not persisted"
       }
     },
-    "ortho": {
-      "repo": "ortho",
+    "<repo-ortho>": {
+      "repo": "<repo-ortho>",
       "language": "python",
       "llm": "STUBBED (no API key in this environment)",
       "candidate_function": "str",
@@ -819,9 +819,9 @@
       "false_positive_risk": false,
       "detectability_details": "matched 1 in the positive example",
       "files_checked": [
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\django\\tests\\admin_views\\tests.py",
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\fastapi\\tests\\test_include_router_defaults_overrides.py",
-        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\django\\tests\\migrations\\test_operations.py"
+        "<repo-ortho>\\repos\\django\\tests\\admin_views\\tests.py",
+        "<repo-ortho>\\repos\\fastapi\\tests\\test_include_router_defaults_overrides.py",
+        "<repo-ortho>\\repos\\django\\tests\\migrations\\test_operations.py"
       ],
       "warn_phase": [
         {
@@ -2490,12 +2490,12 @@
     "doctor_exit": 0,
     "doctor_output": [
       "vendored src: present",
-      "indexer     : C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\New ortho\\vendor\\codebase-memory-mcp\\build\\c\\codebase-memory-mcp.exe",
-      "upstream db : C:\\Users\\urbra\\.cache\\codebase-memory-mcp\\C-Users-urbra-OneDrive-Desktop-Projects-ortho.db",
+      "indexer     : <home>\\<projects>\\New <repo-ortho>\\vendor\\codebase-memory-mcp\\build\\c\\codebase-memory-mcp.exe",
+      "upstream db : <cache>/upstream.db",
       "schema      : nodes=nodes{'id': 'id', 'name': 'name'} edges=edges{'src': 'source_id', 'dst': 'target_id', 'type': 'type'}",
       "upstream    : 10889 nodes, 5678 temporal edges",
       "chronos     : empty | 0 nodes | 0/0 facts current | last None",
-      "database    : C:\\Users\\urbra\\AppData\\Local\\Temp\\claude\\C--Users-urbra-OneDrive-Desktop-Projects-New-ortho\\e3eefe02-bc3e-4421-89de-d206a2a1b64d\\scratchpad\\validation.db | 2 locks | 14 events | 1 rules | 0.0MB",
+      "database    : <tmp>/validation.db| 2 locks | 14 events | 1 rules | 0.0MB",
       "packmind    : not configured (Packmind not reachable \u2014 run docs/wedge2-setup.md (PACKMIND_API_URL and PACKMIND_API_KEY must be set))",
       "ast-grep    : ok | ast-grep 0.45.1",
       "opa         : ok | v1.19.0",

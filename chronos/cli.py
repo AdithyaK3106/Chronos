@@ -290,6 +290,13 @@ async def do_enforce(args):
     from . import enforcer, indexer, rule_store
 
     repo = args.repo or "."
+    # Drain pytest failure traces before enforcing: CI is where test runs and
+    # enforcement meet, so it is the natural moment to turn failures into
+    # lessons. process_pending never raises.
+    from .trace_processor import process_pending
+    n = process_pending(repo)
+    if n > 0:
+        print(f"[Chronos] {n} trace(s) dispatched to Reflector", file=sys.stderr)
     load_repo_config(repo)  # env wins; config.json fills the gaps
     fail_on_block = args.fail_on_block or args.exit_code
 

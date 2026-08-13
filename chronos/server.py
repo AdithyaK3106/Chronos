@@ -51,6 +51,14 @@ for _tool in TOOLS:
 
 
 def main():
+    # Drain any test-failure traces captured since the last run. Backgrounded:
+    # the server must start whether or not there are traces, and dispatch may
+    # make LLM calls (trace_processor swallows its own failures).
+    try:
+        from .trace_processor import process_pending_async
+        process_pending_async()
+    except Exception:  # noqa: BLE001 -- capture must never block startup
+        pass
     mcp.run()
 
 

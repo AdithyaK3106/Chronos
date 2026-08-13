@@ -185,7 +185,10 @@ class Syncer:
                 uuid=u, name=n["name"], group_id=self.group_id,
                 labels=["Entity", n.get("kind") or "Symbol"],
                 created_at=at, summary=n.get("path", ""),
-                attributes={"path": n.get("path", ""), "kind": n.get("kind", "Symbol")},
+                # attributes is an explicit list, so a new node field must be
+                # added here or it is silently dropped on the way to the graph.
+                attributes={"path": n.get("path", ""), "kind": n.get("kind", "Symbol"),
+                            "language": n.get("language", "unknown")},
                 name_embedding=_ZERO,
             ))
             st.nodes += 1
@@ -234,8 +237,29 @@ class Syncer:
                 us=gone, t=at,
             )
             st.edges_invalidated = len(gone)
+            # Cross-wedge trigger 2 (observation only -- runs after the write is
+            # committed and cannot alter it). Warns when a node just became
+            # deprecated with no Wedge 4 rule covering it, which is the silent
+            # gap where agents keep using a superseded symbol and CI passes.
+            await self._coverage_check(gone, at)
 
         return st
+
+    async def _coverage_check(self, gone_uuids, at):
+        try:
+            recs, _, _ = await self.driver.execute_query(
+                """MATCH (n:Entity)-[:RELATES_TO]->(e:RelatesToNode_)-[:RELATES_TO]->(m:Entity)
+                   WHERE list_contains($us, e.uuid)
+                   RETURN DISTINCT m.name AS name""", us=gone_uuids)
+            from . import triggers
+            seen = set()
+            for r in recs:
+                name = dict(r).get("name")
+                if name and name not in seen:
+                    seen.add(name)
+                    triggers.on_deprecation(name, valid_at=at)
+        except Exception:  # noqa: BLE001 -- best-effort by contract
+            pass
 
 
 def content_hash(nodes: dict, edges: list) -> str:

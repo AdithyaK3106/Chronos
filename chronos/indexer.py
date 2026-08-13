@@ -23,6 +23,25 @@ from pathlib import Path
 
 from .upstream import UpstreamGraph
 
+EXTENSION_TO_LANGUAGE = {
+    ".py": "python",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".go": "go",
+    ".rs": "rust",
+    ".java": "java",
+    ".rb": "ruby",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".h": "c",
+    ".hpp": "cpp",
+    ".cs": "csharp",
+    ".kt": "kotlin",
+    ".swift": "swift",
+}
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VENDOR = REPO_ROOT / "vendor" / "codebase-memory-mcp"
 BINARY = VENDOR / "build" / "c" / "codebase-memory-mcp"
@@ -102,13 +121,27 @@ def index_repo(repo_path: str, mode: str = "fast", timeout: int = 1800) -> list[
     return out
 
 
+def node_language(path: str) -> str:
+    """Language from a node's file extension.
+
+    The upstream indexer does not emit a language field, so Wedge 4's
+    per-language rule scoping had nothing to filter on and every rule applied to
+    every file. Extension is a coarse but honest signal: 'unknown' when we cannot
+    tell, never None, so a caller can distinguish "not a source file" from
+    "field missing".
+    """
+    ext = os.path.splitext(path or "")[1].lower()
+    return EXTENSION_TO_LANGUAGE.get(ext, "unknown")
+
+
 def index_repo_graph(repo_path: str, **kw) -> tuple[dict[str, dict], list[tuple[str, str, str]]]:
     """index_repo() in the (nodes, edges) shape Syncer.sync() takes."""
     rows = index_repo(repo_path, **kw)
     # qname must survive: node_identity() prefers it, and dropping it silently
     # downgrades every indexed node to the colliding path+name identity.
     nodes = {r["id"]: {"name": r["name"], "path": r["path"], "kind": r["node_kind"],
-                       "qname": r.get("qname", "")}
+                       "qname": r.get("qname", ""),
+                       "language": node_language(r.get("path", ""))}
              for r in rows if r["kind"] == "node"}
     edges = [(r["src"], r["type"], r["dst"]) for r in rows if r["kind"] == "edge"]
     return nodes, edges

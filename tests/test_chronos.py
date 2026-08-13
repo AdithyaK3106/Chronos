@@ -220,7 +220,52 @@ async def main():
 
     await drv.close()
     shutil.rmtree(tmp, ignore_errors=True)
-    print("\nALL PASS")
+
+
+def language_tagging():
+    """Nodes must carry a language, derived from the file extension.
+
+    Wedge 4 filters active rules by language; before this the field did not
+    exist, so every rule applied to every file regardless of its `language:`.
+    Pure-function checks plus a real index over a mixed-language fixture.
+    """
+    from chronos import indexer
+
+    cases = {"a.py": "python", "b.ts": "typescript", "c.tsx": "typescript",
+             "d.js": "javascript", "e.go": "go", "f.rs": "rust", "g.java": "java",
+             "h.rb": "ruby", "i.c": "c", "j.cpp": "cpp", "k.h": "c",
+             "l.cs": "csharp", "m.kt": "kotlin", "n.swift": "swift",
+             "src/deep/o.PY": "python",            # case-insensitive
+             "p.txt": "unknown", "noext": "unknown", "": "unknown"}
+    for path, want in cases.items():
+        got = indexer.node_language(path)
+        assert got == want, f"{path!r} -> {got!r}, expected {want!r}"
+    assert indexer.node_language(None) == "unknown", "None path must not raise"
+    print(f"ok  language derived from extension for {len(cases)} paths "
+          "(unknown, never None)")
+
+    if indexer.binary_path() is None:
+        print(f"skip language index check: indexer not built ({indexer.BUILD_CMD})")
+        return
+
+    tmp = tempfile.mkdtemp()
+    Path(tmp, "mod.py").write_text("def py_fn():\n    return 1\n", encoding="utf-8")
+    Path(tmp, "mod.ts").write_text("export function tsFn() { return 1; }\n", encoding="utf-8")
+    nodes, _ = indexer.index_repo_graph(tmp)
+    assert nodes, "fixture produced no nodes"
+
+    assert all(n.get("language") is not None for n in nodes.values()), \
+        "every node must have a language (unknown is fine, None is not)"
+    langs = {n["language"] for n in nodes.values()}
+    assert "python" in langs, f"no python node from mod.py; got {langs}"
+    assert "typescript" in langs, f"no typescript node from mod.ts; got {langs}"
+    py = [n for n in nodes.values() if n["path"].endswith(".py")]
+    ts = [n for n in nodes.values() if n["path"].endswith(".ts")]
+    assert py and all(n["language"] == "python" for n in py), py[:2]
+    assert ts and all(n["language"] == "typescript" for n in ts), ts[:2]
+    print(f"ok  real index tagged {len(py)} .py nodes python and {len(ts)} .ts nodes "
+          f"typescript ({len(nodes)} nodes, languages={sorted(langs)})")
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 async def roundtrip(repo: str | None = None):
@@ -272,5 +317,9 @@ async def roundtrip(repo: str | None = None):
 
 
 if __name__ == "__main__":
+    # ALL PASS prints only after every check, including the ones that run
+    # outside main() -- otherwise a failure here appears below a pass banner.
     asyncio.run(main())
+    language_tagging()
     asyncio.run(roundtrip())
+    print(chr(10) + "ALL PASS")

@@ -3,311 +3,531 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chronos Dashboard</title>
+<title>Chronos — Developer Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+/* ─── tokens ───────────────────────────────────────────────────────────── */
 :root{
-  --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a;
-  --ink:#e8eaf0; --muted:#8b909e;
+  --bg:#0f1117; --bg-lift:#141722;
+  --card:#1a1d27; --card-hi:#1e222e;
+  --border:#2a2d3a; --border-hi:#363b4d;
+  --ink:#e8eaf0; --ink-dim:#b6bccb; --muted:#8b909e;
   --blocked:#e05c5c; --warned:#e0a33c;
-  --good:#4caf7d; --warn:#e0a33c; --block:#e05c5c;
-  --radius:8px; --gap:16px; --pad:20px;
+  --good:#4caf7d; --accent:#5ba4f5;
+  --r:10px; --r-sm:6px; --gap:16px; --pad:20px;
+
+  /* one motion rhythm everywhere */
+  --t-fast:140ms; --t:220ms; --t-slow:380ms;
+  --ease-out:cubic-bezier(.22,.85,.3,1);       /* entering */
+  --ease-in:cubic-bezier(.55,.06,.68,.19);     /* exiting */
+  --spring:cubic-bezier(.34,1.4,.5,1);         /* press / pop */
+
+  --sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Fira Code",ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 *{box-sizing:border-box}
+html{color-scheme:dark}
 body{
-  margin:0; padding:var(--gap); background:var(--bg); color:var(--ink);
-  font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  margin:0;padding:20px;background:var(--bg);color:var(--ink);
+  font:400 13px/1.55 var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-image:
+    radial-gradient(1100px 520px at 78% -12%, rgba(91,164,245,.055), transparent 62%),
+    radial-gradient(760px 420px at 4% 0%, rgba(224,92,92,.032), transparent 58%);
+  background-attachment:fixed;
 }
-header{display:flex;align-items:baseline;justify-content:space-between;
-  margin-bottom:var(--gap);gap:var(--gap);flex-wrap:wrap}
-h1{font-size:18px;font-weight:600;margin:0;letter-spacing:.2px}
-h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
-#updated{color:var(--muted);font-size:12px}
-#banner{display:none;background:#3a1d22;border:1px solid var(--blocked);
-  color:#f3c2c2;padding:10px 14px;border-radius:var(--radius);margin-bottom:var(--gap)}
-#banner.on{display:block}
 
+/* ─── header ───────────────────────────────────────────────────────────── */
+header{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--gap);flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand .mark{width:30px;height:30px;border-radius:8px;flex:none;
+  display:grid;place-items:center;color:#cfe2fb;
+  background:linear-gradient(150deg,#22314a,#182234);
+  border:1px solid #33405c;box-shadow:0 0 0 1px rgba(91,164,245,.07) inset}
+h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.012em;
+  display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+h1 em{font-style:normal;font-size:12px;font-weight:400;color:var(--muted);
+  letter-spacing:.005em}
+.hstat{display:flex;align-items:center;gap:14px;font-size:11.5px;color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:7px;letter-spacing:.02em}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--good);flex:none;
+  box-shadow:0 0 0 0 rgba(76,175,125,.5);animation:pulse 2.6s var(--ease-out) infinite}
+.dot.bad{background:var(--blocked);animation:none}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(76,175,125,.45)}
+  70%{box-shadow:0 0 0 7px rgba(76,175,125,0)}
+  100%{box-shadow:0 0 0 0 rgba(76,175,125,0)}
+}
+#updated{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:11px}
+
+/* ─── offline banner ───────────────────────────────────────────────────── */
+#banner{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t) var(--ease-out),
+  margin var(--t) var(--ease-out)}
+#banner>div{overflow:hidden;min-height:0}
+#banner.on{grid-template-rows:1fr;margin-bottom:var(--gap)}
+#banner .inner{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:linear-gradient(90deg,rgba(224,92,92,.14),rgba(224,92,92,.05));
+  border:1px solid rgba(224,92,92,.42);border-radius:var(--r);color:#f6cccc;font-size:12.5px}
+
+/* ─── grid ─────────────────────────────────────────────────────────────── */
 .grid{display:grid;gap:var(--gap);margin-bottom:var(--gap)}
 .tiles{grid-template-columns:repeat(4,1fr)}
 .row2{grid-template-columns:40fr 35fr 25fr}
 .row3{grid-template-columns:55fr 45fr}
-@media(max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}
-  .row2,.row3{grid-template-columns:1fr}}
+@media(max-width:1240px){.row2,.row3{grid-template-columns:1fr}}
+@media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr)};body{padding:14px}}
 
-.card{background:var(--card);border:1px solid var(--border);
-  border-radius:var(--radius);padding:var(--pad);min-width:0}
-.card h2{font-size:13px;font-weight:600;margin:0 0 14px;letter-spacing:.2px}
+/* ─── card ─────────────────────────────────────────────────────────────── */
+.card{background:linear-gradient(180deg,var(--card-hi),var(--card));
+  border:1px solid var(--border);border-radius:var(--r);padding:var(--pad);
+  min-width:0;position:relative;
+  box-shadow:0 1px 0 rgba(255,255,255,.028) inset, 0 6px 18px -12px rgba(0,0,0,.7);
+  transition:border-color var(--t) var(--ease-out),transform var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease-out)}
+.card:hover{border-color:var(--border-hi)}
+.card h2{font-size:11px;font-weight:600;margin:0 0 15px;color:var(--ink-dim);
+  letter-spacing:.085em;text-transform:uppercase;display:flex;align-items:center;
+  gap:8px;justify-content:space-between}
+.card h2 .ct{font-family:var(--mono);font-size:10.5px;font-weight:500;
+  color:var(--muted);letter-spacing:0;background:var(--bg-lift);
+  border:1px solid var(--border);border-radius:99px;padding:1px 8px}
+.ico{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-.tile{display:flex;align-items:flex-start;justify-content:space-between}
-.tile .n{font-size:32px;font-weight:600;line-height:1.1;
-  font-variant-numeric:tabular-nums}
-.tile .l{font-size:12px;color:var(--muted);margin-top:4px}
-.tile .i{font-size:18px;opacity:.55}
+/* Entrance: staggered fade+lift. Animates FROM hidden TO visible rather than
+   starting at opacity:0, so the resting state is always visible -- if the
+   animation never runs (JS disabled, print, a screenshot tool freezing virtual
+   time) the content still shows. backwards fill applies the start frame only
+   during the delay. */
+.rise{animation:rise var(--t-slow) var(--ease-out) backwards;
+  animation-delay:calc(var(--i,0) * 45ms)}
+@keyframes rise{from{opacity:0;transform:translateY(9px)}}
 
-.chartbox{position:relative;height:280px}
+/* ─── stat tiles ───────────────────────────────────────────────────────── */
+.tile{padding:17px 18px;overflow:hidden}
+.tile::after{content:"";position:absolute;inset:0;border-radius:var(--r);
+  background:radial-gradient(320px 90px at 88% -30%,var(--tint,transparent),transparent 70%);
+  opacity:.5;pointer-events:none}
+.tile:hover{transform:translateY(-2px);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 14px 30px -18px rgba(0,0,0,.9)}
+.tile .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.tile .n{font:600 33px/1.05 var(--sans);letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:#fff}
+.tile .l{font-size:11px;color:var(--muted);margin-top:7px;letter-spacing:.055em;
+  text-transform:uppercase;font-weight:500}
+.tile .badge{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+  background:var(--bg-lift);border:1px solid var(--border);position:relative;z-index:1;
+  transition:transform var(--t) var(--spring),border-color var(--t) var(--ease-out)}
+.tile:hover .badge{transform:scale(1.07) rotate(-3deg);border-color:var(--border-hi)}
+.tile .badge .ico{width:15px;height:15px}
 
+/* ─── charts ───────────────────────────────────────────────────────────── */
+.chartbox{position:relative;height:272px}
+
+/* ─── tables ───────────────────────────────────────────────────────────── */
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px;
-  border-bottom:1px solid var(--border);white-space:nowrap}
-td{padding:7px 8px;border-bottom:1px solid rgba(42,45,58,.5);
-  vertical-align:top;word-break:break-word}
-tbody tr:nth-child(odd){background:rgba(255,255,255,.022)}
-.num{text-align:right;font-variant-numeric:tabular-nums}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:0 10px 9px;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+  font-size:10px;letter-spacing:.085em;text-transform:uppercase}
+td{padding:9px 10px;border-bottom:1px solid rgba(42,45,58,.42);vertical-align:middle}
+tbody tr{transition:background var(--t-fast) var(--ease-out)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.016)}
+tbody tr:hover{background:rgba(91,164,245,.07)}
+tbody tr:last-child td{border-bottom:0}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.mono{font-family:var(--mono);font-size:11.5px;letter-spacing:-.01em}
 .dim{color:var(--muted)}
-.empty{color:var(--muted);padding:22px 4px;text-align:center}
-.scroll{max-height:300px;overflow:auto}
+.scroll{max-height:290px;overflow:auto;margin:0 -6px;padding:0 6px}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:#2c3140;border-radius:99px;
+  border:2px solid var(--card)}
+.scroll::-webkit-scrollbar-track{background:transparent}
 
-.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;
-  border:1px solid var(--border);color:var(--muted);white-space:nowrap}
-.q{border-bottom:1px solid rgba(42,45,58,.6);padding:12px 0;display:flex;
-  gap:12px;align-items:flex-start}
-.q:last-child{border-bottom:0}
+/* count bar behind churn numbers -- magnitude without a second chart */
+.bar{position:relative;display:inline-block;min-width:26px;text-align:right}
+.bar::before{content:"";position:absolute;right:calc(100% + 8px);top:50%;
+  transform:translateY(-50%) scaleX(var(--f,0));transform-origin:right center;
+  width:52px;height:4px;border-radius:99px;background:var(--accent);opacity:.34;
+  transition:transform var(--t-slow) var(--ease-out)}
+
+/* ─── empty states ─────────────────────────────────────────────────────── */
+.empty{color:var(--muted);padding:34px 10px;text-align:center;font-size:12px}
+.empty .ico{width:22px;height:22px;opacity:.35;display:block;margin:0 auto 10px;
+  stroke-width:1.4}
+.empty b{display:block;color:var(--ink-dim);font-weight:500;margin-bottom:3px;font-size:12.5px}
+
+/* ─── skeletons ────────────────────────────────────────────────────────── */
+.sk{background:linear-gradient(90deg,#1e222e 25%,#262b3a 50%,#1e222e 75%);
+  background-size:220% 100%;animation:sheen 1.25s linear infinite;
+  border-radius:5px;height:11px;display:block}
+@keyframes sheen{to{background-position:-220% 0}}
+.sk-row{display:flex;gap:10px;align-items:center;padding:10px 10px}
+
+/* ─── promotion queue ──────────────────────────────────────────────────── */
+.q{padding:13px 12px;border-radius:var(--r-sm);display:flex;gap:12px;
+  align-items:flex-start;border:1px solid transparent;
+  transition:background var(--t) var(--ease-out),border-color var(--t) var(--ease-out)}
+.q:hover{background:rgba(255,255,255,.028);border-color:var(--border)}
+.q+.q{margin-top:2px}
 .q .body{flex:1;min-width:0}
-.q .nm{font-weight:500;margin-bottom:4px}
-.q .ev{color:var(--muted);font-size:11.5px}
-.q .meta{margin-top:5px;display:flex;gap:8px;align-items:center}
-button{background:#22283a;color:var(--ink);border:1px solid var(--border);
-  border-radius:6px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer;
-  white-space:nowrap}
-button:hover{background:#2b3247;border-color:#3a4056}
+.q .nm{font-weight:500;margin-bottom:5px;line-height:1.4;color:var(--ink)}
+.q .ev{color:var(--muted);font-size:11.5px;line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.q .meta{margin-top:8px;display:flex;gap:8px;align-items:center}
+.badge-lang{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;
+  border-radius:99px;font-size:10.5px;font-weight:500;font-family:var(--mono);
+  border:1px solid var(--border);color:var(--ink-dim);background:var(--bg-lift)}
+.badge-lang::before{content:"";width:5px;height:5px;border-radius:50%;
+  background:var(--lang,#7d8496)}
+.stamp{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
 
-#toast{position:fixed;right:20px;bottom:20px;background:var(--card);
-  border:1px solid var(--border);border-left:3px solid var(--good);
-  border-radius:var(--radius);padding:12px 16px;max-width:460px;
-  opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;
-  pointer-events:none;font-size:12px}
+/* ─── buttons ──────────────────────────────────────────────────────────── */
+button{font:500 12px var(--sans);cursor:pointer;border-radius:var(--r-sm);
+  display:inline-flex;align-items:center;gap:6px;padding:7px 11px;
+  min-height:32px;color:var(--ink-dim);background:var(--bg-lift);
+  border:1px solid var(--border);white-space:nowrap;
+  transition:background var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),transform var(--t-fast) var(--spring)}
+button:hover{background:#242a3b;color:#fff;border-color:var(--border-hi)}
+button:active{transform:scale(.965)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button .ico{width:13px;height:13px;transition:transform var(--t) var(--ease-out)}
+button:hover .ico{transform:translateX(2px)}
+
+/* ─── toast ────────────────────────────────────────────────────────────── */
+#toast{position:fixed;right:20px;bottom:20px;z-index:99;max-width:480px;
+  background:linear-gradient(180deg,#20263a,#191d29);
+  border:1px solid var(--border-hi);border-left:3px solid var(--good);
+  border-radius:var(--r);padding:13px 16px;font-size:12px;color:var(--ink-dim);
+  box-shadow:0 20px 42px -18px rgba(0,0,0,.95);
+  opacity:0;transform:translateY(12px) scale(.97);pointer-events:none;
+  transition:opacity var(--t) var(--ease-out),transform var(--t) var(--spring)}
 #toast.on{opacity:1;transform:none}
+#toast .hd{display:flex;align-items:center;gap:8px;color:var(--good);
+  font-weight:600;margin-bottom:7px;font-size:11px;letter-spacing:.07em;
+  text-transform:uppercase}
+#toast code{display:block;font-family:var(--mono);font-size:11.5px;color:#fff;
+  background:#11141d;border:1px solid var(--border);border-radius:5px;
+  padding:8px 10px;word-break:break-all}
+
+/* ─── accessibility ────────────────────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important}
+  .rise{opacity:1;transform:none}
+}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0}
 </style>
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-node"><circle cx="12" cy="12" r="3.2"/><circle cx="5" cy="5.5" r="2.1"/><circle cx="19" cy="5.5" r="2.1"/><circle cx="5" cy="18.5" r="2.1"/><circle cx="19" cy="18.5" r="2.1"/><path d="M6.6 7 9.7 9.9M17.4 7l-3.1 2.9M6.6 17l3.1-2.9M17.4 17l-3.1-2.9"/></g>
+  <g id="i-lock"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.2"/><path d="M8 10.5V7.4a4 4 0 0 1 8 0v3.1"/></g>
+  <g id="i-bolt"><path d="M13.2 2.5 4.8 13.4h6L10.8 21.5l8.4-10.9h-6z"/></g>
+  <g id="i-ban"><circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2l11.6 11.6"/></g>
+  <g id="i-chart"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/></g>
+  <g id="i-trend"><path d="M3 16.5l5.4-5.6 3.6 3.4L21 5.5"/><path d="M21 10.5v-5h-5"/></g>
+  <g id="i-file"><path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M13.5 3v5.5H19"/></g>
+  <g id="i-inbox"><path d="M3.5 13.5h4l1.6 2.6h5.8l1.6-2.6h4"/><path d="M6.2 4.5h11.6l3 9v5a2 2 0 0 1-2 2H5.2a2 2 0 0 1-2-2v-5z"/></g>
+  <g id="i-arrow"><path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5"/></g>
+  <g id="i-warn"><path d="M12 3.6 1.9 20.4h20.2z"/><path d="M12 9.6v4.6M12 17.2v.1"/></g>
+  <g id="i-check"><path d="M20 6.5 9.5 17 4 11.6"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="8.8"/><path d="M12 7v5.3l3.3 2"/></g>
+</defs></svg>
+
 <header>
-  <h1>Chronos <span>developer dashboard</span></h1>
-  <div id="updated">loading…</div>
+  <div class="brand">
+    <div class="mark"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="width:17px;height:17px"><use href="#i-clock"/></svg></div>
+    <h1>Chronos <em>developer dashboard</em></h1>
+  </div>
+  <div class="hstat">
+    <span class="live"><span class="dot" id="pulse"></span><span id="livetxt">live</span></span>
+    <span id="updated">—</span>
+  </div>
 </header>
 
-<div id="banner">⚠ Cannot reach Chronos server — showing last known data.</div>
+<div id="banner" role="status" aria-live="polite"><div><div class="inner">
+  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-warn"/></svg>
+  <span>Cannot reach the Chronos server — showing the last values received.</span>
+</div></div></div>
 
-<!-- ROW 1: stat tiles. A hero number, not a chart: one value, no comparison. -->
 <div class="grid tiles">
-  <div class="card tile"><div><div class="n" id="s-nodes">–</div>
-    <div class="l">Total Nodes</div></div><div class="i">○</div></div>
-  <div class="card tile"><div><div class="n" id="s-locks">–</div>
-    <div class="l">Active Locks</div></div><div class="i">🔒</div></div>
-  <div class="card tile"><div><div class="n" id="s-rules">–</div>
-    <div class="l">Rules</div></div><div class="i">⚡</div></div>
-  <div class="card tile"><div><div class="n" id="s-viol">–</div>
-    <div class="l">Violations Today</div></div><div class="i">⛔</div></div>
+  <div class="card tile rise" style="--i:0;--tint:rgba(91,164,245,.16)">
+    <div class="top"><div><div class="n" id="s-nodes">—</div><div class="l">Total Nodes</div></div>
+      <div class="badge" style="color:#7fb6f7"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-node"/></svg></div></div>
+  </div>
+  <div class="card tile rise" style="--i:1;--tint:rgba(76,175,125,.16)">
+    <div class="top"><div><div class="n" id="s-locks">—</div><div class="l">Active Locks</div></div>
+      <div class="badge" style="color:#6cc79a"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></div></div>
+  </div>
+  <div class="card tile rise" style="--i:2;--tint:rgba(224,163,60,.14)">
+    <div class="top"><div><div class="n" id="s-rules">—</div><div class="l">Rules</div></div>
+      <div class="badge" style="color:#e0a33c"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bolt"/></svg></div></div>
+  </div>
+  <div class="card tile rise" style="--i:3;--tint:rgba(224,92,92,.16)">
+    <div class="top"><div><div class="n" id="s-viol">—</div><div class="l">Violations Today</div></div>
+      <div class="badge" style="color:#e87c7c"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg></div></div>
+  </div>
 </div>
 
-<!-- ROW 2 -->
 <div class="grid row2">
-  <div class="card">
-    <h2>Rule Firings</h2>
-    <div class="chartbox"><canvas id="c-rules"></canvas></div>
-    <div id="rules-empty" class="empty" style="display:none">No rules have fired yet</div>
+  <div class="card rise" style="--i:4">
+    <h2><span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><use href="#i-chart"/></svg>Rule Firings</span><span class="ct" id="ct-rules">—</span></h2>
+    <div class="chartbox"><canvas id="c-rules" aria-label="Rule firings by rule"></canvas></div>
+    <div id="rules-empty" style="display:none">
+      <div class="empty"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg>
+        <b>No rules have fired</b>Enforcement runs will appear here.</div></div>
   </div>
-  <div class="card">
-    <h2>Violations Over Time</h2>
-    <div class="chartbox"><canvas id="c-time"></canvas></div>
+  <div class="card rise" style="--i:5">
+    <h2><span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><use href="#i-trend"/></svg>Violations Over Time</span><span class="ct">14d</span></h2>
+    <div class="chartbox"><canvas id="c-time" aria-label="Violations per day, last 14 days"></canvas></div>
   </div>
-  <div class="card">
-    <h2>Active Locks</h2>
+  <div class="card rise" style="--i:6">
+    <h2><span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><use href="#i-lock"/></svg>Active Locks</span><span class="ct" id="ct-locks">—</span></h2>
     <div class="scroll"><table id="t-locks">
-      <thead><tr><th>Node</th><th>Agent</th><th>Acquired</th></tr></thead>
+      <thead><tr><th>Node</th><th>Agent</th><th>Held</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<div class="grid row3">
+  <div class="card rise" style="--i:7">
+    <h2><span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><use href="#i-file"/></svg>File Churn</span><span class="ct" id="ct-churn">—</span></h2>
+    <div class="scroll"><table id="t-churn">
+      <thead><tr><th>Node</th><th class="num">Touches</th><th>Last</th><th>Agents</th></tr></thead>
       <tbody></tbody></table></div>
   </div>
-</div>
-
-<!-- ROW 3 -->
-<div class="grid row3">
-  <div class="card">
-    <h2>File Churn</h2>
-    <div class="scroll"><table id="t-churn">
-      <thead><tr><th>File</th><th class="num">Touches</th><th>Last Touched</th>
-        <th>Agents</th></tr></thead><tbody></tbody></table></div>
-  </div>
-  <div class="card">
-    <h2>Promotion Queue</h2>
+  <div class="card rise" style="--i:8">
+    <h2><span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><use href="#i-inbox"/></svg>Promotion Queue</span><span class="ct" id="ct-queue">—</span></h2>
     <div class="scroll" id="queue"></div>
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const API = (location.protocol === "file:") ? "http://127.0.0.1:8080" : "";
-const C = {ink:"#e8eaf0", muted:"#8b909e", grid:"#2a2d3a", card:"#1a1d27",
-           blocked:"#e05c5c", warned:"#e0a33c"};
-
-// Sequential blues, 10 steps #1a4a7a -> #5ba4f5. Applied darkest-to-highest-rank:
-// the darkest step is only 1.85:1 against the card surface, so mapping it to the
-// SHORTEST bar would make the low ranks nearly invisible.
+const API = location.protocol === "file:" ? "http://127.0.0.1:8080" : "";
+const C = {grid:"#242836", muted:"#8b909e", blocked:"#e05c5c", warned:"#e0a33c",
+           card:"#1a1d27", ink:"#e8eaf0"};
+// Sequential blues #1a4a7a -> #5ba4f5. Mapped lightest = highest rank: the
+// darkest step is only 1.85:1 on this surface and would bury short bars.
 const BLUES = ["#1a4a7a","#215488","#285e95","#3068a3","#3772b1",
                "#3e7cbe","#4586cc","#4d90da","#549ae7","#5ba4f5"];
+const LANG = {python:"#4b8bbe", typescript:"#3178c6", javascript:"#e0a33c",
+              go:"#63d0e0", rust:"#e07a5c", java:"#c76b4a", ruby:"#d05c5c"};
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 Chart.defaults.animation = false;
 Chart.defaults.color = C.muted;
-Chart.defaults.font.family = "system-ui,-apple-system,sans-serif";
+Chart.defaults.font.family = "'Fira Sans',system-ui,sans-serif";
 Chart.defaults.font.size = 11;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g,
   m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-const trunc = (s, n) => (s = String(s ?? ""), s.length > n ? s.slice(0, n - 1) + "…" : s);
+const trunc = (s,n) => (s = String(s ?? ""), s.length > n ? s.slice(0,n-1)+"…" : s);
+const svg = id => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#${id}"/></svg>`;
 
 function ago(ts){
-  if(!ts) return "–";
+  if(!ts) return "—";
   const t = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts + "Z");
   if(isNaN(t)) return esc(ts);
-  const s = Math.max(0, (Date.now() - t) / 1000);
-  if(s < 60) return Math.floor(s) + "s ago";
-  if(s < 3600) return Math.floor(s / 60) + "m ago";
-  if(s < 86400) return Math.floor(s / 3600) + "h ago";
-  return Math.floor(s / 86400) + "d ago";
+  const s = Math.max(0,(Date.now()-t)/1000);
+  if(s < 60) return Math.floor(s)+"s";
+  if(s < 3600) return Math.floor(s/60)+"m";
+  if(s < 86400) return Math.floor(s/3600)+"h";
+  return Math.floor(s/86400)+"d";
 }
-const tail3 = p => { const parts = String(p ?? "").split(/[\\/]/).filter(Boolean);
-  return parts.length > 3 ? "…/" + parts.slice(-3).join("/") : (p || "–"); };
+const tail3 = p => { const a = String(p ?? "").split(/[\\/]/).filter(Boolean);
+  return a.length > 3 ? "…/"+a.slice(-3).join("/") : (p || "—"); };
 
-let charts = {};
-async function get(path){
-  const r = await fetch(API + path, {cache:"no-store"});
-  if(!r.ok) throw new Error(path + " -> " + r.status);
+/* count-up: motion that means "this value changed", not decoration */
+function setNum(el, v){
+  const from = Number(el.dataset.v || 0), to = Number(v) || 0;
+  el.dataset.v = to;
+  if(RM || from === to){ el.textContent = to.toLocaleString(); return; }
+  const t0 = performance.now(), d = 620;
+  (function step(now){
+    const p = Math.min(1,(now-t0)/d), e = 1-Math.pow(1-p,3);   // ease-out cubic
+    el.textContent = Math.round(from+(to-from)*e).toLocaleString();
+    if(p < 1) requestAnimationFrame(step);
+  })(performance.now());
+}
+
+let charts = {}, first = true;
+const get = async p => {
+  const r = await fetch(API+p,{cache:"no-store"});
+  if(!r.ok) throw new Error(p+" -> "+r.status);
   return r.json();
+};
+
+function skeleton(sel, rows){
+  const w = ["58%","36%","72%","44%","64%"];
+  $(sel).innerHTML = Array.from({length:rows},(_,i)=>
+    `<div class="sk-row"><span class="sk" style="width:${w[i%5]}"></span></div>`).join("");
 }
 
 function drawRules(rows){
-  const top = rows.filter(r => r.fired_count > 0).slice(0, 10);
-  $("#rules-empty").style.display = top.length ? "none" : "block";
-  $("#c-rules").style.display = top.length ? "" : "none";
+  const top = rows.filter(r => r.fired_count > 0).slice(0,10);
+  $("#ct-rules").textContent = top.length ? top.length : "0";
+  $("#rules-empty").style.display = top.length ? "none" : "";
+  $("#c-rules").parentElement.style.display = top.length ? "" : "none";
   if(!top.length){ charts.rules?.destroy(); charts.rules = null; return; }
-  // Spread the 10-step ramp across however many bars exist, so the gradient is
-  // visible at n=4 as well as n=10. Rank 0 (most firings) takes the lightest
-  // step: the darkest is only 1.85:1 on this surface and would bury short bars.
   const n = top.length;
-  const colors = top.map((_, i) =>
-    BLUES[Math.round((BLUES.length - 1) * (1 - (n > 1 ? i / (n - 1) : 0)))]);
-  const cfg = {
-    type: "bar",
-    data: {labels: top.map(r => trunc(r.name, 24)),
-           datasets: [{data: top.map(r => r.fired_count), backgroundColor: colors,
-                       borderWidth: 0, borderRadius: 4, barThickness: 14}]},
-    options: {indexAxis: "y", maintainAspectRatio: false, animation: false,
-      // single series -> no legend; the panel title names it
-      plugins: {legend: {display: false}, tooltip: {callbacks: {
-        title: it => top[it[0].dataIndex].name,
-        label: it => `${it.raw} firings · ${top[it.dataIndex].language || "—"}`}}},
-      scales: {x: {beginAtZero: true, grid: {color: C.grid, drawBorder: false},
-                   ticks: {precision: 0}, border: {display: false}},
-               y: {grid: {display: false}, border: {display: false}}}}
-  };
-  charts.rules ? (charts.rules.destroy(), charts.rules = new Chart($("#c-rules"), cfg))
-               : charts.rules = new Chart($("#c-rules"), cfg);
+  const colors = top.map((_,i) =>
+    BLUES[Math.round((BLUES.length-1)*(1-(n>1 ? i/(n-1) : 0)))]);
+  charts.rules?.destroy();
+  charts.rules = new Chart($("#c-rules"), {
+    type:"bar",
+    data:{labels:top.map(r => trunc(r.name,26)),
+      datasets:[{data:top.map(r => r.fired_count), backgroundColor:colors,
+        borderWidth:0, borderRadius:4, barThickness:13,
+        hoverBackgroundColor:"#7fbcff"}]},
+    options:{indexAxis:"y", maintainAspectRatio:false, animation:false,
+      layout:{padding:{right:6}},
+      plugins:{legend:{display:false},                 // single series
+        tooltip:{backgroundColor:"#11141d", borderColor:"#363b4d", borderWidth:1,
+          padding:11, titleColor:"#fff", bodyColor:"#b6bccb", displayColors:false,
+          titleFont:{size:12,weight:"600"}, bodyFont:{size:11.5},
+          callbacks:{title:it => top[it[0].dataIndex].name,
+            label:it => `${it.raw} firing${it.raw===1?"":"s"} · ${top[it.dataIndex].language||"—"}`}}},
+      scales:{x:{beginAtZero:true, grid:{color:C.grid, drawTicks:false},
+          border:{display:false}, ticks:{precision:0, padding:6}},
+        y:{grid:{display:false}, border:{display:false},
+          ticks:{padding:4, font:{family:"'Fira Sans',sans-serif", size:11}}}}}
+  });
 }
 
 function drawTimeline(rows){
-  const cfg = {
-    type: "line",
-    data: {labels: rows.map(r => r.date.slice(5)),
-      datasets: [
-        {label: "blocked", data: rows.map(r => r.blocked), borderColor: C.blocked,
-         backgroundColor: C.blocked, borderWidth: 2, pointRadius: 0,
-         pointHoverRadius: 4, tension: 0},
-        {label: "warned", data: rows.map(r => r.warned), borderColor: C.warned,
-         backgroundColor: C.warned, borderWidth: 2, pointRadius: 0,
-         pointHoverRadius: 4, tension: 0}]},
-    options: {maintainAspectRatio: false, animation: false,
-      interaction: {mode: "index", intersect: false},   // crosshair: both series
-      plugins: {legend: {display: true, position: "top", align: "start",
-                  labels: {boxWidth: 8, boxHeight: 8, usePointStyle: true,
-                           pointStyle: "circle", color: C.muted}},
-                tooltip: {mode: "index", intersect: false}},
-      scales: {x: {grid: {color: C.grid, drawBorder: false}, border: {display: false}},
-               y: {beginAtZero: true, grid: {color: C.grid, drawBorder: false},
-                   ticks: {precision: 0}, border: {display: false}}}}
+  const mk = (canvas, key, color) => {
+    const g = canvas.getContext("2d").createLinearGradient(0,0,0,250);
+    g.addColorStop(0, color+"3a"); g.addColorStop(1, color+"00");
+    return g;
   };
-  charts.time ? (charts.time.destroy(), charts.time = new Chart($("#c-time"), cfg))
-              : charts.time = new Chart($("#c-time"), cfg);
+  const cv = $("#c-time");
+  charts.time?.destroy();
+  charts.time = new Chart(cv,{
+    type:"line",
+    data:{labels:rows.map(r => r.date.slice(5).replace("-","/")),
+      datasets:[
+        {label:"blocked", data:rows.map(r => r.blocked), borderColor:C.blocked,
+         backgroundColor:mk(cv,"blocked",C.blocked), borderWidth:2, fill:true,
+         pointRadius:0, pointHoverRadius:5, pointHoverBorderWidth:2,
+         pointHoverBackgroundColor:C.blocked, pointHoverBorderColor:C.card, tension:0},
+        {label:"warned", data:rows.map(r => r.warned), borderColor:C.warned,
+         backgroundColor:mk(cv,"warned",C.warned), borderWidth:2, fill:true,
+         pointRadius:0, pointHoverRadius:5, pointHoverBorderWidth:2,
+         pointHoverBackgroundColor:C.warned, pointHoverBorderColor:C.card, tension:0}]},
+    options:{maintainAspectRatio:false, animation:false,
+      interaction:{mode:"index", intersect:false},     // crosshair over both series
+      plugins:{legend:{display:true, position:"top", align:"start",
+          labels:{boxWidth:7, boxHeight:7, usePointStyle:true, pointStyle:"circle",
+            padding:15, color:C.muted, font:{size:11}}},
+        tooltip:{backgroundColor:"#11141d", borderColor:"#363b4d", borderWidth:1,
+          padding:11, titleColor:"#fff", bodyColor:"#b6bccb", usePointStyle:true,
+          titleFont:{size:12,weight:"600"}, bodyFont:{size:11.5}}},
+      scales:{x:{grid:{color:C.grid, drawTicks:false}, border:{display:false},
+          ticks:{maxRotation:0, autoSkipPadding:14, padding:7,
+            font:{family:"'Fira Code',monospace", size:10}}},
+        y:{beginAtZero:true, grid:{color:C.grid, drawTicks:false},
+          border:{display:false}, ticks:{precision:0, padding:7}}}}
+  });
 }
 
 function drawLocks(rows){
+  $("#ct-locks").textContent = rows.length;
   const tb = $("#t-locks tbody");
   if(!rows.length){
-    tb.innerHTML = `<tr><td colspan="3" class="empty">No active locks</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="3"><div class="empty">${svg("i-lock")}
+      <b>No active locks</b>Agents aren't holding any node.</div></td></tr>`;
     return;
   }
   tb.innerHTML = rows.map(r => `<tr>
-    <td class="mono" title="${esc(r.node_id)}">${esc(trunc(r.node_id, 28))}</td>
+    <td class="mono" title="${esc(r.node_id)}">${esc(trunc(r.node_id,24))}</td>
     <td>${esc(r.agent_id)}</td>
-    <td class="dim">${esc(ago(r.acquired_at))}</td></tr>`).join("");
+    <td class="dim mono" title="${esc(r.intent||"")}">${esc(ago(r.acquired_at))}</td></tr>`).join("");
 }
 
 function drawChurn(rows){
+  $("#ct-churn").textContent = rows.length;
   const tb = $("#t-churn tbody");
   if(!rows.length){
-    tb.innerHTML = `<tr><td colspan="4" class="empty">No provenance events yet</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="4"><div class="empty">${svg("i-file")}
+      <b>No provenance events</b>Agent activity will show up here.</div></td></tr>`;
     return;
   }
+  const max = Math.max(...rows.map(r => r.touch_count), 1);
   tb.innerHTML = rows.map(r => `<tr>
     <td class="mono" title="${esc(r.file_path)}">${esc(tail3(r.file_path))}</td>
-    <td class="num">${r.touch_count}</td>
-    <td class="dim">${esc(ago(r.last_touched))}</td>
-    <td class="dim">${esc((r.agents || []).join(", ")) || "–"}</td></tr>`).join("");
+    <td class="num"><span class="bar" style="--f:${(r.touch_count/max).toFixed(3)}">${r.touch_count}</span></td>
+    <td class="dim mono">${esc(ago(r.last_touched))}</td>
+    <td class="dim">${esc((r.agents||[]).join(", ")) || "—"}</td></tr>`).join("");
 }
 
 function drawQueue(rows){
+  $("#ct-queue").textContent = rows.length;
   const box = $("#queue");
   if(!rows.length){
-    box.innerHTML = `<div class="empty">Nothing awaiting promotion</div>`;
+    box.innerHTML = `<div class="empty">${svg("i-check")}
+      <b>Queue is clear</b>Nothing is awaiting promotion.</div>`;
     return;
   }
-  box.innerHTML = rows.map(r => `<div class="q"><div class="body">
-      <div class="nm">${esc(trunc(r.name, 70))}</div>
-      <div class="ev">${esc(r.evidence_preview) || "<span class='dim'>no evidence recorded</span>"}</div>
-      <div class="meta"><span class="badge">${esc(r.language || "—")}</span>
-        <span class="dim">${esc(String(r.created_at || "").slice(0, 10))}</span></div>
-    </div>
-    <button data-id="${esc(r.rule_id)}">Promote →</button></div>`).join("");
-  box.querySelectorAll("button").forEach(b =>
-    b.onclick = () => promote(b.dataset.id));
+  box.innerHTML = rows.map(r => {
+    const lang = String(r.language||"").toLowerCase();
+    return `<div class="q"><div class="body">
+      <div class="nm">${esc(trunc(r.name,74))}</div>
+      <div class="ev">${esc(r.evidence_preview) || "no evidence recorded"}</div>
+      <div class="meta">
+        <span class="badge-lang" style="--lang:${LANG[lang]||"#7d8496"}">${esc(r.language||"—")}</span>
+        <span class="stamp">${esc(String(r.created_at||"").slice(0,10))}</span>
+      </div></div>
+      <button data-id="${esc(r.rule_id)}" aria-label="Copy promote command for ${esc(r.rule_id)}">
+        Promote ${svg("i-arrow")}</button></div>`;
+  }).join("");
+  box.querySelectorAll("button").forEach(b => b.onclick = () => promote(b.dataset.id));
 }
 
 function promote(id){
   const cmd = `python -m chronos promote-rule ${id}`;
-  navigator.clipboard?.writeText(cmd).catch(() => {});
-  toast(`Copied to clipboard — Run: <span class="mono">${esc(cmd)}</span>`);
+  navigator.clipboard?.writeText(cmd).catch(()=>{});
+  toast(`<div class="hd">${svg("i-check")}Copied to clipboard</div><code>${esc(cmd)}</code>`);
 }
 
-let toastTimer;
+let tt;
 function toast(html){
   const t = $("#toast");
-  t.innerHTML = html;
-  t.classList.add("on");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("on"), 4200);
+  t.innerHTML = html; t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 4600);
 }
 
 async function refresh(){
+  if(first){ skeleton("#queue",4); }
   try{
-    const [stats, rules, locks, churn, timeline, queue] = await Promise.all(
-      ["/api/stats","/api/rules","/api/locks","/api/churn","/api/timeline","/api/queue"]
-        .map(get));
-    $("#s-nodes").textContent = (stats.total_nodes ?? 0).toLocaleString();
-    $("#s-locks").textContent = stats.active_locks ?? 0;
-    $("#s-rules").textContent = stats.rules_total ?? 0;
-    $("#s-viol").textContent  = stats.violations_today ?? 0;
+    const [stats,rules,locks,churn,timeline,queue] = await Promise.all(
+      ["/api/stats","/api/rules","/api/locks","/api/churn","/api/timeline","/api/queue"].map(get));
+    setNum($("#s-nodes"), stats.total_nodes);
+    setNum($("#s-locks"), stats.active_locks);
+    setNum($("#s-rules"), stats.rules_total);
+    setNum($("#s-viol"),  stats.violations_today);
     drawRules(rules); drawTimeline(timeline);
     drawLocks(locks); drawChurn(churn); drawQueue(queue);
     $("#banner").classList.remove("on");
-    $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
+    $("#pulse").classList.remove("bad");
+    $("#livetxt").textContent = "live";
+    $("#updated").textContent = new Date().toLocaleTimeString([], {hour12:false});
+    first = false;
   }catch(e){
     $("#banner").classList.add("on");
-    $("#updated").textContent = "last attempt failed — " + new Date().toLocaleTimeString();
+    $("#pulse").classList.add("bad");
+    $("#livetxt").textContent = "offline";
     console.error(e);
   }
 }
-
 refresh();
 setInterval(refresh, 30000);
 </script>

@@ -349,6 +349,17 @@ def _line_of(result) -> str:
     return ""
 
 
+def do_dashboard(args):
+    """Serve the read-only developer dashboard.
+
+    Deliberately NOT async: uvicorn.run() starts its own event loop, and calling
+    it from inside asyncio.run() raises "cannot be called from a running event
+    loop". main() dispatches this one synchronously.
+    """
+    from .dashboard_server import serve
+    serve(host=args.host, port=args.port)
+
+
 async def do_doctor(args):
     from .indexer import toolchain_report
     t = toolchain_report()
@@ -436,6 +447,9 @@ def main():
     sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
+    dash = sub.add_parser("dashboard", help="serve the developer dashboard")
+    dash.add_argument("--port", type=int, default=8080)
+    dash.add_argument("--host", default="127.0.0.1")
     ini = sub.add_parser("init", help="set Chronos up in a repo (dirs, config, MCP, hooks)")
     # --repo is also a global flag, but `chronos init --repo X` is the natural
     # order (and what the generated git hooks use), so accept it here too.
@@ -458,9 +472,14 @@ def main():
         args.repo = args.repo_sub
     fn = {"index": do_index, "sync": do_sync, "watch": do_watch,
           "health": do_health, "doctor": do_doctor, "gc": do_gc,
-          "enforce": do_enforce, "init": do_init}[args.cmd]
+          "enforce": do_enforce, "init": do_init,
+          "dashboard": do_dashboard}[args.cmd]
     try:
-        asyncio.run(fn(args))
+        # dashboard runs its own loop (uvicorn); everything else is a coroutine
+        if args.cmd == "dashboard":
+            fn(args)
+        else:
+            asyncio.run(fn(args))
     except KeyboardInterrupt:
         pass
 

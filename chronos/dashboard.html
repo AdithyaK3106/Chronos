@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en" data-palette="#e05c5c,#e0a33c">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chronos Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a;
+  --ink:#e8eaf0; --muted:#8b909e;
+  --blocked:#e05c5c; --warned:#e0a33c;
+  --good:#4caf7d; --warn:#e0a33c; --block:#e05c5c;
+  --radius:8px; --gap:16px; --pad:20px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:var(--gap); background:var(--bg); color:var(--ink);
+  font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+header{display:flex;align-items:baseline;justify-content:space-between;
+  margin-bottom:var(--gap);gap:var(--gap);flex-wrap:wrap}
+h1{font-size:18px;font-weight:600;margin:0;letter-spacing:.2px}
+h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+#updated{color:var(--muted);font-size:12px}
+#banner{display:none;background:#3a1d22;border:1px solid var(--blocked);
+  color:#f3c2c2;padding:10px 14px;border-radius:var(--radius);margin-bottom:var(--gap)}
+#banner.on{display:block}
+
+.grid{display:grid;gap:var(--gap);margin-bottom:var(--gap)}
+.tiles{grid-template-columns:repeat(4,1fr)}
+.row2{grid-template-columns:40fr 35fr 25fr}
+.row3{grid-template-columns:55fr 45fr}
+@media(max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}
+  .row2,.row3{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:var(--pad);min-width:0}
+.card h2{font-size:13px;font-weight:600;margin:0 0 14px;letter-spacing:.2px}
+
+.tile{display:flex;align-items:flex-start;justify-content:space-between}
+.tile .n{font-size:32px;font-weight:600;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.tile .l{font-size:12px;color:var(--muted);margin-top:4px}
+.tile .i{font-size:18px;opacity:.55}
+
+.chartbox{position:relative;height:280px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid rgba(42,45,58,.5);
+  vertical-align:top;word-break:break-word}
+tbody tr:nth-child(odd){background:rgba(255,255,255,.022)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+.dim{color:var(--muted)}
+.empty{color:var(--muted);padding:22px 4px;text-align:center}
+.scroll{max-height:300px;overflow:auto}
+
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;
+  border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.q{border-bottom:1px solid rgba(42,45,58,.6);padding:12px 0;display:flex;
+  gap:12px;align-items:flex-start}
+.q:last-child{border-bottom:0}
+.q .body{flex:1;min-width:0}
+.q .nm{font-weight:500;margin-bottom:4px}
+.q .ev{color:var(--muted);font-size:11.5px}
+.q .meta{margin-top:5px;display:flex;gap:8px;align-items:center}
+button{background:#22283a;color:var(--ink);border:1px solid var(--border);
+  border-radius:6px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer;
+  white-space:nowrap}
+button:hover{background:#2b3247;border-color:#3a4056}
+
+#toast{position:fixed;right:20px;bottom:20px;background:var(--card);
+  border:1px solid var(--border);border-left:3px solid var(--good);
+  border-radius:var(--radius);padding:12px 16px;max-width:460px;
+  opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;
+  pointer-events:none;font-size:12px}
+#toast.on{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Chronos <span>developer dashboard</span></h1>
+  <div id="updated">loading…</div>
+</header>
+
+<div id="banner">⚠ Cannot reach Chronos server — showing last known data.</div>
+
+<!-- ROW 1: stat tiles. A hero number, not a chart: one value, no comparison. -->
+<div class="grid tiles">
+  <div class="card tile"><div><div class="n" id="s-nodes">–</div>
+    <div class="l">Total Nodes</div></div><div class="i">○</div></div>
+  <div class="card tile"><div><div class="n" id="s-locks">–</div>
+    <div class="l">Active Locks</div></div><div class="i">🔒</div></div>
+  <div class="card tile"><div><div class="n" id="s-rules">–</div>
+    <div class="l">Rules</div></div><div class="i">⚡</div></div>
+  <div class="card tile"><div><div class="n" id="s-viol">–</div>
+    <div class="l">Violations Today</div></div><div class="i">⛔</div></div>
+</div>
+
+<!-- ROW 2 -->
+<div class="grid row2">
+  <div class="card">
+    <h2>Rule Firings</h2>
+    <div class="chartbox"><canvas id="c-rules"></canvas></div>
+    <div id="rules-empty" class="empty" style="display:none">No rules have fired yet</div>
+  </div>
+  <div class="card">
+    <h2>Violations Over Time</h2>
+    <div class="chartbox"><canvas id="c-time"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Active Locks</h2>
+    <div class="scroll"><table id="t-locks">
+      <thead><tr><th>Node</th><th>Agent</th><th>Acquired</th></tr></thead>
+      <tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- ROW 3 -->
+<div class="grid row3">
+  <div class="card">
+    <h2>File Churn</h2>
+    <div class="scroll"><table id="t-churn">
+      <thead><tr><th>File</th><th class="num">Touches</th><th>Last Touched</th>
+        <th>Agents</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Promotion Queue</h2>
+    <div class="scroll" id="queue"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = (location.protocol === "file:") ? "http://127.0.0.1:8080" : "";
+const C = {ink:"#e8eaf0", muted:"#8b909e", grid:"#2a2d3a", card:"#1a1d27",
+           blocked:"#e05c5c", warned:"#e0a33c"};
+
+// Sequential blues, 10 steps #1a4a7a -> #5ba4f5. Applied darkest-to-highest-rank:
+// the darkest step is only 1.85:1 against the card surface, so mapping it to the
+// SHORTEST bar would make the low ranks nearly invisible.
+const BLUES = ["#1a4a7a","#215488","#285e95","#3068a3","#3772b1",
+               "#3e7cbe","#4586cc","#4d90da","#549ae7","#5ba4f5"];
+
+Chart.defaults.animation = false;
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "system-ui,-apple-system,sans-serif";
+Chart.defaults.font.size = 11;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+  m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const trunc = (s, n) => (s = String(s ?? ""), s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+function ago(ts){
+  if(!ts) return "–";
+  const t = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts + "Z");
+  if(isNaN(t)) return esc(ts);
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if(s < 60) return Math.floor(s) + "s ago";
+  if(s < 3600) return Math.floor(s / 60) + "m ago";
+  if(s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+const tail3 = p => { const parts = String(p ?? "").split(/[\\/]/).filter(Boolean);
+  return parts.length > 3 ? "…/" + parts.slice(-3).join("/") : (p || "–"); };
+
+let charts = {};
+async function get(path){
+  const r = await fetch(API + path, {cache:"no-store"});
+  if(!r.ok) throw new Error(path + " -> " + r.status);
+  return r.json();
+}
+
+function drawRules(rows){
+  const top = rows.filter(r => r.fired_count > 0).slice(0, 10);
+  $("#rules-empty").style.display = top.length ? "none" : "block";
+  $("#c-rules").style.display = top.length ? "" : "none";
+  if(!top.length){ charts.rules?.destroy(); charts.rules = null; return; }
+  // Spread the 10-step ramp across however many bars exist, so the gradient is
+  // visible at n=4 as well as n=10. Rank 0 (most firings) takes the lightest
+  // step: the darkest is only 1.85:1 on this surface and would bury short bars.
+  const n = top.length;
+  const colors = top.map((_, i) =>
+    BLUES[Math.round((BLUES.length - 1) * (1 - (n > 1 ? i / (n - 1) : 0)))]);
+  const cfg = {
+    type: "bar",
+    data: {labels: top.map(r => trunc(r.name, 24)),
+           datasets: [{data: top.map(r => r.fired_count), backgroundColor: colors,
+                       borderWidth: 0, borderRadius: 4, barThickness: 14}]},
+    options: {indexAxis: "y", maintainAspectRatio: false, animation: false,
+      // single series -> no legend; the panel title names it
+      plugins: {legend: {display: false}, tooltip: {callbacks: {
+        title: it => top[it[0].dataIndex].name,
+        label: it => `${it.raw} firings · ${top[it.dataIndex].language || "—"}`}}},
+      scales: {x: {beginAtZero: true, grid: {color: C.grid, drawBorder: false},
+                   ticks: {precision: 0}, border: {display: false}},
+               y: {grid: {display: false}, border: {display: false}}}}
+  };
+  charts.rules ? (charts.rules.destroy(), charts.rules = new Chart($("#c-rules"), cfg))
+               : charts.rules = new Chart($("#c-rules"), cfg);
+}
+
+function drawTimeline(rows){
+  const cfg = {
+    type: "line",
+    data: {labels: rows.map(r => r.date.slice(5)),
+      datasets: [
+        {label: "blocked", data: rows.map(r => r.blocked), borderColor: C.blocked,
+         backgroundColor: C.blocked, borderWidth: 2, pointRadius: 0,
+         pointHoverRadius: 4, tension: 0},
+        {label: "warned", data: rows.map(r => r.warned), borderColor: C.warned,
+         backgroundColor: C.warned, borderWidth: 2, pointRadius: 0,
+         pointHoverRadius: 4, tension: 0}]},
+    options: {maintainAspectRatio: false, animation: false,
+      interaction: {mode: "index", intersect: false},   // crosshair: both series
+      plugins: {legend: {display: true, position: "top", align: "start",
+                  labels: {boxWidth: 8, boxHeight: 8, usePointStyle: true,
+                           pointStyle: "circle", color: C.muted}},
+                tooltip: {mode: "index", intersect: false}},
+      scales: {x: {grid: {color: C.grid, drawBorder: false}, border: {display: false}},
+               y: {beginAtZero: true, grid: {color: C.grid, drawBorder: false},
+                   ticks: {precision: 0}, border: {display: false}}}}
+  };
+  charts.time ? (charts.time.destroy(), charts.time = new Chart($("#c-time"), cfg))
+              : charts.time = new Chart($("#c-time"), cfg);
+}
+
+function drawLocks(rows){
+  const tb = $("#t-locks tbody");
+  if(!rows.length){
+    tb.innerHTML = `<tr><td colspan="3" class="empty">No active locks</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td class="mono" title="${esc(r.node_id)}">${esc(trunc(r.node_id, 28))}</td>
+    <td>${esc(r.agent_id)}</td>
+    <td class="dim">${esc(ago(r.acquired_at))}</td></tr>`).join("");
+}
+
+function drawChurn(rows){
+  const tb = $("#t-churn tbody");
+  if(!rows.length){
+    tb.innerHTML = `<tr><td colspan="4" class="empty">No provenance events yet</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td class="mono" title="${esc(r.file_path)}">${esc(tail3(r.file_path))}</td>
+    <td class="num">${r.touch_count}</td>
+    <td class="dim">${esc(ago(r.last_touched))}</td>
+    <td class="dim">${esc((r.agents || []).join(", ")) || "–"}</td></tr>`).join("");
+}
+
+function drawQueue(rows){
+  const box = $("#queue");
+  if(!rows.length){
+    box.innerHTML = `<div class="empty">Nothing awaiting promotion</div>`;
+    return;
+  }
+  box.innerHTML = rows.map(r => `<div class="q"><div class="body">
+      <div class="nm">${esc(trunc(r.name, 70))}</div>
+      <div class="ev">${esc(r.evidence_preview) || "<span class='dim'>no evidence recorded</span>"}</div>
+      <div class="meta"><span class="badge">${esc(r.language || "—")}</span>
+        <span class="dim">${esc(String(r.created_at || "").slice(0, 10))}</span></div>
+    </div>
+    <button data-id="${esc(r.rule_id)}">Promote →</button></div>`).join("");
+  box.querySelectorAll("button").forEach(b =>
+    b.onclick = () => promote(b.dataset.id));
+}
+
+function promote(id){
+  const cmd = `python -m chronos promote-rule ${id}`;
+  navigator.clipboard?.writeText(cmd).catch(() => {});
+  toast(`Copied to clipboard — Run: <span class="mono">${esc(cmd)}</span>`);
+}
+
+let toastTimer;
+function toast(html){
+  const t = $("#toast");
+  t.innerHTML = html;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 4200);
+}
+
+async function refresh(){
+  try{
+    const [stats, rules, locks, churn, timeline, queue] = await Promise.all(
+      ["/api/stats","/api/rules","/api/locks","/api/churn","/api/timeline","/api/queue"]
+        .map(get));
+    $("#s-nodes").textContent = (stats.total_nodes ?? 0).toLocaleString();
+    $("#s-locks").textContent = stats.active_locks ?? 0;
+    $("#s-rules").textContent = stats.rules_total ?? 0;
+    $("#s-viol").textContent  = stats.violations_today ?? 0;
+    drawRules(rules); drawTimeline(timeline);
+    drawLocks(locks); drawChurn(churn); drawQueue(queue);
+    $("#banner").classList.remove("on");
+    $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
+  }catch(e){
+    $("#banner").classList.add("on");
+    $("#updated").textContent = "last attempt failed — " + new Date().toLocaleTimeString();
+    console.error(e);
+  }
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

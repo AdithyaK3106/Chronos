@@ -11,9 +11,14 @@ dependencies = [
 
 [project.scripts]
 chronos = "chronos.cli:main"
+# The entry point. One server, every tool from all four wedges.
 chronos-mcp = "chronos.server:main"
-chronos-ledger-mcp = "chronos.wedge3_mcp:main"
-chronos-playbook-mcp = "chronos.wedge2_mcp:main"
+# Deprecated aliases -- all start the same unified server, with a notice on
+# stderr. Kept so existing agent configs do not break on upgrade.
+chronos-graph-mcp = "chronos.legacy_entry:graph"
+chronos-ledger-mcp = "chronos.legacy_entry:ledger"
+chronos-playbook-mcp = "chronos.legacy_entry:playbook"
+chronos-enforce-mcp = "chronos.legacy_entry:enforce"
 
 [build-system]
 requires = ["hatchling"]

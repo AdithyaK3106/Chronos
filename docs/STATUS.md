@@ -1,12 +1,14 @@
 # Chronos — Status
 
 **Updated:** 2026-08-13
-**Scope:** Wedges 1 (Bi-Temporal AST Graph), 2 (Policy Playbook), and 3 (Intent &
-Provenance Ledger). Wedge 4 not started.
+**Scope:** All four wedges — 1 (Bi-Temporal AST Graph), 2 (Policy Playbook),
+3 (Intent & Provenance Ledger), 4 (CI Enforcement).
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
-against four real third-party repos. Wedge 2 is **feature-complete but
-mock-verified only** — it has never made a call to a running Packmind or a real
-LLM, and should not be demoed as working until it has.
+against four real third-party repos. Wedge 4 is **complete and verified against
+the real ast-grep and OPA binaries**, though its CI workflow has never run on
+GitHub Actions. Wedge 2 is **feature-complete but mock-verified only** — it has
+never made a call to a running Packmind or a real LLM, and should not be demoed
+as working until it has.
 
 ---
 
@@ -176,6 +178,145 @@ Clearing this needs Docker Desktop (admin/UAC) and one LLM key; the procedure is
 
 ---
 
+## Wedge 4 — Executable Policy Governance (CI Enforcement)
+
+Closes the loop: a Wedge 2 playbook rule becomes an ast-grep pattern, OPA decides
+block vs warn, and blocks are stamped into Wedge 3's ledger. Unlike Wedge 2, both
+external tools were **installed and exercised on this machine** before the code
+was written, and the suite's final test runs against them for real.
+
+| Capability | Status | Evidence | Verified against |
+|---|---|---|---|
+| Plain-English rule → ast-grep YAML | ✅ | Fenced YAML parsed, written to `.chronos/rules/<id>.yml`. | stub LLM |
+| NOT_AUTOMATABLE path | ✅ | "use clear variable names" → no pattern, reason retained. | stub LLM |
+| CHECK A rejects invalid YAML | ✅ | ast-grep exit 8 → `syntax_valid: false`, CHECK B skipped. | **real exit codes** |
+| CHECK B rejects a rule that misses its own example | ✅ | 0 matches on the positive snippet → `passed: false`. | stub scan |
+| False-positive risk flagged | ✅ | Rule firing on the negative snippet → flagged, still stored. | stub scan |
+| Block requires promotion **and** graph confirmation | ✅ | blocking + superseded → `block`; blocking + not superseded → `warn`. | **real OPA** |
+| Warn-only never blocks | ✅ | Graph confirms deprecation, verdict still `warn`. | real OPA |
+| Blocks stamped into Wedge 3 | ✅ | `provenance_events` row: action `blocked_by_ci`, agent, session, rule id. | real SQLite |
+| Warns are never stamped | ✅ | Ledger count unchanged after a warn verdict. | real SQLite |
+| Promotion gate | ✅ | Unvalidated rule → refused; validated → `blocking`. | real SQLite |
+| No silent demotion | ✅ | Regenerating a promoted rule keeps it `blocking`. | real SQLite |
+| Audit report | ✅ | 4 blocks, top rule and top node ranked from the ledger. | real SQLite |
+| End-to-end on real tools | ✅ | Real ast-grep matched `createClient({url: 'x'})`, real OPA returned `warn`. | **real ast-grep 0.45.1 + real OPA 1.19.0** |
+
+**Suite:** `python tests/test_wedge4.py` → ALL PASS (16 checks). Mocks the LLM
+throughout; the final test uses the real binaries and skips cleanly without them.
+**Size:** 463 lines of code across the five modules (see budget note below).
+
+### Tool research — what the PRD assumed vs what is true
+
+Both tools were installed and probed before any code was written. Two PRD
+assumptions were wrong, and both would have produced silently broken enforcement:
+
+- **The PRD's Rego does not parse.** It is Rego v0 (`enforce := result { ... }`);
+  OPA ≥ 1.0 requires v1 and rejects it with `rego_parse_error: "if" keyword is
+  required before rule body`. `chronos/policies/enforce.rego` is the v1 form with
+  identical logic, verified across all three branches.
+- **ast-grep's exit code does not indicate matches.** It is 0 whether or not
+  anything matched; 8 means the rule could not be parsed, 6 means the file is
+  missing. So "did anything match" must come from the JSON array length and
+  "is this rule valid" from the exit code. Conflating them — the natural reading
+  of the PRD — would make an unparseable rule look like a clean pass, silently
+  disabling the check.
+- **`sg` is deprecated** in 0.45.1 (prints a warning and defers to `ast-grep`).
+  We invoke `ast-grep`; `CHRONOS_ASTGREP` overrides.
+
+Full notes, including the JSON match shape, are at the top of `enforcer.py`.
+
+### Scope limits, stated plainly
+
+- **`total_checks`/`warns`/`passes` in `chronos_rule_report` return `null`.** Only
+  blocks are persisted (into the ledger); warn and pass verdicts are returned live
+  by `chronos_enforce` and never written. The PRD asked for all four counts —
+  producing the other three would mean a write on every clean CI run, so the
+  report returns `null` with a note rather than a fabricated number.
+- **Symbol extraction from a match is a heuristic.** `_identifier` prefers a
+  captured metavariable and otherwise takes the head of the matched snippet. A
+  wrong guess costs a graph miss, which degrades to `warn` — it cannot cause a
+  spurious block.
+- **Budget:** 463 lines of code against the 500 limit, but 715 lines on disk. The
+  difference is 131 docstring lines, ~65 of which are the Step-0 research block
+  the PRD required in `enforcer.py`. Keeping that block was chosen over hitting
+  the raw line count, since it is where the two findings above are recorded.
+- **No live CI run.** The workflow in `docs/wedge4-ci.yml` is written but has
+  never executed on GitHub Actions.
+
+---
+
+## Unification
+
+Packaging change, not a wedge change. No wedge logic was modified — the diff is
+aggregation, wiring, and naming.
+
+**What changed**
+
+| Before | After | Why |
+|---|---|---|
+| 4 MCP servers | 1 (`chronos-mcp`, 19 tools) | The wedges were never independent products. Shipping four servers exposed our internal decomposition as the partner's integration problem: four commands, four env blocks, four things to notice were missing. |
+| `ledger.db` (SQLite) | `chronos.db` (SQLite) | One path to name, one file to back up. The name no longer implies it belongs to Wedge 3. |
+| 0 cross-wedge triggers | 3 | The wedges fed each other only when an agent chose to call the next one by hand. |
+| `pytest tests/ -q` collected 0 tests | collects 5 | It reported success vacuously — a green bar that proved nothing. |
+
+**Correction to the stated premise.** The task described three SQLite files to
+consolidate. An audit of every `sqlite3.connect()` found **one**: `rule_store.py`
+already called `ledger.connect()`, so `intent_locks`, `provenance_events` and
+`enforcement_rules` were already colocated. The third connect is `upstream.py`
+opening codebase-memory-mcp's index read-only — a foreign file we consume, not
+Chronos state, and deliberately not consolidated. What actually shipped is the
+rename, a single connection manager (`db.py`) so PRAGMAs cannot drift between
+callers, and a migration for existing installs.
+
+**Env var deviation.** The spec put the SQLite path in `CHRONOS_DB`. That name
+was already taken by `store.py` for the **graph** path, so reusing it would have
+silently pointed Kuzu at a `.db` file. The SQLite path is `CHRONOS_SQLITE`;
+`CHRONOS_LEDGER` is still honoured so existing installs need no edit.
+
+**Naming deviation.** The spec imported Wedge 1's tools from `wedge1_mcp` as
+`chronos_node_history`/`chronos_sync`. No such module or tools existed — Wedge 1
+lived in `server.py` as `as_of_callers`/`as_of_callees`/`as_of_impact`/
+`what_changed`/`index_health`. That module is now `wedge1_mcp.py` and `server.py`
+is the aggregator, but the **tool names are unchanged**: renaming them would
+break every existing agent config for a cosmetic gain.
+
+**Triggers**
+
+| Event | Source → Target | Action | On failure |
+|---|---|---|---|
+| CI block | 4 → 2 | Auto-reflect the block into a candidate rule, then curate | Logged; **verdict unaffected** |
+| Node deprecated | 1 → 4 | Warn when no active rule covers the node | Logged only |
+| Lock conflict | 3 → 2 | Coordination-lesson hint | Logged only |
+
+Trigger 1 is automatic because a CI block is the highest-signal event in the
+system: a labelled failure with an action, a reason and a node, already in the
+Reflector's trace shape. The manual path needs an agent to notice it failed and
+choose to report it — and the agents worth learning from are the ones that
+confidently did the wrong thing and won't self-report.
+
+Trigger 2 warns rather than acts: generating a rule costs an LLM call and needs
+human approval. It exists because the deprecated-but-unenforced node is the
+system's quietest failure — agents keep using a superseded symbol and Wedge 4
+passes, since a rule that doesn't exist cannot fire.
+
+Trigger 3 does not reflect at all. Conflicts are weak signal; two agents wanting
+the same node is often legitimate concurrency. Auto-reflecting each one would
+flood the playbook and train the Curator's dedup against us.
+
+Backward compatibility: the four old entry points remain as aliases that start
+the unified server and print a deprecation notice to stderr (never stdout, which
+carries the MCP protocol).
+
+**Suite:** `python tests/test_unification.py` → ALL PASS (15 checks), including
+trigger isolation (a throwing Reflector leaves the block verdict and its
+provenance stamp intact), the kill switch, thread-local connection reuse, and
+legacy migration. `pytest tests/ -q` → 5 passed.
+
+**Still pending** (unchanged by this work): live Packmind test, live CI run,
+Linux `_run_posix` build, `chronos gc` on a fresh repo.
+
+---
+
 ## Verified against real repos
 
 Not fixtures — third-party projects indexed with the locally-built indexer.
@@ -296,9 +437,13 @@ fixes arrive as a `git pull`.
   Blocked on a container runtime and an LLM key, not on code — see "Live
   verification: attempted, blocked". This is the top item; the API shape is read
   from source, and reading is not running.
-- **Per platform PRD sequencing:** Wedges 1 and 3 are done, Wedge 2 is built but
-  unproven live; Wedge 4
-  (enforcement) is next. Wedge 2's Reflector/Curator was built in-house because
+- **Wedge 4:** no live CI run. The workflow is written but has never executed on
+  GitHub Actions, and enforcement is toothless without a graph in CI (every
+  verdict degrades to `warn`).
+- **Per platform PRD sequencing:** all four wedges are built. Wedges 1, 3 and 4
+  are verified against real tools and repos; Wedge 2 is mock-verified only.
+  Wedge 4 uses ast-grep (MIT) and OPA (Apache 2.0) via subprocess — Opengrep
+  (LGPL-2.1) is used nowhere. Wedge 2's Reflector/Curator was built in-house because
   the ACE framework is FSL-licensed; Packmind OSS (Apache 2.0) is used unmodified
   as the store. Wedge 3 was
   built in-house on SQLite rather than by extending Forge Orchestrator — the PRD's

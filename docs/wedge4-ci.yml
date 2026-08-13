@@ -1,0 +1,72 @@
+# Chronos Wedge 4 — CI enforcement.
+#
+# Copy to .github/workflows/chronos-enforce.yml in the repo you want gated.
+#
+# What this gates on: a rule only blocks when BOTH (a) a human promoted it to
+# blocking via chronos_promote_rule, and (b) the bi-temporal graph confirms the
+# matched symbol is actually superseded. A pattern match alone is a warning.
+# That is deliberate — see chronos/policies/enforce.rego, which is the file that
+# decides, and which you can edit without touching Chronos.
+
+name: chronos-enforce
+
+on: [pull_request]
+
+jobs:
+  chronos-enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # enforce --diff needs history, not a shallow clone
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Chronos and ast-grep
+        run: |
+          pip install -e .
+          pip install ast-grep-cli
+
+      - name: Install OPA
+        run: |
+          curl -sL -o /usr/local/bin/opa \
+            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+
+      # Enforcement reads the temporal graph to confirm deprecation. Without a
+      # graph every verdict degrades to "warn" — safe, but toothless. Restore a
+      # prebuilt store or index in CI.
+      #
+      # ~/.chronos holds BOTH stores: graph.kz (the temporal graph) and
+      # chronos.db (locks, provenance, enforcement rules). Caching the directory
+      # covers both, which is the point of consolidating them.
+      - name: Restore the Chronos data directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.chronos
+          key: chronos-data-${{ github.repository }}
+
+      - name: Verify the toolchain
+        run: chronos doctor
+
+      - name: Enforce
+        run: |
+          chronos --group ${{ github.repository }} enforce \
+            --diff origin/${{ github.base_ref }} \
+            --lang typescript \
+            --agent-id "gh-actions" \
+            --session-id "${{ github.run_id }}" \
+            --fail-on-block
+
+# Notes
+#
+# --fail-on-block is what turns this from a report into a gate. Without it the
+# step always exits 0 and violations are advisory. Start without it.
+#
+# --agent-id makes blocks attributable: every block is stamped into the Wedge 3
+# provenance ledger with the agent, session, rule id and reason, which is what
+# chronos_rule_report reads back for the leadership view.
+#
+# One language per invocation. Add a step (or a matrix) per language you enforce.

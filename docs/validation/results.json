@@ -1,0 +1,2506 @@
+{
+  "section1": {
+    "Setu": {
+      "repo": "Setu",
+      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Setu",
+      "index_seconds": 13.85,
+      "nodes": 1502,
+      "edges": 322,
+      "kinds": {
+        "Method": 318,
+        "Field": 318,
+        "File": 173,
+        "Module": 165,
+        "Class": 140,
+        "Section": 123,
+        "Function": 111,
+        "Variable": 74,
+        "Folder": 42,
+        "Decorator": 17,
+        "Interface": 12,
+        "Channel": 3,
+        "Project": 2,
+        "EnvVar": 2,
+        "Branch": 1
+      },
+      "languages": {
+        "?": 1502
+      },
+      "sync_seconds": 0.77,
+      "sync_stats": "nodes=1502 added=297 invalidated=0 unchanged=0",
+      "valid_at": "2026-07-20T15:50:43+05:30",
+      "facts_total": 297,
+      "facts_current": 297,
+      "health_status": "stale",
+      "top_called": [
+        {
+          "name": "getActor",
+          "c": 33
+        },
+        {
+          "name": "CurrentUser",
+          "c": 33
+        },
+        {
+          "name": "useApp",
+          "c": 24
+        },
+        {
+          "name": "src/context/AppContext.jsx",
+          "c": 19
+        },
+        {
+          "name": "logAudit",
+          "c": 17
+        }
+      ],
+      "target_function": "getActor",
+      "target_caller_count": 33,
+      "top_callers_out": [
+        {
+          "name": "update",
+          "c": 22
+        },
+        {
+          "name": "create",
+          "c": 20
+        },
+        {
+          "name": "remove",
+          "c": 18
+        }
+      ],
+      "queries": {
+        "as_of_callers_now": {
+          "symbol": "getActor",
+          "count": 33,
+          "latency_ms": 18.9,
+          "no_data": null
+        },
+        "as_of_callers_30d": {
+          "symbol": "getActor",
+          "count": 0,
+          "latency_ms": 16.8,
+          "no_data": "requested time 2026-07-14T12:00:06.514716+00:00 predates the graph's earliest record (2026-07-20T15:50:43+00:00); no history exists for this period"
+        },
+        "as_of_callees_now": {
+          "symbol": "update",
+          "count": 22,
+          "latency_ms": 7.8
+        },
+        "what_changed_7d": {
+          "count": 0,
+          "added": 0,
+          "removed": 0,
+          "latency_ms": 14.0
+        },
+        "as_of_impact": {
+          "symbol": "getActor",
+          "count": 10,
+          "latency_ms": 24.5
+        }
+      },
+      "orphans": 0,
+      "orphan_pct": 0.0,
+      "gc_warning": false
+    },
+    "MediAssist": {
+      "repo": "MediAssist",
+      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\MediAssist",
+      "index_seconds": 18.79,
+      "nodes": 2415,
+      "edges": 398,
+      "kinds": {
+        "Variable": 1785,
+        "Section": 137,
+        "File": 136,
+        "Module": 113,
+        "Method": 81,
+        "Function": 65,
+        "Folder": 49,
+        "Class": 33,
+        "Package": 12,
+        "Project": 2,
+        "Branch": 1,
+        "Decorator": 1
+      },
+      "languages": {
+        "?": 2415
+      },
+      "sync_seconds": 1.13,
+      "sync_stats": "nodes=2415 added=376 invalidated=0 unchanged=0",
+      "valid_at": "2026-08-05T19:48:20+05:30",
+      "facts_total": 376,
+      "facts_current": 376,
+      "health_status": "stale",
+      "top_called": [
+        {
+          "name": "append",
+          "c": 25
+        },
+        {
+          "name": "setup_logging",
+          "c": 25
+        },
+        {
+          "name": "get",
+          "c": 19
+        },
+        {
+          "name": "lower",
+          "c": 11
+        },
+        {
+          "name": "len",
+          "c": 11
+        }
+      ],
+      "target_function": "append",
+      "target_caller_count": 25,
+      "top_callers_out": [
+        {
+          "name": "__init__",
+          "c": 28
+        },
+        {
+          "name": "run_benchmark",
+          "c": 21
+        },
+        {
+          "name": "src/frontend/app.py",
+          "c": 14
+        }
+      ],
+      "queries": {
+        "as_of_callers_now": {
+          "symbol": "append",
+          "count": 25,
+          "latency_ms": 17.6,
+          "no_data": null
+        },
+        "as_of_callers_30d": {
+          "symbol": "append",
+          "count": 0,
+          "latency_ms": 16.9,
+          "no_data": "requested time 2026-07-14T12:00:43.175711+00:00 predates the graph's earliest record (2026-08-05T19:48:20+00:00); no history exists for this period"
+        },
+        "as_of_callees_now": {
+          "symbol": "__init__",
+          "count": 28,
+          "latency_ms": 7.2
+        },
+        "what_changed_7d": {
+          "count": 0,
+          "added": 0,
+          "removed": 0,
+          "latency_ms": 12.5
+        },
+        "as_of_impact": {
+          "symbol": "append",
+          "count": 40,
+          "latency_ms": 25.2
+        }
+      },
+      "orphans": 0,
+      "orphan_pct": 0.0,
+      "gc_warning": false
+    },
+    "Opencode": {
+      "repo": "Opencode",
+      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode",
+      "index_seconds": 14.83,
+      "nodes": 9907,
+      "edges": 3034,
+      "kinds": {
+        "Section": 6435,
+        "Function": 1046,
+        "File": 578,
+        "Module": 571,
+        "Variable": 552,
+        "Interface": 212,
+        "Method": 134,
+        "Route": 124,
+        "Type": 83,
+        "Folder": 77,
+        "Class": 59,
+        "EnvVar": 31,
+        "Project": 2,
+        "Channel": 2,
+        "Branch": 1
+      },
+      "languages": {
+        "?": 9907
+      },
+      "sync_seconds": 5.66,
+      "sync_stats": "nodes=9907 added=2601 invalidated=0 unchanged=0",
+      "valid_at": "2026-07-15T17:45:45+05:30",
+      "facts_total": 2601,
+      "facts_current": 2601,
+      "health_status": "stale",
+      "top_called": [
+        {
+          "name": "getDb",
+          "c": 68
+        },
+        {
+          "name": "cn",
+          "c": 52
+        },
+        {
+          "name": "freellmapi/server/src/db/index.ts",
+          "c": 39
+        },
+        {
+          "name": "apiFetch",
+          "c": 37
+        },
+        {
+          "name": "freellmapi/shared/types.ts",
+          "c": 28
+        }
+      ],
+      "target_function": "getDb",
+      "target_caller_count": 68,
+      "top_callers_out": [
+        {
+          "name": "queryFn",
+          "c": 66
+        },
+        {
+          "name": "dispatch",
+          "c": 59
+        },
+        {
+          "name": "freellmapi/server/src/routes/proxy.ts",
+          "c": 52
+        }
+      ],
+      "queries": {
+        "as_of_callers_now": {
+          "symbol": "getDb",
+          "count": 68,
+          "latency_ms": 10.3,
+          "no_data": null
+        },
+        "as_of_callers_30d": {
+          "symbol": "getDb",
+          "count": 0,
+          "latency_ms": 16.6,
+          "no_data": "requested time 2026-07-14T12:01:04.623809+00:00 predates the graph's earliest record (2026-07-15T17:45:45+00:00); no history exists for this period"
+        },
+        "as_of_callees_now": {
+          "symbol": "queryFn",
+          "count": 66,
+          "latency_ms": 12.9
+        },
+        "what_changed_7d": {
+          "count": 0,
+          "added": 0,
+          "removed": 0,
+          "latency_ms": 13.0
+        },
+        "as_of_impact": {
+          "symbol": "getDb",
+          "count": 136,
+          "latency_ms": 29.9
+        }
+      },
+      "orphans": 0,
+      "orphan_pct": 0.0,
+      "gc_warning": false
+    },
+    "ortho": {
+      "repo": "ortho",
+      "path": "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho",
+      "index_seconds": 15.31,
+      "nodes": 10889,
+      "edges": 5678,
+      "kinds": {
+        "Section": 5699,
+        "Method": 1675,
+        "Variable": 961,
+        "File": 645,
+        "Module": 638,
+        "Function": 534,
+        "Class": 519,
+        "Folder": 125,
+        "Interface": 42,
+        "Route": 17,
+        "Decorator": 15,
+        "Type": 11,
+        "EnvVar": 6,
+        "Project": 1,
+        "Branch": 1
+      },
+      "languages": {
+        "?": 10889
+      },
+      "sync_seconds": 8.52,
+      "sync_stats": "nodes=10889 added=5609 invalidated=0 unchanged=0",
+      "valid_at": "2026-08-08T22:04:10+05:30",
+      "facts_total": 5609,
+      "facts_current": 5609,
+      "health_status": "stale",
+      "top_called": [
+        {
+          "name": "str",
+          "c": 355
+        },
+        {
+          "name": "len",
+          "c": 336
+        },
+        {
+          "name": "append",
+          "c": 146
+        },
+        {
+          "name": "get",
+          "c": 138
+        },
+        {
+          "name": "lower",
+          "c": 85
+        }
+      ],
+      "target_function": "str",
+      "target_caller_count": 355,
+      "top_callers_out": [
+        {
+          "name": "main",
+          "c": 147
+        },
+        {
+          "name": "__init__.py",
+          "c": 101
+        },
+        {
+          "name": "__init__",
+          "c": 29
+        }
+      ],
+      "queries": {
+        "as_of_callers_now": {
+          "symbol": "str",
+          "count": 355,
+          "latency_ms": 15.1,
+          "no_data": null
+        },
+        "as_of_callers_30d": {
+          "symbol": "str",
+          "count": 0,
+          "latency_ms": 22.0,
+          "no_data": "requested time 2026-07-14T12:01:28.746667+00:00 predates the graph's earliest record (2026-08-08T22:04:10+00:00); no history exists for this period"
+        },
+        "as_of_callees_now": {
+          "symbol": "main",
+          "count": 147,
+          "latency_ms": 16.9
+        },
+        "what_changed_7d": {
+          "count": 5609,
+          "added": 5609,
+          "removed": 0,
+          "latency_ms": 49.5
+        },
+        "as_of_impact": {
+          "symbol": "str",
+          "count": 726,
+          "latency_ms": 55.6
+        }
+      },
+      "orphans": 0,
+      "orphan_pct": 0.0,
+      "gc_warning": false
+    }
+  },
+  "section2": {
+    "Setu": {
+      "repo": "Setu",
+      "node_ids": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-Setu",
+        "main",
+        ".oxlintrc.json",
+        "github_issues_data.json",
+        "index.html"
+      ],
+      "agentA_locked": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-Setu",
+        "main",
+        ".oxlintrc.json"
+      ],
+      "conflict_latency_ms": 0.89,
+      "conflict": {
+        "acquired": false,
+        "reason": "conflict",
+        "conflict": {
+          "node_id": "main",
+          "agent_id": "agent-A",
+          "session_id": "sess-A",
+          "intent": "refactoring auth flow",
+          "acquired_at": "2026-08-13T12:01:43.305354+00:00",
+          "expires_at": "2026-08-13T12:06:43.305354+00:00"
+        }
+      },
+      "conflict_detected": true,
+      "conflict_held_by": "agent-A",
+      "conflict_intent": "refactoring auth flow",
+      "retry_latency_ms": 0.52,
+      "retry_acquired": true,
+      "provenance_query_ms": 0.12,
+      "trail": [
+        {
+          "agent": "agent-B",
+          "action": "added retry logic",
+          "reason": "follow-up after agent-A's refactor",
+          "ts": "2026-08-13T12:01:43.311243+00:00"
+        },
+        {
+          "agent": "agent-A",
+          "action": "extracted shared helper",
+          "reason": "reduce duplication found by Wedge 1 callers query",
+          "ts": "2026-08-13T12:01:43.308341+00:00"
+        }
+      ],
+      "trail_agents": [
+        "agent-A",
+        "agent-B"
+      ],
+      "trail_complete": true,
+      "ledger_active_locks": 1,
+      "ledger_total_events": 4,
+      "lock_latency_ms": {
+        "min": 0.65,
+        "avg": 0.69,
+        "max": 0.72
+      },
+      "provenance_write_ms": {
+        "min": 0.45,
+        "avg": 0.56,
+        "max": 0.65
+      }
+    },
+    "MediAssist": {
+      "repo": "MediAssist",
+      "node_ids": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-MediAssist",
+        "main",
+        ".env.example",
+        "DEMO_TEST_CASES.md",
+        "PROJECT_STRUCTURE.md"
+      ],
+      "agentA_locked": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-MediAssist",
+        "main",
+        ".env.example"
+      ],
+      "conflict_latency_ms": 0.11,
+      "conflict": {
+        "acquired": false,
+        "reason": "conflict",
+        "conflict": {
+          "node_id": "main",
+          "agent_id": "agent-A",
+          "session_id": "sess-A",
+          "intent": "refactoring auth flow",
+          "acquired_at": "2026-08-13T12:01:43.422736+00:00",
+          "expires_at": "2026-08-13T12:06:43.422736+00:00"
+        }
+      },
+      "conflict_detected": true,
+      "conflict_held_by": "agent-A",
+      "conflict_intent": "refactoring auth flow",
+      "retry_latency_ms": 0.76,
+      "retry_acquired": true,
+      "provenance_query_ms": 0.12,
+      "trail": [
+        {
+          "agent": "agent-B",
+          "action": "added retry logic",
+          "reason": "follow-up after agent-A's refactor",
+          "ts": "2026-08-13T12:01:43.431429+00:00"
+        },
+        {
+          "agent": "agent-A",
+          "action": "extracted shared helper",
+          "reason": "reduce duplication found by Wedge 1 callers query",
+          "ts": "2026-08-13T12:01:43.427762+00:00"
+        }
+      ],
+      "trail_agents": [
+        "agent-A",
+        "agent-B"
+      ],
+      "trail_complete": true,
+      "ledger_active_locks": 1,
+      "ledger_total_events": 6,
+      "lock_latency_ms": {
+        "min": 0.75,
+        "avg": 0.8,
+        "max": 0.85
+      },
+      "provenance_write_ms": {
+        "min": 0.47,
+        "avg": 0.63,
+        "max": 0.77
+      }
+    },
+    "Opencode": {
+      "repo": "Opencode",
+      "node_ids": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-Opencode",
+        "master",
+        "BENCHMARK-EXECUTION-LOG.md",
+        "CLAUDE.md",
+        "COMPLETE-MODEL-COMPARISON.md"
+      ],
+      "agentA_locked": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-Opencode",
+        "master",
+        "BENCHMARK-EXECUTION-LOG.md"
+      ],
+      "conflict_latency_ms": 0.09,
+      "conflict": {
+        "acquired": false,
+        "reason": "conflict",
+        "conflict": {
+          "node_id": "master",
+          "agent_id": "agent-A",
+          "session_id": "sess-A",
+          "intent": "refactoring auth flow",
+          "acquired_at": "2026-08-13T12:01:43.554860+00:00",
+          "expires_at": "2026-08-13T12:06:43.554860+00:00"
+        }
+      },
+      "conflict_detected": true,
+      "conflict_held_by": "agent-A",
+      "conflict_intent": "refactoring auth flow",
+      "retry_latency_ms": 0.72,
+      "retry_acquired": true,
+      "provenance_query_ms": 0.11,
+      "trail": [
+        {
+          "agent": "agent-B",
+          "action": "added retry logic",
+          "reason": "follow-up after agent-A's refactor",
+          "ts": "2026-08-13T12:01:43.560324+00:00"
+        },
+        {
+          "agent": "agent-A",
+          "action": "extracted shared helper",
+          "reason": "reduce duplication found by Wedge 1 callers query",
+          "ts": "2026-08-13T12:01:43.556860+00:00"
+        }
+      ],
+      "trail_agents": [
+        "agent-A",
+        "agent-B"
+      ],
+      "trail_complete": true,
+      "ledger_active_locks": 2,
+      "ledger_total_events": 10,
+      "lock_latency_ms": {
+        "min": 0.44,
+        "avg": 1.03,
+        "max": 2.12
+      },
+      "provenance_write_ms": {
+        "min": 0.43,
+        "avg": 0.67,
+        "max": 0.83
+      }
+    },
+    "ortho": {
+      "repo": "ortho",
+      "node_ids": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-ortho",
+        "master",
+        ".mcp.json",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "agentA_locked": [
+        "C-Users-urbra-OneDrive-Desktop-Projects-ortho",
+        "master",
+        ".mcp.json"
+      ],
+      "conflict_latency_ms": 0.09,
+      "conflict": {
+        "acquired": false,
+        "reason": "conflict",
+        "conflict": {
+          "node_id": "master",
+          "agent_id": "agent-A",
+          "session_id": "sess-A",
+          "intent": "refactoring auth flow",
+          "acquired_at": "2026-08-13T12:01:43.672976+00:00",
+          "expires_at": "2026-08-13T12:06:43.672976+00:00"
+        }
+      },
+      "conflict_detected": true,
+      "conflict_held_by": "agent-A",
+      "conflict_intent": "refactoring auth flow",
+      "retry_latency_ms": 0.7,
+      "retry_acquired": true,
+      "provenance_query_ms": 0.12,
+      "trail": [
+        {
+          "agent": "agent-B",
+          "action": "added retry logic",
+          "reason": "follow-up after agent-A's refactor",
+          "ts": "2026-08-13T12:01:43.677400+00:00"
+        },
+        {
+          "agent": "agent-A",
+          "action": "extracted shared helper",
+          "reason": "reduce duplication found by Wedge 1 callers query",
+          "ts": "2026-08-13T12:01:43.674679+00:00"
+        }
+      ],
+      "trail_agents": [
+        "agent-A",
+        "agent-B"
+      ],
+      "trail_complete": true,
+      "ledger_active_locks": 2,
+      "ledger_total_events": 12,
+      "lock_latency_ms": {
+        "min": 0.46,
+        "avg": 0.63,
+        "max": 0.79
+      },
+      "provenance_write_ms": {
+        "min": 0.52,
+        "avg": 0.8,
+        "max": 0.96
+      }
+    }
+  },
+  "section3": {
+    "Opencode": {
+      "repo": "Opencode",
+      "language": "typescript",
+      "llm": "STUBBED (no API key in this environment)",
+      "candidate_function": "getDb",
+      "candidate_callers": 68,
+      "rule_id": "opencode-deprecated-getDb",
+      "generate_ms": 0.9,
+      "automatable": true,
+      "yaml_pattern": "id: RULE_ID\nlanguage: typescript\nseverity: warning\nmessage: getDb is deprecated; do not call it directly\nrule:\n  pattern: getDb($$$ARGS)",
+      "detectability_ms": 225.5,
+      "detectability_passed": true,
+      "false_positive_risk": false,
+      "detectability_details": "matched 1 in the positive example",
+      "files_checked": [
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\services\\api\\openaiShim.test.ts",
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\screens\\REPL.tsx",
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\Opencode\\openclaude\\src\\main.tsx"
+      ],
+      "warn_phase": [
+        {
+          "phase": "warn-only",
+          "file": "openaiShim.test.ts",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 174.9
+        },
+        {
+          "phase": "warn-only",
+          "file": "REPL.tsx",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 115.9
+        },
+        {
+          "phase": "warn-only",
+          "file": "main.tsx",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 98.9
+        }
+      ],
+      "verdicts_warn_phase": {
+        "block": 0,
+        "warn": 0,
+        "pass": 3
+      },
+      "promoted": {
+        "rule_id": "opencode-deprecated-getDb",
+        "promoted": true,
+        "status": "blocking",
+        "promoted_at": "2026-08-13T12:01:57.977383+00:00",
+        "promoted_by": "test-run"
+      },
+      "block_phase": [
+        {
+          "phase": "blocking",
+          "file": "openaiShim.test.ts",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 161.9
+        },
+        {
+          "phase": "blocking",
+          "file": "REPL.tsx",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 106.9
+        },
+        {
+          "phase": "blocking",
+          "file": "main.tsx",
+          "verdict": "pass",
+          "matched_node": null,
+          "matched_qname": null,
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 96.9
+        }
+      ],
+      "verdicts_block_phase": {
+        "block": 0,
+        "warn": 0,
+        "pass": 3
+      },
+      "verdict_changed_after_promotion": false,
+      "blocked_by_ci_events": [],
+      "trigger1_stamped": false,
+      "events_delta": 0,
+      "rule_report": {
+        "total_checks": 0,
+        "blocks": 0,
+        "warns": null,
+        "passes": null,
+        "top_violated_rules": [],
+        "top_blocked_nodes": [],
+        "period_days": 1,
+        "note": "blocks are sourced from provenance_events; warn/pass verdicts are returned live by chronos_enforce and not persisted"
+      }
+    },
+    "ortho": {
+      "repo": "ortho",
+      "language": "python",
+      "llm": "STUBBED (no API key in this environment)",
+      "candidate_function": "str",
+      "candidate_callers": 355,
+      "rule_id": "ortho-deprecated-str",
+      "generate_ms": 0.8,
+      "automatable": true,
+      "yaml_pattern": "id: RULE_ID\nlanguage: python\nseverity: warning\nmessage: str is deprecated; do not call it directly\nrule:\n  pattern: str($$$ARGS)",
+      "detectability_ms": 176.1,
+      "detectability_passed": true,
+      "false_positive_risk": false,
+      "detectability_details": "matched 1 in the positive example",
+      "files_checked": [
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\django\\tests\\admin_views\\tests.py",
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\fastapi\\tests\\test_include_router_defaults_overrides.py",
+        "C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\ortho\\repos\\django\\tests\\migrations\\test_operations.py"
+      ],
+      "warn_phase": [
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(messages[0])",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(messages[0])",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(response.content)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(response.content)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(user.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(new_article.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.s1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd1.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd2.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd3.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd1.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd2.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd3.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(non_form_errors)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(ErrorList([\"Grace is not a Zombie\"], error_class=\"nonform\"))",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(foo_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(persona_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(bar_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(persona_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.obj)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.deleted_obj)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.picture.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.gallery.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.gallery.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(widget_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(widget_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Grommet.objects.all()[0].code)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Grommet.objects.all()[0].code)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(doodad_pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(doodad_pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(ParentWithUUIDPK.objects.first().id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test3\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test2\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(pwdc.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 5285.2
+        },
+        {
+          "phase": "warn-only",
+          "file": "test_include_router_defaults_overrides.py",
+          "verdict": "warn",
+          "matched_node": "str(w[-1].message)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 228.3
+        },
+        {
+          "phase": "warn-only",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(pony.name)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 491.0
+        },
+        {
+          "phase": "warn-only",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(rider.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 491.0
+        },
+        {
+          "phase": "warn-only",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(pony.name)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 491.0
+        },
+        {
+          "phase": "warn-only",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(new_rider.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "warn-only-validated",
+          "provenance_event_id": null,
+          "latency_ms": 491.0
+        }
+      ],
+      "verdicts_warn_phase": {
+        "block": 0,
+        "warn": 64,
+        "pass": 0
+      },
+      "promoted": {
+        "rule_id": "ortho-deprecated-str",
+        "promoted": true,
+        "status": "blocking",
+        "promoted_at": "2026-08-13T12:02:10.736880+00:00",
+        "promoted_by": "test-run"
+      },
+      "block_phase": [
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(messages[0])",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(messages[0])",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(response.content)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(response.content)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(user.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(new_article.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.s1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.a1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd1.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd2.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd3.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd1.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd2.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(fd3.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(non_form_errors)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(ErrorList([\"Grace is not a Zombie\"], error_class=\"nonform\"))",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per1.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.per3.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(foo_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(persona_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(bar_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(persona_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.obj)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.deleted_obj)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.picture.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.gallery.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(self.gallery.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(widget_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(widget_id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Grommet.objects.all()[0].code)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Grommet.objects.all()[0].code)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(doodad_pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(doodad_pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(ParentWithUUIDPK.objects.first().id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(parent2.pk)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test3\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test2\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(Box.objects.get(title=\"test\").id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "tests.py",
+          "verdict": "warn",
+          "matched_node": "str(pwdc.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 5212.2
+        },
+        {
+          "phase": "blocking",
+          "file": "test_include_router_defaults_overrides.py",
+          "verdict": "warn",
+          "matched_node": "str(w[-1].message)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 196.4
+        },
+        {
+          "phase": "blocking",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(pony.name)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 492.3
+        },
+        {
+          "phase": "blocking",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(rider.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 492.3
+        },
+        {
+          "phase": "blocking",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(pony.name)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 492.3
+        },
+        {
+          "phase": "blocking",
+          "file": "test_operations.py",
+          "verdict": "warn",
+          "matched_node": "str(new_rider.id)",
+          "matched_qname": "str",
+          "deprecated_since": null,
+          "graph_confirmed": false,
+          "rule_status": "blocking",
+          "provenance_event_id": null,
+          "latency_ms": 492.3
+        }
+      ],
+      "verdicts_block_phase": {
+        "block": 0,
+        "warn": 64,
+        "pass": 0
+      },
+      "verdict_changed_after_promotion": false,
+      "blocked_by_ci_events": [],
+      "trigger1_stamped": false,
+      "events_delta": 0,
+      "rule_report": {
+        "total_checks": 0,
+        "blocks": 0,
+        "warns": null,
+        "passes": null,
+        "top_violated_rules": [],
+        "top_blocked_nodes": [],
+        "period_days": 1,
+        "note": "blocks are sourced from provenance_events; warn/pass verdicts are returned live by chronos_enforce and not persisted"
+      }
+    },
+    "_block_path_proof": {
+      "purpose": "force a real supersession to exercise the block path",
+      "target": "str",
+      "callers_before": 355,
+      "target_node_ids": 1,
+      "edges_removed": 355,
+      "resync_stats": "nodes=10889 added=0 invalidated=355 unchanged=5254",
+      "graph_says_deprecated": true,
+      "deprecated_since": "2026-08-13T12:05:02.129782",
+      "enforce_ms": 5099.5,
+      "results": [
+        {
+          "rule_id": "blocktest2-deprecated",
+          "verdict": "block",
+          "matched_node": "str(1)",
+          "matched_qualified_name": "str",
+          "deprecated_since": "2026-08-13T12:05:02.129782",
+          "rule_status": "blocking",
+          "provenance_event_id": "17",
+          "message": "pattern matches deprecated node confirmed by temporal graph [probe.py:2]"
+        }
+      ],
+      "verdicts": {
+        "block": 1,
+        "warn": 0,
+        "pass": 0
+      },
+      "blocked_by_ci_events": [
+        {
+          "node_id": "str",
+          "agent_id": "validation-run",
+          "session_id": "val-block",
+          "reason": "rule blocktest2-deprecated: pattern matches deprecated node confirmed by temporal graph",
+          "timestamp": "2026-08-13T12:05:07.793305+00:00"
+        }
+      ],
+      "trigger1_stamped": true,
+      "events_delta": 1,
+      "enforce_ms_triggers_off": 134.4
+    }
+  },
+  "section4": {
+    "tool_count": 19,
+    "tools": [
+      "as_of_callees",
+      "as_of_callers",
+      "as_of_impact",
+      "chronos_acquire_lock",
+      "chronos_capture_lesson",
+      "chronos_check_conflicts",
+      "chronos_enforce",
+      "chronos_generate_rule",
+      "chronos_list_rules",
+      "chronos_log_provenance",
+      "chronos_playbook_health",
+      "chronos_promote_rule",
+      "chronos_propose_rule",
+      "chronos_query_playbook",
+      "chronos_release_lock",
+      "chronos_rule_report",
+      "chronos_who_touched",
+      "index_health",
+      "what_changed"
+    ],
+    "server_name": "chronos",
+    "all_19_registered": true,
+    "aliases": {
+      "chronos-graph-mcp": {
+        "warned": true,
+        "stderr_head": "[chronos] chronos-graph-mcp is deprecated. Use chronos-mcp instead \u2014 it serves every tool from all four wedges. This alias will be removed in a future release."
+      },
+      "chronos-ledger-mcp": {
+        "warned": true,
+        "stderr_head": "[chronos] chronos-ledger-mcp is deprecated. Use chronos-mcp instead \u2014 it serves every tool from all four wedges. This alias will be removed in a future release."
+      },
+      "chronos-playbook-mcp": {
+        "warned": true,
+        "stderr_head": "[chronos] chronos-playbook-mcp is deprecated. Use chronos-mcp instead \u2014 it serves every tool from all four wedges. This alias will be removed in a future releas"
+      },
+      "chronos-enforce-mcp": {
+        "warned": true,
+        "stderr_head": "[chronos] chronos-enforce-mcp is deprecated. Use chronos-mcp instead \u2014 it serves every tool from all four wedges. This alias will be removed in a future release"
+      }
+    },
+    "all_aliases_warn": true,
+    "kill_switch": {
+      "enabled_when_false": false,
+      "reflector_calls_when_off": 0,
+      "enabled_when_true": true,
+      "reflector_calls_when_on": 1,
+      "works": true
+    },
+    "doctor_exit": 0,
+    "doctor_output": [
+      "vendored src: present",
+      "indexer     : C:\\Users\\urbra\\OneDrive\\Desktop\\Projects\\New ortho\\vendor\\codebase-memory-mcp\\build\\c\\codebase-memory-mcp.exe",
+      "upstream db : C:\\Users\\urbra\\.cache\\codebase-memory-mcp\\C-Users-urbra-OneDrive-Desktop-Projects-ortho.db",
+      "schema      : nodes=nodes{'id': 'id', 'name': 'name'} edges=edges{'src': 'source_id', 'dst': 'target_id', 'type': 'type'}",
+      "upstream    : 10889 nodes, 5678 temporal edges",
+      "chronos     : empty | 0 nodes | 0/0 facts current | last None",
+      "database    : C:\\Users\\urbra\\AppData\\Local\\Temp\\claude\\C--Users-urbra-OneDrive-Desktop-Projects-New-ortho\\e3eefe02-bc3e-4421-89de-d206a2a1b64d\\scratchpad\\validation.db | 2 locks | 14 events | 1 rules | 0.0MB",
+      "packmind    : not configured (Packmind not reachable \u2014 run docs/wedge2-setup.md (PACKMIND_API_URL and PACKMIND_API_KEY must be set))",
+      "ast-grep    : ok | ast-grep 0.45.1",
+      "opa         : ok | v1.19.0",
+      "enforce     : ok | 1 blocking, 0 warn-only"
+    ]
+  },
+  "failures": []
+}

@@ -131,6 +131,61 @@ async def do_gc(args):
     await drv.close()
 
 
+async def do_enforce(args):
+    """Run Wedge 4 rules over changed files; exit 1 on any block (CI gate)."""
+    from . import enforcer, indexer, rule_store
+
+    if args.file:
+        files = [args.file]
+    else:
+        ref = args.diff or "HEAD~1"
+        out = subprocess.run(["git", "-C", args.repo or ".", "diff", "--name-only",
+                              "--diff-filter=ACMR", ref],
+                             capture_output=True, text=True, timeout=60)
+        if out.returncode != 0:
+            sys.exit(f"git diff {ref} failed: {out.stderr.strip()}")
+        files = [f for f in out.stdout.split() if f.strip()]
+    if not files:
+        print("no changed files to check")
+        return
+
+    drv = open_driver()
+    await ensure_schema(drv)
+    rows, blocked = [], 0
+    try:
+        for f in files:
+            if not Path(args.repo or ".", f).exists():
+                continue
+            # --lang applies to every file; without it, infer per file from the
+            # extension so a mixed-language diff checks each file against its
+            # own rules instead of one language's.
+            lang = args.lang or indexer.node_language(f)
+            if lang == "unknown":
+                continue
+            for r in await enforcer.enforce(str(Path(args.repo or ".", f)), lang,
+                                            agent_id=args.agent_id,
+                                            session_id=args.session_id,
+                                            driver=drv, group_id=args.group):
+                if r["verdict"] == "pass":
+                    continue
+                blocked += r["verdict"] == "block"
+                rows.append((r["verdict"].upper(), r["rule_id"], f,
+                             (r["matched_qualified_name"] or "-"), r["message"]))
+    finally:
+        await drv.close()
+
+    if not rows:
+        n = rule_store.counts()["total"]
+        print(f"chronos enforce: {len(files)} file(s), {n} rule(s) — no violations")
+    else:
+        w = max(len(r[1]) for r in rows)
+        for v, rid, f, node, msg in rows:
+            print(f"{v:<5} {rid:<{w}}  {f}  {node}\n      {msg}")
+        print(f"\n{len(rows)} violation(s): {blocked} block, {len(rows)-blocked} warn")
+    if blocked and args.fail_on_block:
+        sys.exit(1)
+
+
 async def do_doctor(args):
     from .indexer import toolchain_report
     t = toolchain_report()
@@ -160,14 +215,20 @@ async def do_doctor(args):
               f"-- run: chronos --group {args.group} gc")
     await drv.close()
 
+    # Unification: one line for one database. Locks, provenance and enforcement
+    # rules share chronos.db, so a partner has a single path to back up.
+    from . import db as _db
     from . import ledger
     try:
         with contextlib.closing(ledger.connect()) as lc:
             s = ledger.status(lc)
-        print(f"ledger      : {'ok' if s['tables_ok'] else 'TABLES MISSING'} | "
-              f"{s['active_locks']} active locks | {s['events']} events | {s['path']}")
+            rules = lc.execute("SELECT count(*) c FROM enforcement_rules").fetchone()["c"]
+        p = _db.db_path()
+        mb = p.stat().st_size / 1048576 if p.exists() else 0.0
+        print(f"database    : {p} | {s['active_locks']} locks | {s['events']} events | "
+              f"{rules} rules | {mb:.1f}MB")
     except Exception as e:
-        print(f"ledger      : ERROR {e}")
+        print(f"database    : ERROR {e}")
 
     # Wedge 2. Unconfigured is a normal state (Packmind is optional), so say so
     # plainly rather than reporting it as an error.
@@ -180,6 +241,21 @@ async def do_doctor(args):
             print(f"packmind    : UNREACHABLE {h.get('error')}")
     except PackmindError as e:
         print(f"packmind    : not configured ({e})")
+
+    # Wedge 4. Both binaries are external and required for enforcement to mean
+    # anything, so a missing one is reported with its install command.
+    from . import enforcer, rule_store
+    sgv = enforcer.ast_grep_version()
+    print(f"ast-grep    : {'ok | ' + sgv if sgv else 'MISSING -- install: pip install ast-grep-cli'}")
+    opav = enforcer.opa_version()
+    print(f"opa         : {'ok | v' + opav if opav else 'MISSING -- see docs/wedge4-ci.yml'}")
+    try:
+        # Rule totals live on the `database` line above; this reports the split
+        # that actually changes behaviour -- how many rules can block a merge.
+        c = rule_store.counts()
+        print(f"enforce     : ok | {c['blocking']} blocking, {c['warn_only']} warn-only")
+    except Exception as e:
+        print(f"enforce     : ERROR {e}")
 
 
 def main():
@@ -197,9 +273,19 @@ def main():
     sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
+    en = sub.add_parser("enforce", help="run Wedge 4 CI rules over changed files")
+    en.add_argument("--diff", help="git ref to diff against (default HEAD~1)")
+    en.add_argument("--file", help="check a single file instead of a diff")
+    en.add_argument("--lang", help="language, e.g. typescript "
+                    "(default: inferred per file from its extension)")
+    en.add_argument("--fail-on-block", action="store_true",
+                    help="exit 1 if any rule blocks (use in CI)")
+    en.add_argument("--agent-id", help="stamp blocks into the provenance ledger")
+    en.add_argument("--session-id")
     args = ap.parse_args()
     fn = {"index": do_index, "sync": do_sync, "watch": do_watch,
-          "health": do_health, "doctor": do_doctor, "gc": do_gc}[args.cmd]
+          "health": do_health, "doctor": do_doctor, "gc": do_gc,
+          "enforce": do_enforce}[args.cmd]
     try:
         asyncio.run(fn(args))
     except KeyboardInterrupt:

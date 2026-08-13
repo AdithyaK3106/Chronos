@@ -54,10 +54,13 @@ Other states: `not configured (...)` when the env vars are unset, and
 
 ## 5. Register the MCP server
 
+Wedge 2's tools ship on the single unified server, so there is nothing separate
+to register:
+
 ```json
 { "mcpServers": {
-    "chronos-playbook": {
-      "command": "chronos-playbook-mcp",
+    "chronos": {
+      "command": "chronos-mcp",
       "env": { "CHRONOS_GROUP_ID": "myrepo",
                "PACKMIND_API_URL": "https://localhost",
                "PACKMIND_API_KEY": "..." }
@@ -65,7 +68,9 @@ Other states: `not configured (...)` when the env vars are unset, and
 ```
 
 Tools: `chronos_capture_lesson`, `chronos_query_playbook`,
-`chronos_propose_rule`, `chronos_playbook_health`.
+`chronos_propose_rule`, `chronos_playbook_health` — alongside every other wedge's
+tools on the same server. (`chronos-playbook-mcp` still works as a deprecated
+alias.)
 
 ## How approval works — read this before wiring an agent
 

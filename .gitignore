@@ -2,5 +2,8 @@ __pycache__/
 *.egg-info/
 build/
 .chronos/
-.ortho/
+.ortho/*
+**/.ortho/*
+!.ortho/decisions.jsonl
+!**/.ortho/decisions.jsonl
 *.kz/

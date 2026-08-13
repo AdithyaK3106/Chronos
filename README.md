@@ -46,26 +46,69 @@ Two input paths, same schema: `index` runs the vendored indexer ourselves;
 `sync` reads whatever SQLite graph is already on disk (`upstream.py`), so an
 externally-installed codebase-memory-mcp still works unchanged.
 
-Register the MCP server with your agent:
+## Architecture
+
+Chronos runs as a **single MCP server (`chronos-mcp`) with one config line**.
+Internally it is four capability layers that build on each other:
+
+| Layer | Knows |
+|---|---|
+| **Wedge 1** — Temporal Graph | what the codebase looked like at any point in time |
+| **Wedge 3** — Intent Ledger | what agents are about to change, before they change it |
+| **Wedge 2** — Policy Playbook | what the team's standards are, and updates them automatically |
+| **Wedge 4** — CI Enforcement | blocks merges that violate standards or use deprecated patterns |
+
+These are not independent tools. They share one data store, one MCP server, and
+automatic feedback loops:
+
+- A **CI block** (Wedge 4) automatically feeds a lesson into the playbook (Wedge 2)
+- A **deprecation event** (Wedge 1) automatically checks for enforcement coverage (Wedge 4)
+- A **lock conflict** (Wedge 3) surfaces a coordination-lesson opportunity (Wedge 2)
+
+Triggers are best-effort: a trigger failure never affects the operation that
+fired it — a CI block stands even if the Reflector throws. Disable them all with
+`CHRONOS_AUTO_TRIGGERS=false`. Full detail in [docs/ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Setup (one command)
 
 ```json
 { "mcpServers": {
     "chronos": {
       "command": "chronos-mcp",
-      "env": { "CHRONOS_GROUP_ID": "myrepo" }
-    },
-    "codebase-memory": {
-      "command": "vendor/codebase-memory-mcp/build/c/codebase-memory-mcp"
+      "env": {
+        "CHRONOS_GROUP_ID": "myrepo",
+        "CHRONOS_LLM_MODEL": "openai/gpt-4o-mini"
+      }
     } } }
 ```
 
-Two servers by design: **Chronos answers temporal questions, upstream answers
-current-state ones.** Chronos does not proxy upstream's tools — it would be a
-pass-through for queries it doesn't own, and agents already handle multiple MCP
-servers. See `docs/STATUS.md` D-1.
+That is the whole config — 19 tools across all four wedges. Ready to copy from
+[docs/mcp-config.json](mcp-config.json).
 
-Chronos tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
+Wedge 1 tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
 `index_health`. Times accept ISO-8601, `now`, or relative (`7d`, `12h`).
+
+Run upstream's `codebase-memory-mcp` alongside it for current-state structural
+search — Chronos answers temporal questions and deliberately does not proxy
+upstream's 15 tools (`docs/STATUS.md` D-1).
+
+> The per-wedge commands (`chronos-graph-mcp`, `chronos-ledger-mcp`,
+> `chronos-playbook-mcp`, `chronos-enforce-mcp`) still work as deprecated
+> aliases — each starts the same unified server and prints a notice. They will
+> be removed in a future release.
+
+## Data
+
+All state lives in two places, both under `~/.chronos/` by default:
+
+- **`chronos.db`** — locks, provenance, enforcement rules (SQLite). Back this up.
+- **`graph.kz`** — the temporal AST graph (Kuzu). Back this up.
+
+Two stores, not one, because the graph is a different engine serving multi-hop
+temporal traversal; merging it would mean replacing Graphiti. Everything else is
+one file so there is one path to name and one thing to back up. An existing
+`ledger.db` is migrated into `chronos.db` automatically on first connection and
+kept as `ledger.db.bak`.
 
 ### Intent locks & provenance (Wedge 3)
 
@@ -73,9 +116,7 @@ Concurrent agents declare intent on a node before touching it, and every change 
 stamped with who made it and why. Node ids are Wedge 1 identities, so a lock names
 the same symbol the temporal graph does — locking is per-function, not per-file.
 
-```json
-{ "mcpServers": { "chronos-ledger": { "command": "chronos-ledger-mcp" } } }
-```
+These ship on the unified `chronos-mcp` server — no extra config.
 
 `chronos_acquire_lock`, `chronos_release_lock`, `chronos_check_conflicts`,
 `chronos_log_provenance`, `chronos_who_touched`.
@@ -104,9 +145,7 @@ history ("this broke on a node refactored 2 weeks ago") → Curator dedups and
 quality-gates it → the rule is created in Packmind, unpublished, for a human to
 approve. Static CLAUDE.md files rot; this one updates itself from real mistakes.
 
-```json
-{ "mcpServers": { "chronos-playbook": { "command": "chronos-playbook-mcp" } } }
-```
+These ship on the unified `chronos-mcp` server — no extra config.
 
 `chronos_capture_lesson`, `chronos_query_playbook`, `chronos_propose_rule`,
 `chronos_playbook_health`. Needs a running Packmind and an LLM —
@@ -117,6 +156,31 @@ not reimplement storage, versioning, or distribution.
 and *publishing* a standard are separate calls, and only publishing writes
 CLAUDE.md. Chronos never publishes — proposed rules sit inert until a human
 approves them in the UI.
+
+### CI enforcement (Wedge 4)
+
+Turns a playbook rule into an ast-grep pattern, and gates merges on it. A rule
+blocks only when **both** a human promoted it *and* the temporal graph confirms
+the matched symbol is actually superseded — a pattern match alone is a warning.
+That is the difference from every static linter: the deprecation list is the live
+graph, not a hand-maintained file.
+
+```bash
+pip install ast-grep-cli          # MIT
+# plus the OPA binary (Apache 2.0) — see docs/wedge4-ci.yml
+chronos enforce --diff origin/main --lang typescript --fail-on-block
+```
+
+These ship on the unified `chronos-mcp` server — no extra config.
+
+`chronos_generate_rule`, `chronos_enforce`, `chronos_promote_rule`,
+`chronos_list_rules`, `chronos_rule_report`. Every generated rule starts
+warn-only and must pass a detectability check (does it catch its own example?)
+before it can be promoted. Blocks are stamped into the Wedge 3 ledger, so each
+one is traceable to an agent, a session, and a rule.
+
+The decision logic is `chronos/policies/enforce.rego` — a real OPA policy file,
+editable and auditable without touching Python.
 
 ## How it fits together
 
@@ -139,13 +203,19 @@ chronos/      upstream.py  read upstream's SQLite (schema by introspection)
               indexer.py   run the vendored indexer   build_cbm.py  build it
               sync.py      upstream rows -> bi-temporal nodes/edges
               store.py     Kuzu/Neo4j driver          query.py  as-of reads
-              cli.py       chronos                    server.py  chronos-mcp
+              cli.py       chronos                    wedge1_mcp.py  its tools
+              server.py    THE MCP server (all 19)     db.py  one SQLite handle
+              triggers.py  cross-wedge feedback loops
               ledger.py    intent locks + provenance  wedge3_mcp.py  its server
               reflector.py trace -> candidate rule    curator.py  gate + submit
               playbook.py  Packmind REST client       wedge2_mcp.py  its server
+              rule_generator.py rule -> ast-grep      detectability.py  validate
+              enforcer.py  ast-grep + OPA + stamp     rule_store.py  lifecycle
+              policies/enforce.rego  the decision     wedge4_mcp.py  its server
 docs/         STATUS.md (what's verified, decisions), prd-v1.md, prd-platform.md
 tests/        test_chronos.py (bi-temporal contract), test_wedge2.py (playbook),
-              test_wedge3.py (ledger)
+              test_wedge3.py (ledger), test_wedge4.py (enforcement),
+              test_unification.py (one server, one db, triggers)
 vendor/       codebase-memory-mcp submodule, pinned
 ```
 
@@ -201,5 +271,6 @@ explicit submodule bump; upstream fixes arrive as a `git pull`, not a re-port.
 
 ## Not built (deferred, per PRD)
 
-Wedges 2–4 (ACE playbook, intent ledger, CI enforcement), multi-repo linking,
-branch-aware indexing, query caching, Slack alerts, hosted SaaS.
+Multi-repo linking, branch-aware indexing, query caching, Slack alerts, hosted
+SaaS. All four wedges are built; see `docs/STATUS.md` for what is verified live
+versus against mocks.

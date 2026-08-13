@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "chronos": {
+      "command": "chronos-mcp",
+      "env": {
+        "CHRONOS_GROUP_ID": "myrepo",
+        "CHRONOS_DB": "~/.chronos/graph.kz",
+        "CHRONOS_SQLITE": "~/.chronos/chronos.db",
+        "CHRONOS_LLM_MODEL": "openai/gpt-4o-mini",
+        "PACKMIND_API_URL": "https://localhost",
+        "PACKMIND_API_KEY": "",
+        "CHRONOS_AUTO_TRIGGERS": "true"
+      }
+    }
+  }
+}

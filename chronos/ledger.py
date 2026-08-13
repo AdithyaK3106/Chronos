@@ -44,9 +44,11 @@ CREATE INDEX IF NOT EXISTS idx_prov_node ON provenance_events(node_id, id DESC);
 
 
 def db_path() -> Path:
-    p = Path(os.environ.get("CHRONOS_LEDGER", Path.home() / ".chronos" / "ledger.db"))
-    p.parent.mkdir(parents=True, exist_ok=True)
-    return p
+    # Unification: the path now comes from db.py, so locks, provenance and
+    # enforcement rules share one file (chronos.db) with one set of PRAGMAs.
+    # Kept as a function here because callers and tests import it.
+    from .db import db_path as _p
+    return _p()
 
 
 def _now() -> datetime:
@@ -58,12 +60,11 @@ def _iso(t: datetime) -> str:
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
-    con = sqlite3.connect(str(path or db_path()), isolation_level=None)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")  # concurrent readers during a write
-    con.execute("PRAGMA busy_timeout=5000")
-    con.executescript(SCHEMA)
-    return con
+    # Unification: one connection manager (db.py) owns the PRAGMAs, the schema
+    # and the legacy migration, so they cannot drift between callers. The
+    # ledger's own SCHEMA above is still applied by db.connect().
+    from .db import connect as _connect
+    return _connect(path)
 
 
 def sweep_expired(con: sqlite3.Connection) -> int:
@@ -76,6 +77,16 @@ def sweep_expired(con: sqlite3.Connection) -> int:
 def _lock_row(r: sqlite3.Row) -> dict:
     return {"node_id": r["node_id"], "agent_id": r["agent_id"], "session_id": r["session_id"],
             "intent": r["intent"], "acquired_at": r["acquired_at"], "expires_at": r["expires_at"]}
+
+
+def _conflict_hint(node_id, agent_id, held_by, intent):
+    """Cross-wedge trigger 3 (informational). Import is local and the call is
+    swallowed so a trigger can never affect lock semantics."""
+    try:
+        from . import triggers
+        triggers.on_conflict(node_id, agent_id, held_by, intent)
+    except Exception:  # noqa: BLE001 -- best-effort by contract
+        pass
 
 
 def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
@@ -99,6 +110,7 @@ def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
         if row is not None:
             if row["agent_id"] != agent_id:
                 con.execute("ROLLBACK")
+                _conflict_hint(node_id, agent_id, row["agent_id"], intent)
                 return {"acquired": False, "reason": "conflict", "conflict": _lock_row(row)}
             # same agent -> extend
             con.execute("UPDATE intent_locks SET session_id=?, intent=?, expires_at=? WHERE node_id=?",
@@ -115,6 +127,8 @@ def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
         # Lost a race between the SELECT and the INSERT; the other agent won.
         con.execute("ROLLBACK")
         row = con.execute("SELECT * FROM intent_locks WHERE node_id = ?", (node_id,)).fetchone()
+        if row is not None:
+            _conflict_hint(node_id, agent_id, row["agent_id"], intent)
         return {"acquired": False, "reason": "conflict",
                 "conflict": _lock_row(row) if row else None}
     except Exception:

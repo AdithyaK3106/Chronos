@@ -1,98 +1,53 @@
-"""Chronos MCP server -- the unified surface agents talk to (P0-4).
+"""The Chronos MCP server — one server, all four capability layers.
 
-Tool set is deliberately small (open question in the PRD: mirror upstream's 14-15
-tools 1:1, or ship an opinionated set?). We ship the temporal tools that only
-Chronos can answer, and leave current-state structural search to the upstream
-codebase-memory-mcp server, which the agent can run alongside this one.
-ponytail: proxying 15 upstream tools we'd add nothing to is pure surface area.
+Rationale: a design partner should add ONE block to their agent config, not
+four. Before unification each wedge shipped its own FastMCP server, which meant
+four commands, four env blocks, and four things to notice were missing when a
+tool did not appear. The wedges were never independent products -- they share a
+data store and feed each other -- so shipping them as four servers exposed our
+internal decomposition as the user's integration problem.
+
+Implementation note: the per-wedge modules remain the source of truth for their
+tools; this module re-registers those same functions on a single FastMCP
+instance. `@mcp.tool()` returns the undecorated function, so registering it on a
+second server is a no-op for the first -- there is no wrapper to unwrap and no
+behaviour change. The wedge modules stay independently importable and testable.
+
+Naming: tools keep the names they already had. Wedge 1's tools are
+`as_of_callers`/`as_of_callees`/`as_of_impact`/`what_changed`/`index_health`
+(not the `chronos_*` prefix the other wedges use). Renaming them would break
+every existing agent config for a cosmetic gain, so they are left alone.
 """
-
-import os
-from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
-from . import query
-from .store import open_driver
+from .wedge1_mcp import (as_of_callees, as_of_callers, as_of_impact,
+                         index_health, what_changed)
+from .wedge2_mcp import (chronos_capture_lesson, chronos_playbook_health,
+                         chronos_propose_rule, chronos_query_playbook)
+from .wedge3_mcp import (chronos_acquire_lock, chronos_check_conflicts,
+                         chronos_log_provenance, chronos_release_lock,
+                         chronos_who_touched)
+from .wedge4_mcp import (chronos_enforce, chronos_generate_rule,
+                         chronos_list_rules, chronos_promote_rule,
+                         chronos_rule_report)
 
-GROUP = os.environ.get("CHRONOS_GROUP_ID", "default")
 mcp = FastMCP("chronos")
 
-_driver = None
+# Wedge 1 — temporal graph: what the codebase looked like, whenever you ask.
+TOOLS = [as_of_callers, as_of_callees, as_of_impact, what_changed, index_health,
+         # Wedge 3 — intent ledger: what agents are about to change.
+         chronos_acquire_lock, chronos_release_lock, chronos_check_conflicts,
+         chronos_log_provenance, chronos_who_touched,
+         # Wedge 2 — policy playbook: what the standards are, kept current.
+         chronos_capture_lesson, chronos_query_playbook, chronos_propose_rule,
+         chronos_playbook_health,
+         # Wedge 4 — CI enforcement: what does not get to merge.
+         chronos_generate_rule, chronos_enforce, chronos_promote_rule,
+         chronos_list_rules, chronos_rule_report]
 
-
-async def driver():
-    global _driver
-    if _driver is None:
-        _driver = open_driver()
-    return _driver
-
-
-def _parse(when: str | None) -> datetime | None:
-    """Accept ISO timestamps, 'now', or relative like '7d' / '12h'."""
-    if not when or when == "now":
-        return None
-    w = when.strip()
-    if w and w[-1] in "dh" and w[:-1].replace(".", "").isdigit():
-        n = float(w[:-1])
-        delta = timedelta(days=n) if w[-1] == "d" else timedelta(hours=n)
-        return datetime.now(timezone.utc) - delta
-    try:
-        d = datetime.fromisoformat(w.replace("Z", "+00:00"))
-        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
-    except ValueError as e:
-        raise ValueError(f"could not parse time '{when}'; use ISO-8601, 'now', '7d', or '12h'") from e
-
-
-@mcp.tool()
-async def as_of_callers(symbol: str, when: str = "now") -> dict:
-    """Who called `symbol` at a point in time.
-
-    when: ISO-8601 timestamp, 'now', or relative ('7d', '12h').
-    Returns an explicit no_data_reason instead of falling back to current state.
-    """
-    return await query.callers(await driver(), GROUP, symbol, _parse(when))
-
-
-@mcp.tool()
-async def as_of_callees(symbol: str, when: str = "now") -> dict:
-    """What `symbol` called at a point in time. Use to check whether a
-    function used a deprecated API before a refactor."""
-    return await query.callees(await driver(), GROUP, symbol, _parse(when))
-
-
-@mcp.tool()
-async def as_of_impact(symbol: str, when: str = "now", depth: int = 2) -> dict:
-    """Transitive callers of `symbol` at a point in time -- blast radius of a change."""
-    d, t = await driver(), _parse(when)
-    seen, frontier, layers = {symbol}, [symbol], []
-    for _ in range(max(1, min(depth, 5))):
-        nxt = []
-        for s in frontier:
-            r = await query.callers(d, GROUP, s, t)
-            for c in r["callers"]:
-                if c["name"] not in seen:
-                    seen.add(c["name"])
-                    nxt.append(c["name"])
-        if not nxt:
-            break
-        layers.append(nxt)
-        frontier = nxt
-    return {"symbol": symbol, "as_of": (t or datetime.now(timezone.utc)).isoformat(),
-            "layers": layers, "total_impacted": len(seen) - 1}
-
-
-@mcp.tool()
-async def what_changed(since: str = "7d", until: str = "now") -> dict:
-    """Structural facts added or superseded in a time window."""
-    s = _parse(since) or datetime.now(timezone.utc) - timedelta(days=7)
-    return await query.changes(await driver(), GROUP, s, _parse(until))
-
-
-@mcp.tool()
-async def index_health() -> dict:
-    """Freshness, size, and staleness of the graph. Check before trusting results."""
-    return await query.health(await driver(), GROUP)
+for _tool in TOOLS:
+    mcp.tool()(_tool)
 
 
 def main():

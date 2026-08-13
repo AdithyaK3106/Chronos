@@ -5,10 +5,11 @@
 3 (Intent & Provenance Ledger), 4 (CI Enforcement).
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
 against four real third-party repos. Wedge 4 is **complete and verified against
-the real ast-grep and OPA binaries**, though its CI workflow has never run on
-GitHub Actions. Wedge 2 is **feature-complete but mock-verified only** — it has
-never made a call to a running Packmind or a real LLM, and should not be demoed
-as working until it has.
+the real ast-grep and OPA binaries**, with both validation-run blockers now
+fixed; its CI workflow has still never run on GitHub Actions. Wedge 2's
+**Reflector is live-verified** — a real LLM call producing a rule grounded in
+real temporal evidence — but its **Curator and Packmind HTTP layer remain
+unproven**, so the wedge should be demoed only as far as rule extraction.
 
 ---
 
@@ -72,10 +73,18 @@ lock set via `as_of_callers`/`callees` needs no schema change.
 
 ## Wedge 2 — Agentic Context Engineering (Policy Playbook)
 
-**Status: mock-verified, not live-verified.** Every capability below is proven
-against mocks. No call has ever been made to a running Packmind or a real LLM —
-see "Live verification: attempted, blocked" at the end of this section before
-relying on any of it.
+**Status: partly live-verified.** The Reflector has now made a real LLM call and
+produced a grounded rule; the Curator and the Packmind HTTP layer have not.
+Precisely:
+
+| Component | Status |
+|---|---|
+| **Reflector** | ✅ **LIVE-VERIFIED** — real LLM call, 0.95 confidence, grounded in Wedge 1 temporal evidence (`valid_at`, fact count, real callers) |
+| **Curator** — dedup + quality gate | ⚠️ mock-verified only |
+| **Packmind HTTP layer** | ❌ not verified — fails at the credentials step, which is the expected behaviour when unconfigured |
+
+Read that table before relying on any capability below: the rows in the next
+table are proven against mocks unless this one says otherwise.
 
 Agent mistakes become coding standards. Reflector (LLM, grounded in Wedge 1
 history) → Curator (dedup + quality gate) → Packmind, which owns storage,
@@ -142,21 +151,33 @@ metadata field to Packmind is the clean fix.
 egress. Wedges 1 and 3 remain fully offline; this is opt-in and unconfigured by
 default (`chronos doctor` says `not configured`, not `ERROR`).
 
-### Live verification: attempted, blocked
+### Live verification: Reflector passed, Packmind still blocked
 
-A full live end-to-end run (start Packmind → mint a key → `capture_lesson` on a
-real node → verify the standard via `GET /standards/<id>`) was attempted on
-2026-08-13 and **did not run**. Two blockers, both environmental:
+**The Reflector ran live on 2026-08-13** against an OpenAI-compatible endpoint
+(any litellm-supported provider works; nothing in Chronos depends on which).
+Grounded on `getActor` from a real 1,502-node graph, it returned:
 
-1. **No container runtime.** `docker` is not installed — no `Program Files\Docker`,
-   no service, no PATH entry, and WSL has zero distributions. `%LOCALAPPDATA%\Docker`
-   holds only orphaned logs from an install that never finished:
-   `[2026-02-28T13:30:17][Installer][I] No installation found` followed by a UAC
-   relaunch that was never completed. Packmind ships only as a Compose stack.
-2. **No LLM credentials.** `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` are unset, so
-   the Reflector and Curator calls could not have executed even with Packmind up.
+> *"IF a function makes an HTTP request (e.g., getActor) THEN it must call the
+> shared http client wrapper instead of invoking fetch() directly, so that auth
+> headers and retry logic are preserved."* — confidence **0.95**
 
-Nothing was stubbed to work around this and no result was reported as passing.
+with `evidence_valid_at: 2026-07-20T15:50:43+00:00` and
+`evidence_commit_context: "33 facts, 0 superseded; callers=[create, update, remove…]"`.
+
+That last part is the whole premise of the wedge: the model reflected on **real
+temporal facts from the graph**, not a decontextualized trace. It had only ever
+been exercised against stubs before. Also confirmed live: the `IF … THEN …`
+format instruction, the 0.4 confidence floor, and JSON parsing.
+
+The Curator then failed exactly as designed —
+`PackmindError: Packmind not reachable — run docs/wedge2-setup.md` — a loud,
+clean exit rather than a silent discard of the trace.
+
+**Still blocked: Packmind itself.** `docker` is not installed on this machine —
+no `Program Files\Docker`, no service, no PATH entry, and WSL has zero
+distributions. `%LOCALAPPDATA%\Docker` holds only orphaned logs from an install
+that never finished (`No installation found`, then an uncompleted UAC relaunch).
+Packmind ships only as a Compose stack, so the HTTP layer stays unverified.
 
 **What this leaves unproven — the honest risk list:**
 
@@ -172,8 +193,13 @@ Nothing was stubbed to work around this and no result was reported as passing.
 - `create_standard` reads the id as `r["id"]` with a fallback to
   `r["standard"]["id"]` because the controller's return type and the use-case
   response type disagree in the source. One live call settles which is right.
+- **The Curator's own LLM work is still mock-only.** The Reflector proved the
+  litellm path works, but the Curator's embedding-based dedup (cosine > 0.85)
+  and its quality gate have never run against a real model — the run stops at
+  `list_rules()`, before either executes.
 
-Clearing this needs Docker Desktop (admin/UAC) and one LLM key; the procedure is
+Clearing this needs Docker Desktop (admin/UAC); an LLM key is no longer a
+blocker. The procedure is
 `docs/wedge2-setup.md`.
 
 ---
@@ -184,6 +210,16 @@ Closes the loop: a Wedge 2 playbook rule becomes an ast-grep pattern, OPA decide
 block vs warn, and blocks are stamped into Wedge 3's ledger. Unlike Wedge 2, both
 external tools were **installed and exercised on this machine** before the code
 was written, and the suite's final test runs against them for real.
+
+**Both blockers from the validation run are now fixed** (commit `8b22cd4`):
+
+| Blocker | Was | Now |
+|---|---|---|
+| **Trigger 1 latency** | Reflector called synchronously inside `enforce()` — **5,099 ms** per blocking verdict, a 38x tax on exactly the CI runs that block most | Dispatched to a daemon thread. **28 ms** enforce path, measured with a 3 s Reflector running behind it. `drain(timeout)` added so short-lived CLI processes do not exit before the lesson is captured |
+| **Language field** | Absent from node dicts entirely (`kind`/`name`/`path`/`qname` only), so per-language rule scoping filtered on nothing and every rule applied to every file | Derived from file extension via `os.path.splitext`. Verified on Setu: **683 typescript, 176 javascript**, and **643 Folder/Module/Project nodes correctly `unknown`** (never `None`). Also carried into the graph — `sync.py`'s `attributes` dict is explicit, so the field had to be added there or it was silently dropped at the boundary |
+
+The latency fix is pinned by a regression test that fails if the Reflector ever
+moves back onto the enforcement path.
 
 | Capability | Status | Evidence | Verified against |
 |---|---|---|---|
@@ -434,14 +470,15 @@ fixes arrive as a `git pull`.
 - **Blocking on nobody:** Linux CI build; load test on a large monorepo;
   adjacent-node conflict expansion for Wedge 3.
 - **Blocking Wedge 2's completion:** a live run against a real Packmind stack.
-  Blocked on a container runtime and an LLM key, not on code — see "Live
-  verification: attempted, blocked". This is the top item; the API shape is read
-  from source, and reading is not running.
+  The LLM half is now done (Reflector verified live); what remains is blocked on
+  a container runtime, not on code. The Packmind API shape is read from source,
+  and reading is not running. This is still the top item.
 - **Wedge 4:** no live CI run. The workflow is written but has never executed on
   GitHub Actions, and enforcement is toothless without a graph in CI (every
   verdict degrades to `warn`).
 - **Per platform PRD sequencing:** all four wedges are built. Wedges 1, 3 and 4
-  are verified against real tools and repos; Wedge 2 is mock-verified only.
+  are verified against real tools and repos; Wedge 2's Reflector is
+  live-verified, its Curator and Packmind layer are not.
   Wedge 4 uses ast-grep (MIT) and OPA (Apache 2.0) via subprocess — Opengrep
   (LGPL-2.1) is used nowhere. Wedge 2's Reflector/Curator was built in-house because
   the ACE framework is FSL-licensed; Packmind OSS (Apache 2.0) is used unmodified

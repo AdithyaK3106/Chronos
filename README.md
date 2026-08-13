@@ -133,11 +133,13 @@ acquisition, so a crashed agent can't wedge a node — no background process.
 authenticate. This prevents collisions between cooperating agents, not hostile
 ones.
 
-### Self-improving playbook (Wedge 2) — mock-verified only
+### Self-improving playbook (Wedge 2) — partly verified
 
-> Built and tested against mocks; it has **never run against a live Packmind or a
-> real LLM**. The HTTP layer is written from reading Packmind's source, so treat
-> it as unproven until `docs/wedge2-setup.md` has been walked end to end.
+> The **Reflector is live-verified**: a real LLM call produced a rule grounded in
+> real temporal evidence from the graph. The **Curator and the Packmind HTTP
+> layer are not** — the latter is written from reading Packmind's source and has
+> never seen a response. Treat rule extraction as working and submission as
+> unproven until `docs/wedge2-setup.md` has been walked end to end;
 > `docs/STATUS.md` lists exactly what that leaves at risk.
 
 Agent gets corrected → Reflector extracts a candidate rule, grounded in Wedge 1

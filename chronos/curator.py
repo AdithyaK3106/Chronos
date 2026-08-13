@@ -9,10 +9,15 @@ reaches CLAUDE.md/.cursor/rules.
 import math
 import os
 
-from .playbook import Packmind
+from .playbook import Packmind, PackmindNotConfigured
 from .reflector import _json, complete
 
 SIMILARITY_LIMIT = 0.85
+
+
+def _get_submission_path() -> str:
+    """Returns 'packmind' if PACKMIND_API_URL is set, else 'git-native'."""
+    return "packmind" if os.environ.get("PACKMIND_API_URL") else "git-native"
 EMBED_MODEL = lambda: os.environ.get("CHRONOS_EMBED_MODEL", "text-embedding-3-small")
 
 GATE_PROMPT = """Assess this candidate coding standard rule before it enters a team playbook.
@@ -64,14 +69,31 @@ def _duplicate_of(rule_text, existing):
     return (best, score) if score > SIMILARITY_LIMIT else None
 
 
-def curate(candidate, packmind=None):
+def _existing_rules(pm):
+    """Current rules for the dedup check, from whichever store is active."""
+    if pm is not None:
+        return pm.list_rules()
+    from . import rule_store
+    return [{"name": r["rule_id"], "rule_text": r["rule_text"]}
+            for r in rule_store.get_active_rules()
+            if r.get("rule_text")]
+
+
+def curate(candidate, packmind=None, repo_path=None):
     """CandidateRule -> {submitted, reason, packmind_proposal_id}.
 
-    PackmindError is deliberately NOT caught: an unreachable store must fail
-    loudly rather than silently drop a lesson (PRD Step 4)."""
-    pm = packmind or Packmind()
+    Routes on PACKMIND_API_URL: set -> Packmind HTTP, unset -> git-native PR.
+    A genuinely unreachable Packmind still raises PackmindError — only the
+    narrower 'not configured' case falls through to git-native, since an
+    outage must stay loud (PRD Step 4)."""
+    pm = packmind
+    if pm is None and _get_submission_path() == "packmind":
+        try:
+            pm = Packmind()
+        except PackmindNotConfigured:
+            pm = None  # env vanished between check and construction
 
-    existing = pm.list_rules()
+    existing = _existing_rules(pm)
     dup = _duplicate_of(candidate["rule_text"], existing)
     if dup:
         rule, score = dup
@@ -108,9 +130,29 @@ def curate(candidate, packmind=None):
         # visible in the UI; the real gate is that we never publish.
         "status": "proposed",
     }
-    sid = pm.create_standard(candidate["rule_text"], evidence)
+    if pm is not None:
+        try:
+            sid = pm.create_standard(candidate["rule_text"], evidence)
+            return {
+                "submitted": True,
+                "reason": "created in Packmind as an unpublished standard, "
+                          "awaiting human publish",
+                "packmind_proposal_id": sid,
+                "submission_path": "packmind",
+            }
+        except PackmindNotConfigured:
+            pass  # fall through: degrade cleanly rather than drop the lesson
+
+    from .rule_submission import submit_git_native
+    r = submit_git_native({**candidate, **{"evidence": evidence}}, repo_path)
     return {
         "submitted": True,
-        "reason": "created in Packmind as an unpublished standard, awaiting human publish",
-        "packmind_proposal_id": sid,
+        "reason": ("proposed as a draft PR, awaiting merge" if r["pr_url"]
+                   else "written to .chronos/rules/, awaiting review"),
+        "packmind_proposal_id": None,
+        "submission_path": "git-native",
+        "rule_id": r["rule_id"],
+        "branch": r["branch"],
+        "pr_url": r["pr_url"],
+        "rule_path": r["rule_path"],
     }

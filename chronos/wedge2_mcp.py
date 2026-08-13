@@ -6,11 +6,14 @@ curates, and reads back.
 """
 
 import os
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
 from . import curator, reflector
-from .playbook import Packmind, PackmindError
+from .curator import _get_submission_path
+from .playbook import Packmind, PackmindError, PackmindNotConfigured
+from .rule_submission import resolve_repo_path
 from .store import open_driver
 
 GROUP = os.environ.get("CHRONOS_GROUP_ID", "default")
@@ -28,9 +31,21 @@ async def driver():
 
 
 def pm():
+    """The Packmind client, or None when the git-native path is active.
+
+    Returns None rather than raising so capture_lesson works out of the box
+    with no Packmind anywhere. A configured-but-unreachable store still
+    raises — that is an outage, not a routing decision."""
     global _pm
+    if _pm is not None:
+        return _pm  # explicitly injected client always wins over env routing
+    if _get_submission_path() != "packmind":
+        return None
     if _pm is None:
-        _pm = Packmind()
+        try:
+            _pm = Packmind()
+        except PackmindNotConfigured:
+            return None
     return _pm
 
 
@@ -42,7 +57,8 @@ async def chronos_capture_lesson(trace: dict) -> dict:
             nodes_touched: [qualified_name], timestamp}
     Runs Reflector (grounded in the temporal graph) then Curator, and on success
     creates an unpublished Packmind standard for a human to approve."""
-    store = pm()  # raises loudly if Packmind is not configured/reachable
+    store = pm()  # None -> git-native; raises loudly if configured but broken
+    path = _get_submission_path()
     candidate = await reflector.reflect(await driver(), GROUP, trace)
     if candidate is None:
         return {
@@ -50,6 +66,8 @@ async def chronos_capture_lesson(trace: dict) -> dict:
             "submitted": False,
             "packmind_proposal_id": None,
             "discarded_reason": "no generalizable rule (LLM returned null or confidence < 0.4)",
+            "submission_path": path,
+            "packmind_configured": bool(os.environ.get("PACKMIND_API_URL")),
         }
     result = curator.curate(candidate, packmind=store)
     return {
@@ -57,6 +75,12 @@ async def chronos_capture_lesson(trace: dict) -> dict:
         "submitted": result["submitted"],
         "packmind_proposal_id": result["packmind_proposal_id"],
         "discarded_reason": None if result["submitted"] else result["reason"],
+        "submission_path": result.get("submission_path", path),
+        "packmind_configured": bool(os.environ.get("PACKMIND_API_URL")),
+        # git-native only; absent on the Packmind path.
+        "branch": result.get("branch"),
+        "pr_url": result.get("pr_url"),
+        "rule_id": result.get("rule_id"),
     }
 
 
@@ -68,7 +92,7 @@ async def chronos_query_playbook(topic: str, limit: int = 10) -> list:
     semantic search endpoint (playbook.py [D4])."""
     terms = [t for t in topic.lower().split() if t]
     scored = []
-    for r in pm().list_rules():
+    for r in curator._existing_rules(pm()):
         hay = f"{r.get('rule_text', '')} {r.get('name', '')} {r.get('evidence_node', '')}".lower()
         hits = sum(t in hay for t in terms)
         if hits or not terms:
@@ -89,16 +113,34 @@ async def chronos_propose_rule(rule_text: str, reason: str, agent_id: str) -> di
         "source_trace_id": "",
         "agent_id": agent_id,
     }
-    return curator.curate(candidate, packmind=pm())
+    result = curator.curate(candidate, packmind=pm())
+    return {
+        **result,
+        "submission_path": result.get("submission_path", _get_submission_path()),
+        "packmind_configured": bool(os.environ.get("PACKMIND_API_URL")),
+    }
 
 
 @mcp.tool()
 async def chronos_playbook_health() -> dict:
-    """Rule counts, last proposal, and Packmind connection status."""
+    """Rule counts, last proposal, and which distribution path is active."""
+    repo_path = resolve_repo_path(None)
+    meta = {
+        "rule_backend": _get_submission_path(),
+        "packmind_url": os.environ.get("PACKMIND_API_URL", None),
+        "git_native_rules_dir": str(Path(repo_path) / ".chronos" / "rules"),
+    }
+    store = pm()
+    if store is None:
+        from . import rule_store
+        c = rule_store.counts()
+        return {"status": "ok", "total": c["total"],
+                "proposed": c.get("proposed", 0),
+                "blocking": c["blocking"], "warn_only": c["warn_only"], **meta}
     try:
-        return pm().health()
+        return {**store.health(), **meta}
     except PackmindError as e:
-        return {"status": "unreachable", "error": str(e), "total": 0}
+        return {"status": "unreachable", "error": str(e), "total": 0, **meta}
 
 
 def main():

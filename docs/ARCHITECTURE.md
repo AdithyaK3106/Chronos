@@ -38,9 +38,56 @@ how the parts connect and why the boundaries fall where they do.
 ```
 
 Reading it: agents talk to one server. Wedge 1 owns the graph; Wedges 2–4 share
-`chronos.db`. Only Wedge 2 and Wedge 4's rule generator reach an LLM, and only
-Wedge 2 reaches Packmind. Wedge 1's indexer and Wedge 4's matchers are
+`chronos.db`. Only Wedge 2 and Wedge 4's rule generator reach an LLM, and Wedge 2
+reaches Packmind **only when `PACKMIND_API_URL` is set** — by default it stays
+inside the repo (see below). Wedge 1's indexer and Wedge 4's matchers are
 subprocesses.
+
+---
+
+## 1a. Wedge 2 rule distribution paths
+
+A proposed rule has to reach humans for approval and agents for enforcement.
+There are two ways to do that, chosen by one environment variable.
+
+### Git-native (default)
+
+Curator writes rule YAML to `.chronos/rules/`, commits to a branch
+`chronos/rule-<id>`, opens a draft PR via `gh`. Tech lead reviews and merges.
+Developer runs `chronos approve-rule <id>` to advance to warn-only enforcement.
+No external service required.
+
+### Packmind (opt-in)
+
+Set `PACKMIND_API_URL` + `PACKMIND_API_KEY` to enable. Curator submits via HTTP.
+Tech lead approves in the Packmind web UI. Rules become org-scoped
+automatically. Requires a running Packmind instance (shared per org, not per
+developer).
+
+### Switching paths
+
+The switch is `PACKMIND_API_URL` in the MCP env block. Unset = git-native.
+Set = Packmind. Both paths write to `enforcement_rules` in `chronos.db`; the
+enforcement layer is path-agnostic.
+
+### Lifecycle
+
+```
+proposed ──approve-rule──> warn-only-unvalidated ──> warn-only-validated ──promote-rule──> blocking
+   │                                                                                          │
+   └── git-native entry state: written and PR'd, but NOT enforced                              │
+                                                          human act, refuses unvalidated rules ┘
+```
+
+`proposed` exists only on the git-native path — on the Packmind path the
+equivalent gate is a created-but-unpublished standard (`playbook.py` [D2]).
+`get_active_rules()` excludes `proposed`, so a rule awaiting review cannot warn
+on, let alone block, a merge.
+
+**Degradation is deliberate.** No `gh`, no remote, or no git at all → the rule
+file is still written and still recorded as `proposed`, with `pr_url: None`. A
+lesson is never dropped because the developer's git is in an odd state; every
+git call is `check=False` with the return code inspected by hand.
 
 ---
 
@@ -158,7 +205,8 @@ is worse than one that fails.
 | `upstream.py` / `indexer.py` / `build_cbm.py` | 1 | Read and build the upstream index |
 | `sync.py` / `store.py` / `query.py` | 1 | Graph writes, driver, as-of reads |
 | `wedge3_mcp.py` / `ledger.py` | 3 | Intent locks, provenance |
-| `wedge2_mcp.py` / `reflector.py` / `curator.py` / `playbook.py` | 2 | Lesson capture, curation, Packmind |
+| `wedge2_mcp.py` / `reflector.py` / `curator.py` | 2 | Lesson capture, curation, path routing |
+| `playbook.py` / `rule_submission.py` | 2 | The two distribution paths: Packmind HTTP, git-native PR |
 | `wedge4_mcp.py` / `rule_generator.py` / `detectability.py` / `enforcer.py` / `rule_store.py` | 4 | Rule generation, validation, enforcement |
 | `db.py` | 2/3/4 | The single SQLite connection manager |
 | `triggers.py` | cross | The three cross-wedge triggers |

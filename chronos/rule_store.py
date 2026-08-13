@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS enforcement_rules (
 );
 """
 
+# Lifecycle: proposed -> warn-only-unvalidated -> warn-only-validated -> blocking
+# 'proposed' is the git-native entry state: written to .chronos/rules/ and put up
+# as a draft PR, but NOT enforced. get_active_rules() excludes it, so a rule
+# nobody has approved cannot warn on, let alone block, a merge.
+PROPOSED = "proposed"
 UNVALIDATED = "warn-only-unvalidated"
 VALIDATED = "warn-only-validated"
 BLOCKING = "blocking"
@@ -80,6 +85,57 @@ def upsert_rule(rule_id, language, rule_text, yaml_pattern, detectability_result
             c.close()
 
 
+def propose_rule(rule_id, language, rule_text, yaml_pattern=None, con=None) -> None:
+    """Record a git-native proposal. Enters at 'proposed', which is not enforced.
+
+    Unlike upsert_rule this never advances a rule: re-proposing something already
+    approved must not drag it back to 'proposed' and silently disable it."""
+    c, own = _use(con)
+    try:
+        c.execute("""
+            INSERT INTO enforcement_rules
+                (rule_id, language, rule_text, yaml_pattern, status,
+                 detectability_passed, false_positive_risk, created_at)
+            VALUES (?,?,?,?,?,0,0,?)
+            ON CONFLICT(rule_id) DO UPDATE SET
+                rule_text=excluded.rule_text,
+                yaml_pattern=COALESCE(excluded.yaml_pattern,
+                                      enforcement_rules.yaml_pattern)
+            -- status deliberately untouched on conflict.
+        """, (rule_id, language, rule_text or "", yaml_pattern, PROPOSED, _now()))
+        if own:
+            c.commit()
+    finally:
+        if own:
+            c.close()
+
+
+def approve_rule(rule_id, con=None) -> dict:
+    """'proposed' -> 'warn-only-unvalidated'. The git-native equivalent of
+    clicking Approve in the Packmind UI. Warn-only, never straight to blocking:
+    promotion stays a separate human act."""
+    c, own = _use(con)
+    try:
+        row = c.execute("SELECT * FROM enforcement_rules WHERE rule_id=?",
+                        (rule_id,)).fetchone()
+        if row is None:
+            return {"rule_id": rule_id, "approved": False,
+                    "reason": "no such rule", "status": None}
+        if row["status"] != PROPOSED:
+            return {"rule_id": rule_id, "approved": False,
+                    "reason": f"already past proposed state (current: {row['status']})",
+                    "status": row["status"]}
+        c.execute("UPDATE enforcement_rules SET status=? WHERE rule_id=?",
+                  (UNVALIDATED, rule_id))
+        if own:
+            c.commit()
+        return {"rule_id": rule_id, "approved": True, "status": UNVALIDATED,
+                "previous_status": PROPOSED}
+    finally:
+        if own:
+            c.close()
+
+
 def promote_to_blocking(rule_id, promoted_by, con=None) -> dict:
     """Promote a validated rule. Refuses unvalidated ones -- a rule that cannot
     catch its own example must never gate a merge."""
@@ -90,6 +146,10 @@ def promote_to_blocking(rule_id, promoted_by, con=None) -> dict:
         if row is None:
             return {"rule_id": rule_id, "promoted": False,
                     "reason": "no such rule", "status": None}
+        if row["status"] == PROPOSED:
+            return {"rule_id": rule_id, "promoted": False,
+                    "reason": "rule is still proposed — run approve-rule first",
+                    "status": PROPOSED}
         if not row["detectability_passed"]:
             return {"rule_id": rule_id, "promoted": False,
                     "reason": "detectability did not pass — cannot promote an "
@@ -110,7 +170,10 @@ def promote_to_blocking(rule_id, promoted_by, con=None) -> dict:
 def get_active_rules(language=None, con=None) -> list[dict]:
     c, own = _use(con)
     try:
-        q = "SELECT * FROM enforcement_rules WHERE yaml_pattern IS NOT NULL"
+        # status!='proposed': a proposed rule is awaiting human approval and
+        # must not reach the enforcer, even if it already has a pattern.
+        q = ("SELECT * FROM enforcement_rules "
+             "WHERE yaml_pattern IS NOT NULL AND status!='proposed'")
         args = ()
         if language:
             q += " AND language=?"
@@ -140,7 +203,8 @@ def counts(con=None) -> dict:
         by = {r["status"]: r["n"] for r in rows}
         return {"total": sum(by.values()),
                 "blocking": by.get(BLOCKING, 0),
-                "warn_only": by.get(VALIDATED, 0) + by.get(UNVALIDATED, 0)}
+                "warn_only": by.get(VALIDATED, 0) + by.get(UNVALIDATED, 0),
+                "proposed": by.get(PROPOSED, 0)}
     finally:
         if own:
             c.close()

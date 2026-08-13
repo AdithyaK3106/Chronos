@@ -77,6 +77,15 @@ class PackmindError(RuntimeError):
     worse than a loud failure (PRD Step 4)."""
 
 
+class PackmindNotConfigured(PackmindError):
+    """PACKMIND_API_URL is unset, so the git-native path applies instead.
+
+    A subclass of PackmindError on purpose: existing `except PackmindError`
+    handlers keep treating an unconfigured store as a loud failure, while the
+    Curator catches this narrower type to fall through to git-native. 'Not
+    configured' is a routing signal, not an outage."""
+
+
 def _setup_hint(detail):
     return PackmindError(f"Packmind not reachable — run docs/wedge2-setup.md ({detail})")
 
@@ -88,7 +97,10 @@ class Packmind:
         self.org = org or os.environ.get("PACKMIND_ORG_ID", "")
         self.space = space or os.environ.get("PACKMIND_SPACE_ID", "")
         self.timeout = timeout
-        if not self.url or not self.key:
+        if not self.url:
+            raise PackmindNotConfigured(
+                "PACKMIND_API_URL not set — using git-native path")
+        if not self.key:
             raise _setup_hint("PACKMIND_API_URL and PACKMIND_API_KEY must be set")
 
     def _call(self, method, path, body=None):
@@ -150,6 +162,12 @@ class Packmind:
     def create_standard(self, rule_text, evidence):
         """Create an UNPUBLISHED standard. See [D2]: not publishing is the
         approval gate — a human publishes from the Packmind UI."""
+        # Belt and braces: the constructor already refuses an unset URL, but a
+        # caller can construct with an explicit url= and later unset the env.
+        # Submitting is the irreversible step, so it re-checks.
+        if not os.environ.get("PACKMIND_API_URL") and not self.url:
+            raise PackmindNotConfigured(
+                "PACKMIND_API_URL not set — using git-native path")
         name = rule_text.strip().splitlines()[0][:80] or "chronos rule"
         desc = f"{rule_text}\n\n{EVIDENCE_MARK}\n{json.dumps(evidence, indent=2)}"
         r = self._call(

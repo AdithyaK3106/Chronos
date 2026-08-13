@@ -167,15 +167,24 @@ async def do_init(args):
     print(f"[1/6] created {dot}{os.sep}rules and {dot}{os.sep}logs")
 
     # 2. config
+    packmind_set = bool(os.environ.get("PACKMIND_API_URL"))
     cfg = {
         "repo": str(repo),
         "chronos_sqlite": str(dot / "chronos.db"),
         "chronos_kuzu_path": str(dot / "graph"),
         "llm_model": "openrouter/anthropic/claude-3-haiku",
         "auto_triggers": "1",
+        "rule_backend": "packmind" if packmind_set else "git-native",
     }
     (dot / "config.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     print(f"[2/6] wrote {dot / 'config.json'}")
+    print("      Rule storage: git-native (default)")
+    print("        Rules are proposed as draft PRs and stored in .chronos/rules/")
+    if packmind_set:
+        print("        PACKMIND_API_URL detected - Packmind path will be used.")
+    else:
+        print("        To enable org-wide Packmind instead:")
+        print("          Set PACKMIND_API_URL and PACKMIND_API_KEY in the MCP env block")
 
     # 3/4. Claude Desktop MCP block
     cpath = claude_desktop_config()
@@ -360,6 +369,63 @@ def do_dashboard(args):
     serve(host=args.host, port=args.port)
 
 
+def _branch_merged(repo_path, branch, base):
+    """True if `branch` is merged into `base`. None if git can't tell us."""
+    r = subprocess.run(["git", "-C", str(repo_path), "branch", "--merged", base],
+                       check=False, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    return any(line.strip().lstrip("* ") == branch for line in r.stdout.splitlines())
+
+
+async def do_approve_rule(args):
+    """Git-native approval: proposed -> warn-only-unvalidated."""
+    from . import rule_store
+    from .rule_submission import BRANCH_PREFIX, resolve_repo_path
+
+    rule_id = args.rule_id
+    rule = rule_store.get_rule(rule_id)
+    if rule is None:
+        print(f"No such rule: {rule_id}")
+        raise SystemExit(1)
+    if rule["status"] != rule_store.PROPOSED:
+        print(f"Rule is already past proposed state (current: {rule['status']}). "
+              f"Use promote-rule to advance it further.")
+        raise SystemExit(0)
+
+    repo_path = resolve_repo_path(getattr(args, "repo_sub", None))
+    branch = f"{BRANCH_PREFIX}{rule_id}"
+    merged = None
+    for base in ("main", "master"):
+        merged = _branch_merged(repo_path, branch, base)
+        if merged:
+            break
+    if merged:
+        print("[OK] Branch merged - rule approved and moved to warn-only.")
+    else:
+        print("[!] Branch not yet merged. Approving locally anyway. "
+              "Rule will enforce in warn-only mode from this machine.")
+
+    r = rule_store.approve_rule(rule_id)
+    if not r["approved"]:
+        print(f"Could not approve: {r['reason']}")
+        raise SystemExit(1)
+    print(f"Rule {rule_id} approved.")
+    print(f"Status: {rule_store.PROPOSED} -> {rule_store.UNVALIDATED}")
+    print(f"Run 'python -m chronos promote-rule {rule_id}' when validated "
+          f"to make it blocking.")
+
+
+async def do_promote_rule(args):
+    """Human promotion to blocking. Refuses anything not yet validated."""
+    from . import rule_store
+    r = rule_store.promote_to_blocking(args.rule_id, args.by)
+    if not r["promoted"]:
+        print(f"Not promoted: {r['reason']}")
+        raise SystemExit(1)
+    print(f"Rule {args.rule_id} promoted to {r['status']} by {r['promoted_by']}.")
+
+
 def _fake_packmind_roundtrip():
     """Exercise the Packmind HTTP layer against tests/fake_packmind.py.
 
@@ -491,6 +557,15 @@ def main():
                           "(no credentials, no Docker); exit 1 on failure")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
+    apr = sub.add_parser("approve-rule",
+                         help="approve a git-native proposed rule (-> warn-only)")
+    apr.add_argument("rule_id")
+    apr.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+    pro = sub.add_parser("promote-rule",
+                         help="promote a validated rule to blocking")
+    pro.add_argument("rule_id")
+    pro.add_argument("--by", default=os.environ.get("USER") or "unknown",
+                     help="who is promoting (recorded in the ledger)")
     dash = sub.add_parser("dashboard", help="serve the developer dashboard")
     dash.add_argument("--port", type=int, default=8080)
     dash.add_argument("--host", default="127.0.0.1")
@@ -517,6 +592,7 @@ def main():
     fn = {"index": do_index, "sync": do_sync, "watch": do_watch,
           "health": do_health, "doctor": do_doctor, "gc": do_gc,
           "enforce": do_enforce, "init": do_init,
+          "approve-rule": do_approve_rule, "promote-rule": do_promote_rule,
           "dashboard": do_dashboard}[args.cmd]
     try:
         # dashboard runs its own loop (uvicorn); everything else is a coroutine

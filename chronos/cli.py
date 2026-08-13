@@ -360,7 +360,48 @@ def do_dashboard(args):
     serve(host=args.host, port=args.port)
 
 
+def _fake_packmind_roundtrip():
+    """Exercise the Packmind HTTP layer against tests/fake_packmind.py.
+
+    Verifies our client (URLs, bearer header, body shapes, evidence
+    round-trip) on any machine, with no credentials and no Docker. It does NOT
+    verify that the real Packmind agrees with our reading of its source —
+    only a live run does that. Exit 0 on PASS, 1 on FAIL."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
+    try:
+        import fake_packmind
+    except ImportError:
+        print("fake packmind: MISSING -- tests/fake_packmind.py not found")
+        return 1
+    from .playbook import Packmind
+
+    httpd, port = fake_packmind.serve(port=0)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        pm = Packmind(url=base, key="fake")
+        evidence = {"evidence_node": "demo::fn", "evidence_valid_at": "2026-01-01T00:00:00+00:00",
+                    "source": "chronos-doctor", "status": "proposed"}
+        sid = pm.create_standard("IF x THEN y, for a reason.", evidence)
+        back = pm.list_rules()
+        ok = (sid == "fake-rule-001" and len(back) == 1
+              and back[0]["evidence_node"] == "demo::fn"
+              and back[0]["rule_text"].startswith("IF x THEN y"))
+        print(f"fake packmind: {'PASS' if ok else 'FAIL'} | created {sid} | "
+              f"read back {len(back)} rule(s) with evidence intact")
+        if not ok:
+            print(f"              got: {back}")
+        return 0 if ok else 1
+    except Exception as e:
+        print(f"fake packmind: FAIL {type(e).__name__}: {e}")
+        return 1
+    finally:
+        httpd.shutdown()
+
+
 async def do_doctor(args):
+    if getattr(args, "fake_packmind", False):
+        raise SystemExit(_fake_packmind_roundtrip())
     from .indexer import toolchain_report
     t = toolchain_report()
     print(f"vendored src: {'present' if t['vendored'] else 'MISSING -- git submodule update --init --depth 1'}")
@@ -444,7 +485,10 @@ def main():
     w = sub.add_parser("watch", help="continuously sync on change")
     w.add_argument("--interval", type=int, default=30)
     sub.add_parser("health", help="index health (exit 1 if not fresh)")
-    sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
+    doc = sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
+    doc.add_argument("--fake-packmind", action="store_true",
+                     help="verify the Packmind HTTP layer against a local fake "
+                          "(no credentials, no Docker); exit 1 on failure")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
     dash = sub.add_parser("dashboard", help="serve the developer dashboard")

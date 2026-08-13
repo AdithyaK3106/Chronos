@@ -62,7 +62,7 @@ Register the MCP server with your agent:
 Two servers by design: **Chronos answers temporal questions, upstream answers
 current-state ones.** Chronos does not proxy upstream's tools — it would be a
 pass-through for queries it doesn't own, and agents already handle multiple MCP
-servers. See `STATUS.md` D-1.
+servers. See `docs/STATUS.md` D-1.
 
 Chronos tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
 `index_health`. Times accept ISO-8601, `now`, or relative (`7d`, `12h`).
@@ -130,7 +130,8 @@ Verified working end-to-end: schema discovery, sync, supersession, idempotent
 re-sync, as-of queries across a real refactor of this repo, and all 5 MCP tools.
 
 ```bash
-python test_chronos.py   # bi-temporal contract self-check
+python tests/test_chronos.py   # bi-temporal contract self-check
+python tests/test_wedge3.py    # intent locks + provenance
 ```
 
 Validated against the real indexer built from vendored source (commit `70a9539`)

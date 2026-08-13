@@ -19,3 +19,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["chronos"]
+
+# ponytail: the suites are plain asserts with their own __main__, not pytest
+# cases. This only teaches pytest to collect them; `python tests/test_x.py`
+# still works and stays the documented way to run them.
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,6 +1,6 @@
 """Self-check for the intent/provenance ledger (Wedge 3).
 
-Run: python test_wedge3.py
+Run: python tests/test_wedge3.py
 """
 
 import os

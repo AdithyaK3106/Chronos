@@ -1,7 +1,7 @@
 # PRD: Chronos Context OS — Full Platform (Wedges 1–4)
 
 **Status:** Draft for review
-**Scope:** Platform-level roadmap covering all four strategic wedges. Companion to, not a replacement for, the [v1 PRD](chronos-v1-prd.md), which covers Wedge 1 in build-level detail.
+**Scope:** Platform-level roadmap covering all four strategic wedges. Companion to, not a replacement for, the [v1 PRD](prd-v1.md), which covers Wedge 1 in build-level detail.
 **Audience:** Engineering/product (build planning), investors (roadmap and defensibility), design partners (what's coming and when).
 **Build philosophy:** Chronos is an **integration and orchestration layer**, not a from-scratch platform. Every wedge below is scoped around a specific existing open-source project doing the heavy lifting; Chronos's job is the glue, the unified interface, and the parts that don't exist anywhere yet. Where a wedge turns out to require rebuilding something an existing project already does well, that's a signal to re-scope the wedge, not a green light to build it in-house.
 **Sequencing:** Wedge 1 → Wedge 3 → Wedge 2 → Wedge 4. Rationale in Timeline Considerations.

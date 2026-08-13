@@ -1,6 +1,6 @@
 """Self-check: the bi-temporal contract that the whole product rests on.
 
-Run: python test_chronos.py
+Run: python tests/test_chronos.py
 """
 
 import asyncio

@@ -29,7 +29,7 @@ Each row was executed, not reasoned about. Evidence is what the command actually
 | ↳ one install step | ✅ | `submodule update` → `pip install -e .` → `build_cbm` (verified from a fresh clone). |
 | **P0-6** Index health | ✅ | `chronos health` returns status/freshness/coverage; exits 1 when not fresh. |
 
-**Suite:** `python test_chronos.py` → ALL PASS (17 checks, incl. supersession,
+**Suite:** `python tests/test_chronos.py` → ALL PASS (17 checks, incl. supersession,
 idempotency, identity collisions, no-data signalling, coverage, gc safety, and a
 cross-path round-trip).
 
@@ -51,7 +51,7 @@ the temporal graph does — **per-function, not per-file.**
 | Multi-node pre-flight | ✅ | `chronos_check_conflicts` dedupes and splits locked/free. |
 | Doctor integration | ✅ | `ledger: ok \| N active locks \| N events \| <path>`. |
 
-**Suite:** `python test_wedge3.py` → ALL PASS (12 checks).
+**Suite:** `python tests/test_wedge3.py` → ALL PASS (12 checks).
 **Size:** 260 lines across `ledger.py` + `wedge3_mcp.py`.
 
 Full two-agent scenario on real Opencode node ids (`newFallbackState::Function`):

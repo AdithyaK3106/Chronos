@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import contextlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -131,19 +132,169 @@ async def do_gc(args):
     await drv.close()
 
 
+CLAUDE_CONFIG = {
+    "darwin": "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "linux": "~/.config/Claude/claude_desktop_config.json",
+}
+
+
+def claude_desktop_config() -> Path | None:
+    """Claude Desktop's config path for this OS, or None if it is not there."""
+    import platform
+    if os.name == "nt" or platform.system() == "Windows":
+        appdata = os.environ.get("APPDATA")
+        p = Path(appdata) / "Claude" / "claude_desktop_config.json" if appdata else None
+    else:
+        key = "darwin" if platform.system() == "Darwin" else "linux"
+        p = Path(CLAUDE_CONFIG[key]).expanduser()
+    return p if p and p.exists() else None
+
+
+HOOKS = {
+    "pre-commit": '#!/bin/sh\npython -m chronos enforce --repo "$(git rev-parse --show-toplevel)" --fail-on-block\n',
+    "post-merge": '#!/bin/sh\npython -m chronos index --repo "$(git rev-parse --show-toplevel)"\n',
+}
+
+
+async def do_init(args):
+    """Set Chronos up in a repo: data dir, config, MCP block, git hooks, doctor."""
+    repo = Path(args.repo or ".").resolve()
+    dot = repo / ".chronos"
+
+    # 1. directories
+    (dot / "rules").mkdir(parents=True, exist_ok=True)
+    (dot / "logs").mkdir(parents=True, exist_ok=True)
+    print(f"[1/6] created {dot}{os.sep}rules and {dot}{os.sep}logs")
+
+    # 2. config
+    cfg = {
+        "repo": str(repo),
+        "chronos_sqlite": str(dot / "chronos.db"),
+        "chronos_kuzu_path": str(dot / "graph"),
+        "llm_model": "openrouter/anthropic/claude-3-haiku",
+        "auto_triggers": "1",
+    }
+    (dot / "config.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    print(f"[2/6] wrote {dot / 'config.json'}")
+
+    # 3/4. Claude Desktop MCP block
+    cpath = claude_desktop_config()
+    if cpath is None:
+        print("[3/6] Claude Desktop config not found - skipping MCP registration")
+        print("[4/6] skipped")
+        mcp_written = None
+    else:
+        print(f"[3/6] found Claude Desktop config: {cpath}")
+        try:
+            doc = json.loads(cpath.read_text(encoding="utf-8") or "{}")
+        except json.JSONDecodeError as e:
+            print(f"[4/6] config is not valid JSON ({e}) - not touching it")
+            doc, cpath = None, None
+        if cpath is not None:
+            servers = doc.setdefault("mcpServers", {})
+            if "chronos" in servers:
+                print("[4/6] MCP block already present, skipping.")
+            else:
+                servers["chronos"] = {
+                    "command": "python",
+                    "args": ["-m", "chronos.server"],
+                    "env": {"CHRONOS_SQLITE": cfg["chronos_sqlite"],
+                            "CHRONOS_KUZU_PATH": cfg["chronos_kuzu_path"],
+                            "CHRONOS_AUTO_TRIGGERS": "1"},
+                }
+                # Only mcpServers.chronos is added; every other key round-trips.
+                cpath.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+                print(f"[4/6] wrote MCP block to {cpath}")
+        mcp_written = cpath
+
+    # 5. git hooks
+    hooks_dir = repo / ".git" / "hooks"
+    if not (repo / ".git").exists():
+        print("[5/6] not a git repo - skipping hooks")
+        hooks_ok = False
+    else:
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        for name, body in HOOKS.items():
+            p = hooks_dir / name
+            p.write_text(body, encoding="utf-8", newline="\n")  # sh needs LF
+            p.chmod(p.stat().st_mode | 0o755)
+        print(f"[5/6] installed {', '.join(HOOKS)} in {hooks_dir}")
+        hooks_ok = True
+
+    # 6. doctor
+    print("[6/6] chronos doctor:")
+    doctor_ok = True
+    try:
+        await do_doctor(args)
+    except SystemExit as e:
+        doctor_ok = not e.code
+    except Exception as e:
+        print(f"      doctor failed: {type(e).__name__}: {e}")
+        doctor_ok = False
+
+    # A Windows console defaults to cp1252, which cannot encode these glyphs --
+    # printing them raises UnicodeEncodeError and takes the whole command down.
+    try:
+        "✓⚠✗".encode(sys.stdout.encoding or "utf-8")
+        tick, warn, cross = "✓", "⚠", "✗"
+    except (UnicodeEncodeError, LookupError):
+        tick, warn, cross = "[ok]", "[!]", "[X]"
+    print(f"\n{tick} .chronos/ created")
+    print(f"{tick} MCP block written to {mcp_written}" if mcp_written
+          else f"{warn} Claude Desktop config not found")
+    print(f"{tick} git hooks installed" if hooks_ok else f"{warn} not a git repo")
+    print(f"{tick} doctor passed" if doctor_ok else f"{cross} doctor failed - see above")
+    print("\nNext: restart Claude Desktop to load the MCP server.")
+
+
+def load_repo_config(repo) -> dict:
+    """Config values from <repo>/.chronos/config.json.
+
+    Environment always wins: an operator who exported CHRONOS_SQLITE meant it,
+    and a stale config file should not silently override them."""
+    p = Path(repo or ".").resolve() / ".chronos" / "config.json"
+    if not p.exists():
+        return {}
+    try:
+        cfg = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    if cfg.get("chronos_sqlite") and not os.environ.get("CHRONOS_SQLITE"):
+        os.environ["CHRONOS_SQLITE"] = cfg["chronos_sqlite"]
+    if cfg.get("chronos_kuzu_path") and not os.environ.get("CHRONOS_DB"):
+        # CHRONOS_KUZU_PATH is the config's name for what store.py reads as
+        # CHRONOS_DB; both are honoured so neither spelling silently no-ops.
+        os.environ["CHRONOS_DB"] = os.environ.get("CHRONOS_KUZU_PATH") or cfg["chronos_kuzu_path"]
+    return cfg
+
+
 async def do_enforce(args):
-    """Run Wedge 4 rules over changed files; exit 1 on any block (CI gate)."""
+    """Run Wedge 4 rules over changed files; exit 1 on any block (CI gate).
+
+    # CI usage:
+    # - name: Chronos enforce
+    #   run: python -m chronos enforce --repo . --exit-code
+    #   env:
+    #     CHRONOS_SQLITE: .chronos/chronos.db
+    #     CHRONOS_KUZU_PATH: .chronos/graph
+    """
     from . import enforcer, indexer, rule_store
+
+    repo = args.repo or "."
+    load_repo_config(repo)  # env wins; config.json fills the gaps
+    fail_on_block = args.fail_on_block or args.exit_code
 
     if args.file:
         files = [args.file]
     else:
         ref = args.diff or "HEAD~1"
-        out = subprocess.run(["git", "-C", args.repo or ".", "diff", "--name-only",
+        out = subprocess.run(["git", "-C", repo, "diff", "--name-only",
                               "--diff-filter=ACMR", ref],
                              capture_output=True, text=True, timeout=60)
         if out.returncode != 0:
             sys.exit(f"git diff {ref} failed: {out.stderr.strip()}")
+        # --diff-filter=ACMR already excludes deletions; the exists() check below
+        # also covers a file removed after the diff was taken.
         files = [f for f in out.stdout.split() if f.strip()]
     if not files:
         print("no changed files to check")
@@ -151,39 +302,51 @@ async def do_enforce(args):
 
     drv = open_driver()
     await ensure_schema(drv)
-    rows, blocked = [], 0
+    blocks = warns = oks = checked = 0
     try:
         for f in files:
-            if not Path(args.repo or ".", f).exists():
-                continue
+            path = Path(repo, f)
+            if not path.exists():
+                continue  # deleted since the diff was taken
             # --lang applies to every file; without it, infer per file from the
             # extension so a mixed-language diff checks each file against its
             # own rules instead of one language's.
             lang = args.lang or indexer.node_language(f)
             if lang == "unknown":
                 continue
-            for r in await enforcer.enforce(str(Path(args.repo or ".", f)), lang,
-                                            agent_id=args.agent_id,
-                                            session_id=args.session_id,
-                                            driver=drv, group_id=args.group):
-                if r["verdict"] == "pass":
-                    continue
-                blocked += r["verdict"] == "block"
-                rows.append((r["verdict"].upper(), r["rule_id"], f,
-                             (r["matched_qualified_name"] or "-"), r["message"]))
+            checked += 1
+            results = await enforcer.enforce(str(path), lang,
+                                             agent_id=args.agent_id,
+                                             session_id=args.session_id,
+                                             driver=drv, group_id=args.group)
+            hits = [r for r in results if r["verdict"] != "pass"]
+            if not hits:
+                oks += 1
+                print(f"OK     {f}")
+                continue
+            for r in hits:
+                line = _line_of(r)
+                loc = f"{f}:{line}" if line else f
+                blocks += r["verdict"] == "block"
+                warns += r["verdict"] == "warn"
+                print(f'{r["verdict"].upper():<6} {loc}  rule:{r["rule_id"]}  '
+                      f'"{(r["message"] or "").strip()}"')
     finally:
         await drv.close()
 
-    if not rows:
-        n = rule_store.counts()["total"]
-        print(f"chronos enforce: {len(files)} file(s), {n} rule(s) — no violations")
-    else:
-        w = max(len(r[1]) for r in rows)
-        for v, rid, f, node, msg in rows:
-            print(f"{v:<5} {rid:<{w}}  {f}  {node}\n      {msg}")
-        print(f"\n{len(rows)} violation(s): {blocked} block, {len(rows)-blocked} warn")
-    if blocked and args.fail_on_block:
+    print(f"Checked {checked} files - {blocks} block, {warns} warn, {oks} ok")
+    if blocks and fail_on_block:
         sys.exit(1)
+
+
+def _line_of(result) -> str:
+    """Line number out of the enforcer's message, which ends in [file:line]."""
+    msg = result.get("message") or ""
+    if msg.endswith("]") and ":" in msg:
+        tail = msg.rsplit("[", 1)[-1].rstrip("]")
+        if ":" in tail and tail.rsplit(":", 1)[-1].isdigit():
+            return tail.rsplit(":", 1)[-1]
+    return ""
 
 
 async def do_doctor(args):
@@ -273,19 +436,29 @@ def main():
     sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
+    ini = sub.add_parser("init", help="set Chronos up in a repo (dirs, config, MCP, hooks)")
+    # --repo is also a global flag, but `chronos init --repo X` is the natural
+    # order (and what the generated git hooks use), so accept it here too.
+    ini.add_argument("--repo", dest="repo_sub", help="repo to set up (default: cwd)")
     en = sub.add_parser("enforce", help="run Wedge 4 CI rules over changed files")
+    en.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     en.add_argument("--diff", help="git ref to diff against (default HEAD~1)")
     en.add_argument("--file", help="check a single file instead of a diff")
     en.add_argument("--lang", help="language, e.g. typescript "
                     "(default: inferred per file from its extension)")
     en.add_argument("--fail-on-block", action="store_true",
                     help="exit 1 if any rule blocks (use in CI)")
+    en.add_argument("--exit-code", action="store_true",
+                    help="alias for --fail-on-block")
     en.add_argument("--agent-id", help="stamp blocks into the provenance ledger")
     en.add_argument("--session-id")
     args = ap.parse_args()
+    # subcommand --repo wins over the global one when both are given
+    if getattr(args, "repo_sub", None):
+        args.repo = args.repo_sub
     fn = {"index": do_index, "sync": do_sync, "watch": do_watch,
           "health": do_health, "doctor": do_doctor, "gc": do_gc,
-          "enforce": do_enforce}[args.cmd]
+          "enforce": do_enforce, "init": do_init}[args.cmd]
     try:
         asyncio.run(fn(args))
     except KeyboardInterrupt:

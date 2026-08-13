@@ -71,6 +71,16 @@ fired it — a CI block stands even if the Reflector throws. Disable them all wi
 
 ## Setup (one command)
 
+In a repo, `chronos init` does the whole thing — creates `.chronos/`, writes
+`config.json`, registers the MCP block in Claude Desktop, installs git hooks
+(`pre-commit` → enforce, `post-merge` → index), and runs `doctor`:
+
+```bash
+python -m chronos init --repo .
+```
+
+Or register the server by hand:
+
 ```json
 { "mcpServers": {
     "chronos": {
@@ -171,6 +181,25 @@ graph, not a hand-maintained file.
 pip install ast-grep-cli          # MIT
 # plus the OPA binary (Apache 2.0) — see docs/wedge4-ci.yml
 chronos enforce --diff origin/main --lang typescript --fail-on-block
+```
+
+In CI (`--exit-code` is an alias for `--fail-on-block`):
+
+```yaml
+- name: Chronos enforce
+  run: python -m chronos enforce --repo . --exit-code
+  env:
+    CHRONOS_SQLITE: .chronos/chronos.db
+    CHRONOS_KUZU_PATH: .chronos/graph
+```
+
+Output is one line per file, with a summary:
+
+```
+BLOCK  src/auth/token.py:42  rule:verify-token-001  "never call verify_token without is_revoked check"
+WARN   src/api/routes.py:18  rule:error-handling-002  "missing error boundary"
+OK     src/utils/helpers.py
+Checked 3 files - 1 block, 1 warn, 1 ok
 ```
 
 These ship on the unified `chronos-mcp` server — no extra config.

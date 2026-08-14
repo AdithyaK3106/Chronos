@@ -16,6 +16,16 @@ def db_path() -> Path:
     return p
 
 
+class GraphLocked(RuntimeError):
+    """The embedded graph is held by another process.
+
+    Kuzu takes an exclusive file lock, so exactly one process may have the
+    store open. Since the daemon holds it for its whole lifetime, every direct
+    command would otherwise die on a raw kuzu traceback the moment a daemon is
+    running. Raised as its own type so callers can say something useful.
+    """
+
+
 def open_driver():
     uri = os.environ.get("CHRONOS_DB_URI")
     if uri:  # e.g. bolt://... for Neo4j, when a partner outgrows the embedded store
@@ -26,7 +36,20 @@ def open_driver():
     with warnings.catch_warnings():  # kuzu deprecation notice is expected and handled
         warnings.simplefilter("ignore")
         from graphiti_core.driver.kuzu_driver import KuzuDriver
-        return KuzuDriver(db=str(db_path()))
+        try:
+            return KuzuDriver(db=str(db_path()))
+        except RuntimeError as e:
+            if "lock" not in str(e).lower():
+                raise
+            raise GraphLocked(
+                f"the graph at {db_path()} is locked by another process.\n"
+                f"  Kuzu allows one process at a time. A Chronos daemon is the "
+                f"usual holder:\n"
+                f"    python -m chronos daemon status   # see if one is running\n"
+                f"    python -m chronos daemon stop     # release the graph\n"
+                f"  Or drop CHRONOS_DAEMON=0 and let the daemon serve the "
+                f"command instead."
+            ) from None
 
 
 async def ensure_schema(driver):

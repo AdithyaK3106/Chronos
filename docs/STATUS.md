@@ -545,9 +545,52 @@ then indexed a repo it had never seen.
 | No-op re-sync | 2.1s | Content-hash short-circuit. |
 | Query p50 | 58ms | Well inside the sub-second p95 target. |
 | Index (350-file repo) | 12–14s | Upstream's C indexer. |
+| CLI `enforce`, cold | 5.5–8.7s | Fresh interpreter. Dominated by imports, not work. |
+| CLI `enforce`, with daemon | **167–206ms** | ~30x. See below. |
 
 P0-3's 5-minute SLA holds with large margin at these sizes. **Not yet load-tested
 at multi-million LOC**, which the v1 PRD explicitly flags as an open question.
+
+### The daemon — why CLI latency was import cost, not driver cost
+
+Every CLI invocation is a fresh interpreter, and the pre-commit hook is the
+worst case: a developer pays it on every commit. Profiled before building
+anything:
+
+```
+bare interpreter          70 ms
+json + socket            108 ms
+import chronos.cli      5039 ms   <- what every CLI call paid
+  of which graphiti_core 3900 ms  (transitively imports openai + neo4j)
+  opening Kuzu on top      ~0 ms
+```
+
+The driver was **not** the bottleneck; the import chain was. That finding
+shaped the design: a daemon that only kept the driver warm would have saved
+nothing, because the client still had to import `chronos.cli` to ask. So
+`chronos/__main__.py` checks for the daemon *before* that import, using a
+stdlib-only client (128ms), and only falls through to the full CLI when the
+daemon cannot serve the request.
+
+| | Cold | With daemon |
+|---|---|---|
+| `enforce --file` | 5,466 / 8,284 / 8,736 ms | **206 / 196 / 167 ms** |
+
+Startup is ~7s, paid once. Output is byte-identical between the two paths —
+pinned by a test, because two renderers that drift would make the gate's answer
+depend on how it was invoked.
+
+**Operational consequence, and the reason this is not free:** Kuzu takes an
+**exclusive file lock** on the graph, so exactly one process may hold it. While
+the daemon runs, a direct `index`/`sync`/`health`/`gc` cannot open the store.
+That is a property of the embedded store, not something the daemon can avoid,
+so it is surfaced rather than hidden: `open_driver()` raises `GraphLocked` with
+the remedy (`daemon stop`), `index` claims the graph *before* the ~15s indexer
+runs rather than discovering the conflict after, and `doctor` degrades to
+`chronos : LOCKED ...` and still prints every other line — a diagnostic that
+dies on the condition being diagnosed is useless.
+
+Disable with `CHRONOS_DAEMON=0` (honoured even when a daemon is running).
 
 ---
 

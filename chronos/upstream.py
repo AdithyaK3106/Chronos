@@ -27,10 +27,42 @@ def default_cache_dir() -> Path:
     return Path(os.environ.get("CBM_CACHE_DIR") or Path.home() / ".cache" / "codebase-memory-mcp")
 
 
-def find_db(cache_dir: Path | None = None) -> Path | None:
-    """Newest .db/.sqlite file in the cache dir, or None."""
+def repo_slug(repo: str | Path) -> str:
+    """Upstream's cache filename for a repo path.
+
+    Upstream names each index after the absolute path with the drive colon
+    dropped and every separator (including spaces) collapsed to '-', e.g.
+    C:/Users/u/Projects/Cooling project -> C-Users-u-Projects-Cooling-project.
+    This mirrors their scheme rather than owning it; find_db() falls back to a
+    directory scan if the derived name is not there, so an upstream change to
+    the format degrades instead of breaking.
+    """
+    s = str(Path(repo).resolve()).replace(":", "")
+    for ch in ("\\", "/", " "):
+        s = s.replace(ch, "-")
+    while "--" in s:
+        s = s.replace("--", "-")
+    return s.strip("-")
+
+
+def find_db(cache_dir: Path | None = None, repo: str | Path | None = None) -> Path | None:
+    """The cached index for `repo`, or the newest one when no repo is given.
+
+    `repo` matters: without it this returned whichever database in the shared
+    cache had the newest mtime, so `chronos --repo A doctor` happily reported
+    repo B's node counts -- confidently, and with no way to tell from the
+    output. A named repo now resolves to its own index or to None ("not
+    indexed"), never to a different repo's data.
+    """
     d = cache_dir or default_cache_dir()
     if not d.is_dir():
+        return None
+    if repo:
+        exact = d / f"{repo_slug(repo)}.db"
+        if exact.is_file():
+            return exact
+        # Fall through to the scan only when the repo has no index of its own;
+        # returning some other repo's database here is exactly the bug above.
         return None
     dbs = [p for p in d.rglob("*") if p.suffix in (".db", ".sqlite", ".sqlite3") and p.is_file()]
     return max(dbs, key=lambda p: p.stat().st_mtime) if dbs else None

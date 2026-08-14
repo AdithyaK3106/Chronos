@@ -187,8 +187,13 @@ class Syncer:
                 created_at=at, summary=n.get("path", ""),
                 # attributes is an explicit list, so a new node field must be
                 # added here or it is silently dropped on the way to the graph.
+                # qname is what node_identity() keys on; omitting it here meant
+                # identity stayed correct (it reads the pre-sync dict) while the
+                # qualified name was unqueryable afterwards -- so nothing could
+                # look a node up by the very identity the graph is built on.
                 attributes={"path": n.get("path", ""), "kind": n.get("kind", "Symbol"),
-                            "language": n.get("language", "unknown")},
+                            "language": n.get("language", "unknown"),
+                            "qname": n.get("qname", "")},
                 name_embedding=_ZERO,
             ))
             st.nodes += 1

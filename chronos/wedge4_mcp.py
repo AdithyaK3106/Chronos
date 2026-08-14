@@ -82,8 +82,20 @@ async def chronos_list_rules(language: str = None) -> list:
 async def chronos_rule_report(since_days: int = 30) -> dict:
     """Enforcement audit: what got blocked, by which rule, on which node.
 
+    This reports across ALL rules -- it takes a time window, not a rule id.
+    (The name invites passing one, so a non-numeric argument is reported as a
+    structured error rather than raising TypeError at the caller: an LLM
+    guessing the wrong argument should get an answer it can act on.)
+
     Blocks come from Wedge 3's provenance_events (action='blocked_by_ci'), which
     is why they are attributable to an agent and a session at all."""
+    try:
+        since_days = int(since_days)
+    except (TypeError, ValueError):
+        return {"error": f"since_days must be a number of days, got {since_days!r}. "
+                         "This tool reports on all rules; it takes no rule id."}
+    if since_days <= 0:
+        return {"error": f"since_days must be positive, got {since_days}"}
     since = (datetime.now(timezone.utc) - timedelta(days=since_days)).isoformat()
     con = rule_store.connect()
     try:

@@ -25,6 +25,7 @@ the Kuzu store at a .db file. CHRONOS_LEDGER is still honoured for backward
 compatibility with existing installs.
 """
 
+import json
 import os
 import sqlite3
 import threading
@@ -66,11 +67,38 @@ CREATE TABLE IF NOT EXISTS enforcement_rules (
 """
 
 
+def _repo_config_sqlite() -> str | None:
+    """`chronos_sqlite` from the active repo's .chronos/config.json, if any.
+
+    Why this lives here and not only in cli.py: every entry point has to agree
+    on which database is authoritative, or they silently disagree. `chronos
+    enforce` used to be the ONLY caller that read config.json, so rules created
+    through the MCP tools landed in the global store while the CLI (and
+    therefore CI and the pre-commit hook) read an empty repo-local one and
+    reported a clean pass on a blocking violation. Resolution has to be a
+    property of the database layer, not of one command.
+
+    Repo is CHRONOS_REPO_PATH, else cwd -- a server started inside a repo is in
+    that repo, and one started elsewhere falls through to the global default.
+    """
+    root = os.environ.get("CHRONOS_REPO_PATH") or "."
+    try:
+        p = Path(root).resolve() / ".chronos" / "config.json"
+        if not p.is_file():
+            return None
+        return json.loads(p.read_text(encoding="utf-8")).get("chronos_sqlite") or None
+    except (OSError, ValueError):
+        return None  # unreadable/malformed config must not break the default
+
+
 def db_path() -> Path:
-    """Resolve the SQLite path. CHRONOS_LEDGER wins when set so existing
-    installs keep working without an env-var edit."""
+    """Resolve the SQLite path, identically for every entry point.
+
+    Precedence: CHRONOS_LEDGER (legacy, wins so existing installs need no edit)
+    -> CHRONOS_SQLITE -> the active repo's config.json -> the global default."""
     legacy = os.environ.get("CHRONOS_LEDGER")
     p = Path(legacy or os.environ.get("CHRONOS_SQLITE")
+             or _repo_config_sqlite()
              or Path.home() / ".chronos" / "chronos.db")
     p.parent.mkdir(parents=True, exist_ok=True)
     return p

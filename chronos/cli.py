@@ -12,15 +12,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import query
-from .store import ensure_schema, open_driver
+from .store import GraphLocked, ensure_schema, open_driver
 from .sync import Syncer, content_hash
 from .upstream import UpstreamGraph, find_db
 
 
 def _open_upstream(args) -> UpstreamGraph:
-    p = Path(args.db) if args.db else find_db()
+    p = Path(args.db) if args.db else find_db(repo=getattr(args, "repo", None))
     if not p or not Path(p).exists():
-        sys.exit("no upstream SQLite graph found. Run codebase-memory-mcp's "
+        where = f" for {args.repo}" if getattr(args, "repo", None) else ""
+        sys.exit(f"no upstream SQLite graph found{where}. Run codebase-memory-mcp's "
                  "index_repository first, or pass --db /path/to/graph.db")
     g = UpstreamGraph(p)
     if not g.usable:
@@ -29,17 +30,49 @@ def _open_upstream(args) -> UpstreamGraph:
     return g
 
 
+def _git(repo, *args, timeout=10):
+    """Run a git command in repo. Returns stdout, or None on any failure."""
+    try:
+        out = subprocess.run(["git", "-C", repo, *args],
+                             capture_output=True, text=True, timeout=timeout)
+        return out.stdout if out.returncode == 0 else None
+    except Exception:  # noqa: BLE001 -- git absent/broken must not break a sync
+        return None
+
+
 def commit_time(repo: str | None) -> datetime:
-    """Use HEAD's commit time as valid_at so history matches the repo, not the
-    clock -- re-syncing an old checkout must not claim it is current."""
+    """valid_at for a sync: HEAD's commit time, normalized to UTC.
+
+    Two things this has to get right, both learned the hard way:
+
+    1. **Always UTC.** git's %cI carries the committer's offset
+       (2026-08-05T19:48:20+05:30). The graph stores timestamps naive, so
+       handing it an offset-aware value kept the wall-clock digits and dropped
+       the offset -- recording the fact 5h30m in the future and making every
+       as-of query in that window wrong, silently. .astimezone(utc) converts
+       instead of truncating.
+
+    2. **A dirty tree is not HEAD.** Using HEAD's time unconditionally means
+       every sync of uncommitted work stamps the same instant, so a fact
+       created and superseded between two commits gets valid_at == invalid_at
+       and is invisible to every as-of query -- the change's history is lost.
+       When the tree is dirty the edit demonstrably is not part of HEAD, so we
+       stamp now(). HEAD's time is still used for a clean tree, which is what
+       keeps re-syncing an old checkout honest.
+    """
     if repo:
-        try:
-            out = subprocess.run(["git", "-C", repo, "log", "-1", "--format=%cI"],
-                                 capture_output=True, text=True, timeout=10)
-            if out.returncode == 0 and out.stdout.strip():
-                return datetime.fromisoformat(out.stdout.strip())
-        except Exception:
-            pass
+        raw = _git(repo, "log", "-1", "--format=%cI")
+        if raw and raw.strip():
+            try:
+                at = datetime.fromisoformat(raw.strip()).astimezone(timezone.utc)
+            except ValueError:
+                return datetime.now(timezone.utc)
+            dirty = _git(repo, "status", "--porcelain")
+            if dirty is not None and dirty.strip():
+                # Never go backwards: on a dirty tree the working state is at
+                # least as new as HEAD, and max() also survives a skewed clock.
+                return max(at, datetime.now(timezone.utc))
+            return at
     return datetime.now(timezone.utc)
 
 
@@ -60,7 +93,7 @@ async def do_sync(args):
 async def do_health(args):
     drv = open_driver()
     await ensure_schema(drv)
-    h = await query.health(drv, args.group, find_db())
+    h = await query.health(drv, args.group, find_db(repo=args.repo))
     print(json.dumps(h, indent=2))
     await drv.close()
     # non-zero exit on a graph you should not trust -- usable in CI/monitoring
@@ -100,11 +133,14 @@ async def do_index(args):
     """Index a repo with the vendored indexer, then sync it (P0-1 + P0-2 in one step)."""
     from .indexer import index_repo_graph
     repo = args.repo or "."
+    # Claim the graph BEFORE the indexer runs. Indexing is ~15s of subprocess
+    # work; discovering afterwards that another process holds the store would
+    # throw all of it away.
+    drv = open_driver()
     t0 = time.time()
     nodes, edges = index_repo_graph(repo, mode=args.mode)
     print(f"indexed {repo}: {len(nodes)} nodes, {len(edges)} edges in {time.time()-t0:.1f}s")
     at = commit_time(repo)
-    drv = open_driver()
     await ensure_schema(drv)
     st = await Syncer(drv, args.group).sync(nodes, edges, at)
     print(f"synced {args.group} @ {at.isoformat()}: {st}")
@@ -150,6 +186,10 @@ def claude_desktop_config() -> Path | None:
     return p if p and p.exists() else None
 
 
+# Both hooks put --repo AFTER the subcommand. That only works because `index`
+# and `enforce` each define their own --repo; the global one must precede the
+# subcommand. `index` did not have one, so this post-merge hook exited 2 on
+# every merge until it was added.
 HOOKS = {
     "pre-commit": '#!/bin/sh\npython -m chronos enforce --repo "$(git rev-parse --show-toplevel)" --fail-on-block\n',
     "post-merge": '#!/bin/sh\npython -m chronos index --repo "$(git rev-parse --show-toplevel)"\n',
@@ -254,6 +294,12 @@ async def do_init(args):
     print(f"{tick} git hooks installed" if hooks_ok else f"{warn} not a git repo")
     print(f"{tick} doctor passed" if doctor_ok else f"{cross} doctor failed - see above")
     print("\nNext: restart Claude Desktop to load the MCP server.")
+    if hooks_ok:
+        # The pre-commit hook is a fresh interpreter every commit, and the
+        # import chain alone is ~5s. The daemon is the difference between a
+        # hook developers keep and one they --no-verify around.
+        print("Tip:  python -m chronos daemon start   "
+              "-- pre-commit enforce ~300ms instead of ~5s")
 
 
 def load_repo_config(repo) -> dict:
@@ -261,6 +307,9 @@ def load_repo_config(repo) -> dict:
 
     Environment always wins: an operator who exported CHRONOS_SQLITE meant it,
     and a stale config file should not silently override them."""
+    # Publish the repo so db.db_path() resolves the same store the MCP tools do.
+    # Without this the two entry points read different databases (see db.py).
+    os.environ.setdefault("CHRONOS_REPO_PATH", str(Path(repo or ".").resolve()))
     p = Path(repo or ".").resolve() / ".chronos" / "config.json"
     if not p.exists():
         return {}
@@ -300,59 +349,105 @@ async def do_enforce(args):
     load_repo_config(repo)  # env wins; config.json fills the gaps
     fail_on_block = args.fail_on_block or args.exit_code
 
-    if args.file:
-        files = [args.file]
-    else:
-        ref = args.diff or "HEAD~1"
-        out = subprocess.run(["git", "-C", repo, "diff", "--name-only",
-                              "--diff-filter=ACMR", ref],
-                             capture_output=True, text=True, timeout=60)
-        if out.returncode != 0:
-            sys.exit(f"git diff {ref} failed: {out.stderr.strip()}")
-        # --diff-filter=ACMR already excludes deletions; the exists() check below
-        # also covers a file removed after the diff was taken.
-        files = [f for f in out.stdout.split() if f.strip()]
+    try:
+        files = select_files(repo, args.file, args.diff)
+    except ValueError as e:
+        sys.exit(str(e))
     if not files:
         print("no changed files to check")
         return
 
     drv = open_driver()
-    await ensure_schema(drv)
-    blocks = warns = oks = checked = 0
     try:
-        for f in files:
-            path = Path(repo, f)
-            if not path.exists():
-                continue  # deleted since the diff was taken
-            # --lang applies to every file; without it, infer per file from the
-            # extension so a mixed-language diff checks each file against its
-            # own rules instead of one language's.
-            lang = args.lang or indexer.node_language(f)
-            if lang == "unknown":
-                continue
-            checked += 1
-            results = await enforcer.enforce(str(path), lang,
-                                             agent_id=args.agent_id,
-                                             session_id=args.session_id,
-                                             driver=drv, group_id=args.group)
-            hits = [r for r in results if r["verdict"] != "pass"]
-            if not hits:
-                oks += 1
-                print(f"OK     {f}")
-                continue
-            for r in hits:
-                line = _line_of(r)
-                loc = f"{f}:{line}" if line else f
-                blocks += r["verdict"] == "block"
-                warns += r["verdict"] == "warn"
-                print(f'{r["verdict"].upper():<6} {loc}  rule:{r["rule_id"]}  '
-                      f'"{(r["message"] or "").strip()}"')
+        report = await enforce_files(files, repo, lang=args.lang, group=args.group,
+                                     agent_id=args.agent_id, session_id=args.session_id,
+                                     driver=drv)
     finally:
         await drv.close()
 
-    print(f"Checked {checked} files - {blocks} block, {warns} warn, {oks} ok")
-    if blocks and fail_on_block:
+    print_enforce_report(report)
+    if report["blocks"] and fail_on_block:
         sys.exit(1)
+
+
+def select_files(repo, file=None, diff=None) -> list[str]:
+    """Which files enforce should check: an explicit --file, else a git diff.
+
+    Shared with the daemon so both paths agree on scope. Raises ValueError
+    rather than exiting, since the daemon must return the error to its caller
+    instead of killing the resident process.
+    """
+    if file:
+        return [file]
+    ref = diff or "HEAD~1"
+    out = subprocess.run(["git", "-C", repo, "diff", "--name-only",
+                          "--diff-filter=ACMR", ref],
+                         capture_output=True, text=True, timeout=60)
+    if out.returncode != 0:
+        raise ValueError(f"git diff {ref} failed: {out.stderr.strip()}")
+    # --diff-filter=ACMR already excludes deletions; the exists() check in
+    # enforce_files also covers a file removed after the diff was taken.
+    return [f for f in out.stdout.split() if f.strip()]
+
+
+async def enforce_files(files, repo, lang=None, group="default",
+                        agent_id=None, session_id=None, driver=None) -> dict:
+    """Enforce over `files` and return the result as data, printing nothing.
+
+    Split out of do_enforce so the daemon runs the SAME code as the direct
+    path. Two implementations of "what is the verdict" would eventually
+    disagree, and a gate that disagrees with itself depending on how it was
+    invoked is worse than a slow one.
+    """
+    from . import enforcer, indexer
+
+    await ensure_schema(driver)
+    rows = []
+    blocks = warns = oks = checked = skipped = 0
+    for f in files:
+        path = Path(repo, f)
+        if not path.exists():
+            continue  # deleted since the diff was taken
+        # --lang applies to every file; without it, infer per file from the
+        # extension so a mixed-language diff checks each file against its
+        # own rules instead of one language's.
+        flang = lang or indexer.node_language(f)
+        if flang == "unknown":
+            skipped += 1
+            continue
+        checked += 1
+        results = await enforcer.enforce(str(path), flang, agent_id=agent_id,
+                                         session_id=session_id,
+                                         driver=driver, group_id=group)
+        hits = [r for r in results if r["verdict"] != "pass"]
+        if not hits:
+            oks += 1
+            rows.append({"file": f, "verdict": "ok"})
+            continue
+        for r in hits:
+            blocks += r["verdict"] == "block"
+            warns += r["verdict"] == "warn"
+            rows.append({"file": f, "verdict": r["verdict"], "line": _line_of(r),
+                         "rule_id": r["rule_id"], "message": (r["message"] or "").strip()})
+    return {"rows": rows, "blocks": blocks, "warns": warns, "oks": oks,
+            "checked": checked, "skipped": skipped}
+
+
+def print_enforce_report(report: dict):
+    """Render an enforce report. Identical output from daemon and direct paths."""
+    for row in report["rows"]:
+        if row["verdict"] == "ok":
+            print(f'OK     {row["file"]}')
+            continue
+        loc = f'{row["file"]}:{row["line"]}' if row.get("line") else row["file"]
+        print(f'{row["verdict"].upper():<6} {loc}  rule:{row["rule_id"]}  '
+              f'"{row["message"]}"')
+    # Report skips: "Checked 0 files" on a 26-file diff is indistinguishable
+    # from a broken enforce unless it says why nothing was checked.
+    tail = (f' ({report["skipped"]} skipped: no rules for that file type)'
+            if report["skipped"] else "")
+    print(f'Checked {report["checked"]} files - {report["blocks"]} block, '
+          f'{report["warns"]} warn, {report["oks"]} ok{tail}')
 
 
 def _line_of(result) -> str:
@@ -363,6 +458,112 @@ def _line_of(result) -> str:
         if ":" in tail and tail.rsplit(":", 1)[-1].isdigit():
             return tail.rsplit(":", 1)[-1]
     return ""
+
+
+def _daemon_state() -> dict | None:
+    from .daemon import protocol
+    try:
+        return json.loads(protocol.state_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def do_daemon(args):
+    """start | stop | status for the resident process."""
+    from .daemon import protocol
+    from .daemon.client import DaemonClient
+
+    verb = args.verb
+    client = DaemonClient()
+
+    if verb == "status":
+        info = client.ping()
+        if info is None:
+            reason = (f"disabled ({protocol.DISABLE_ENV}=0)"
+                      if protocol.daemon_disabled() else "not running")
+            print(f"Daemon: {reason} -- start it with: python -m chronos daemon start")
+            return
+        state = _daemon_state() or {}
+        up = time.time() - state.get("started_at", time.time())
+        print(f"Daemon: running -- pid {info['pid']}, port {client.port}, "
+              f"up {up:.0f}s, {info.get('served', 0)} requests served")
+        return
+
+    if verb == "stop":
+        if not client.available():
+            print("No daemon running.")
+            return
+        pid = (client.ping() or {}).get("pid")
+        if not client.shutdown():
+            print("Daemon did not acknowledge shutdown; it may already be gone.")
+            return
+        # The daemon answers shutdown before leaving its accept loop, so the
+        # state file can outlive this reply by up to a second. Wait for it, or
+        # the next command reads a file pointing at a dying process.
+        sf = protocol.state_file()
+        deadline = time.time() + 10
+        while sf.exists() and time.time() < deadline:
+            time.sleep(0.1)
+        print(f"Daemon stopped (pid {pid}).")
+        if sf.exists():
+            print("  (state file still present -- the daemon may be finishing a request)")
+        return
+
+    # start
+    if client.available():
+        info = client.ping() or {}
+        print(f"Daemon already running (pid {info.get('pid')}, port {client.port}).")
+        return
+    if protocol.daemon_disabled():
+        print(f"{protocol.DISABLE_ENV} is set to off -- refusing to start. "
+              f"Unset it first.")
+        raise SystemExit(1)
+
+    # A stale state file from a killed daemon makes `available()` false but
+    # would confuse the next reader; clear it before spawning.
+    sf = protocol.state_file()
+    if sf.exists():
+        try:
+            sf.unlink()
+        except OSError:
+            pass
+
+    cmd = [sys.executable, "-m", "chronos.daemon.server"]
+    kw = {}
+    if sys.platform == "win32":
+        # Detach so the daemon outlives this shell, and give it no console.
+        kw["creationflags"] = 0x00000008 | 0x08000000  # DETACHED_PROCESS | CREATE_NO_WINDOW
+    else:
+        kw["start_new_session"] = True
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, env=os.environ.copy(), **kw)
+
+    # Wait for the ready line rather than sleeping: startup is dominated by the
+    # import chain and varies with disk cache, so any fixed sleep is either a
+    # stall or a race.
+    deadline = time.time() + 60
+    line = ""
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            err = (proc.stderr.read() or "").strip() if proc.stderr else ""
+            print(f"Daemon exited during startup (code {proc.returncode}).")
+            if err:
+                print(err[-1500:], file=sys.stderr)
+            raise SystemExit(1)
+        line = proc.stdout.readline() if proc.stdout else ""
+        if line.startswith(protocol.READY_PREFIX):
+            break
+        if not line:
+            time.sleep(0.05)
+    else:
+        print("Daemon did not report ready within 60s; leaving it running. "
+              "Check: python -m chronos daemon status")
+        raise SystemExit(1)
+
+    parts = dict(p.split("=", 1) for p in line.split() if "=" in p)
+    print(f"Chronos daemon started (pid {parts.get('pid')}, port {parts.get('port')}).")
+    print("  enforce/index now run against the warm process (~300ms vs ~5s).")
+    print("  Stop with: python -m chronos daemon stop")
 
 
 def do_dashboard(args):
@@ -483,8 +684,15 @@ async def do_doctor(args):
     else:
         print(f"indexer     : NOT BUILT -- run: {t['build_cmd']}")
         print(f"              toolchain: make={t['make'] or 'MISSING'} cc={t['cc'] or 'MISSING'}")
-    p = Path(args.db) if args.db else find_db()
-    print(f"upstream db : {p or 'NOT FOUND'}")
+    p = Path(args.db) if args.db else find_db(repo=args.repo)
+    if p:
+        print(f"upstream db : {p}")
+    elif args.repo:
+        # Naming the repo is the point: "NOT FOUND" alone used to be impossible
+        # to distinguish from "found someone else's index".
+        print(f"upstream db : NOT INDEXED -- run: chronos --repo {args.repo} index")
+    else:
+        print("upstream db : NOT FOUND -- pass --repo <path> or --db <file>")
     if p and Path(p).exists():
         g = UpstreamGraph(p)
         print(f"schema      : {g.schema_report()}")
@@ -492,16 +700,27 @@ async def do_doctor(args):
             n, e = g.nodes(), g.edges()
             print(f"upstream    : {len(n)} nodes, {len(e)} temporal edges")
         g.close()
-    drv = open_driver()
-    await ensure_schema(drv)
-    h = await query.health(drv, args.group)
-    print(f"chronos     : {h['status']} | {h['nodes']} nodes | "
-          f"{h['facts_current']}/{h['facts_total']} facts current | last {h['last_sync']}")
-    o = await query.orphans(drv, args.group, sample=0)
-    if o["pct"] > 10:
-        print(f"              WARNING: {o['orphans']} orphaned nodes ({o['pct']}% of total) "
-              f"-- run: chronos --group {args.group} gc")
-    await drv.close()
+    # Doctor must keep working when the graph is held by the daemon -- a
+    # diagnostic that dies on the condition you are diagnosing is useless. Every
+    # other line below still prints.
+    try:
+        drv = open_driver()
+    except GraphLocked:
+        drv = None
+        print("chronos     : LOCKED by another process (the daemon holds it) -- "
+              "graph stats unavailable here; use: python -m chronos daemon status")
+    if drv is not None:
+        try:
+            await ensure_schema(drv)
+            h = await query.health(drv, args.group)
+            print(f"chronos     : {h['status']} | {h['nodes']} nodes | "
+                  f"{h['facts_current']}/{h['facts_total']} facts current | last {h['last_sync']}")
+            o = await query.orphans(drv, args.group, sample=0)
+            if o["pct"] > 10:
+                print(f"              WARNING: {o['orphans']} orphaned nodes ({o['pct']}% of total) "
+                      f"-- run: chronos --group {args.group} gc")
+        finally:
+            await drv.close()
 
     # Unification: one line for one database. Locks, provenance and enforcement
     # rules share chronos.db, so a partner has a single path to back up.
@@ -530,6 +749,37 @@ async def do_doctor(args):
     except PackmindError as e:
         print(f"packmind    : not configured ({e})")
 
+    # Daemon. Purely a latency question -- everything works without it -- so a
+    # missing daemon is reported as a tip, never as an error.
+    try:
+        from .daemon import protocol as _dp
+        from .daemon.client import DaemonClient as _DC
+        _c = _DC()
+        _i = _c.ping()
+        if _i:
+            _s = _daemon_state() or {}
+            _up = time.time() - _s.get("started_at", time.time())
+            print(f"daemon      : running | pid {_i['pid']} | port {_c.port} | up {_up:.0f}s")
+        elif _dp.daemon_disabled():
+            print(f"daemon      : disabled ({_dp.DISABLE_ENV} is off)")
+        else:
+            print("daemon      : not running -- start: python -m chronos daemon start "
+                  "(enforce ~300ms vs ~5s)")
+    except Exception as e:  # noqa: BLE001 -- diagnostics must never abort doctor
+        print(f"daemon      : UNKNOWN ({type(e).__name__})")
+
+    # Wedge 2 input path. The pytest plugin is registered by an entry point, and
+    # an editable install does NOT regenerate entry_points.txt when pyproject
+    # changes -- so capture can be silently dead while every test still passes.
+    # Chronos's own repo hides this behind a conftest.py, which is exactly why
+    # it went unnoticed; partner repos have no such fallback.
+    try:
+        import importlib.metadata as _md
+        live = any(e.name == "chronos" for e in _md.entry_points(group="pytest11"))
+        print(f"capture     : {'ok | pytest plugin registered' if live else 'INACTIVE -- pytest traces are NOT being captured. Fix: pip install -e .'}")
+    except Exception as e:  # noqa: BLE001 -- diagnostics must never abort doctor
+        print(f"capture     : UNKNOWN ({type(e).__name__})")
+
     # Wedge 4. Both binaries are external and required for enforcement to mean
     # anything, so a missing one is reported with its install command.
     from . import enforcer, rule_store
@@ -554,11 +804,19 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     i = sub.add_parser("index", help="index a repo with the vendored indexer, then sync")
     i.add_argument("--mode", default="fast", choices=["fast", "moderate", "full"])
-    sub.add_parser("sync", help="one-shot sync into the temporal graph")
+    # Accepted after the subcommand too, matching enforce/init. The post-merge
+    # hook init writes uses this position; without it the hook exits 2 on every
+    # merge and the repo silently stops re-indexing.
+    i.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+    sy = sub.add_parser("sync", help="one-shot sync into the temporal graph")
+    sy.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     w = sub.add_parser("watch", help="continuously sync on change")
     w.add_argument("--interval", type=int, default=30)
-    sub.add_parser("health", help="index health (exit 1 if not fresh)")
+    w.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+    he = sub.add_parser("health", help="index health (exit 1 if not fresh)")
+    he.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     doc = sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
+    doc.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     doc.add_argument("--fake-packmind", action="store_true",
                      help="verify the Packmind HTTP layer against a local fake "
                           "(no credentials, no Docker); exit 1 on failure")
@@ -592,6 +850,8 @@ def main():
                     help="alias for --fail-on-block")
     en.add_argument("--agent-id", help="stamp blocks into the provenance ledger")
     en.add_argument("--session-id")
+    dmn = sub.add_parser("daemon", help="resident process that keeps the graph warm")
+    dmn.add_argument("verb", choices=["start", "stop", "status"])
     args = ap.parse_args()
     # subcommand --repo wins over the global one when both are given
     if getattr(args, "repo_sub", None):
@@ -600,15 +860,21 @@ def main():
           "health": do_health, "doctor": do_doctor, "gc": do_gc,
           "enforce": do_enforce, "init": do_init,
           "approve-rule": do_approve_rule, "promote-rule": do_promote_rule,
-          "dashboard": do_dashboard}[args.cmd]
+          "dashboard": do_dashboard, "daemon": do_daemon}[args.cmd]
     try:
-        # dashboard runs its own loop (uvicorn); everything else is a coroutine
-        if args.cmd == "dashboard":
+        # dashboard and daemon are sync (uvicorn owns its loop; daemon control
+        # is plain socket I/O); everything else is a coroutine
+        if args.cmd in ("dashboard", "daemon"):
             fn(args)
         else:
             asyncio.run(fn(args))
     except KeyboardInterrupt:
         pass
+    except GraphLocked as e:
+        # One process may hold the embedded graph. Print the remedy instead of
+        # a kuzu traceback -- with a daemon running this is the single most
+        # likely error a developer hits.
+        sys.exit(f"chronos: {e}")
 
 
 if __name__ == "__main__":

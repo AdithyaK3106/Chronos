@@ -22,6 +22,18 @@ The rule must:
 - Use rule.pattern (or rule.any/rule.all for complex cases)
 - Have a clear message explaining the violation
 - Have severity: warning (never error — Chronos controls blocking separately via OPA)
+
+METAVARIABLE SYNTAX — get this exactly right, ast-grep accepts a malformed
+pattern silently (exit 0, zero matches) rather than reporting an error:
+- `$NAME` matches exactly ONE node.        e.g. `print($MSG)` matches print(x)
+- `$$$NAME` (or bare `$$$`) matches ZERO OR MORE nodes, and is what you want
+  for an argument list of any length.      e.g. `print($$$)` matches print(),
+  print(x) and print(x, y, z)
+- There is NO `..` / `...` / `$ARGS..` form. `print($ARGS..)` is INVALID and
+  matches nothing.
+- Metavariable names must be UPPERCASE.
+So: to match a call with any arguments, write `func($$$)`, never `func($ARGS..)`.
+
 Return ONLY valid YAML. No explanation. If the rule cannot be expressed as an
 ast-grep pattern, return the string 'NOT_AUTOMATABLE' with a one-line reason.{evidence}"""
 

@@ -40,6 +40,23 @@ EXTENSION_TO_LANGUAGE = {
     ".cs": "csharp",
     ".kt": "kotlin",
     ".swift": "swift",
+    # Web/markup. These were missing, so an .html or .css file resolved to
+    # "unknown" and was skipped by every rule -- a silent coverage hole rather
+    # than a visible gap. Only languages ast-grep actually supports are listed;
+    # mapping one it cannot parse would trade a silent skip for a broken scan.
+    ".html": "html",
+    ".htm": "html",
+    ".css": "css",
+    # .scss is deliberately absent: ast-grep 0.45.1 rejects language: scss
+    # ("Cannot parse rule"), so mapping it would produce rules that error out.
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".php": "php",
+    ".scala": "scala",
+    ".lua": "lua",
+    ".ex": "elixir",
+    ".exs": "elixir",
 }
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

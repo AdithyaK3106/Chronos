@@ -4,6 +4,13 @@ Run: pytest tests/test_pytest_plugin.py -v
 
 No LLM, no network. The Reflector dispatch is mocked everywhere — this suite
 covers capture and routing, not reflection quality (test_wedge2.py owns that).
+
+The pytester subprocesses below deliberately do NOT write
+`pytest_plugins = ["chronos.pytest_plugin"]` into a conftest. They inherit the
+installed chronos, whose pytest11 entry point loads the plugin — which is the
+path partner repos actually use, so this exercises the real thing. Naming the
+module again on top of the entry point makes pluggy abort the session with
+"Plugin already registered under a different name".
 """
 
 import json
@@ -43,7 +50,6 @@ def _write_trace(tmp_path, **overrides):
 
 def test_plugin_writes_pending_on_failure(pytester):
     """A failing test run leaves a trace behind."""
-    pytester.makeconftest('pytest_plugins = ["chronos.pytest_plugin"]')
     (pytester.path / ".chronos").mkdir()          # marks this as the repo root
     pytester.makepyfile("def test_fails():\n    assert 1 == 2, 'deliberate'\n")
 
@@ -61,7 +67,6 @@ def test_plugin_writes_pending_on_failure(pytester):
 
 def test_plugin_silent_on_clean_run(pytester):
     """A green run must leave nothing behind — no lesson in a pass."""
-    pytester.makeconftest('pytest_plugins = ["chronos.pytest_plugin"]')
     (pytester.path / ".chronos").mkdir()
     pytester.makepyfile("def test_passes():\n    assert True\n")
 
@@ -78,7 +83,6 @@ def test_foreign_chronos_sqlite_does_not_divert_traces(pytester, monkeypatch):
     Regression: a stale env var silently redirected traces out of the repo
     under test, losing every lesson with no error anywhere."""
     monkeypatch.setenv("CHRONOS_SQLITE", r"C:\somewhere\else\.chronos\chronos.db")
-    pytester.makeconftest('pytest_plugins = ["chronos.pytest_plugin"]')
     (pytester.path / ".chronos").mkdir()
     pytester.makepyfile("def test_fails():\n    assert 1 == 2, 'deliberate'\n")
 

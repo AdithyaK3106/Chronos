@@ -110,6 +110,18 @@ def pytest_configure(config):
     # Opt-out for anyone who wants pytest untouched.
     if os.environ.get("CHRONOS_CAPTURE", "").strip().lower() in ("0", "false", "no", "off"):
         return
+    # Guard against double registration. The pytest11 entry point and a
+    # conftest carrying `pytest_plugins = ["chronos.pytest_plugin"]` can both
+    # fire; without this the second one attaches a second capture plugin and
+    # every failure is written to pending.jsonl twice.
+    #
+    # NOTE: this cannot rescue the conftest case on its own -- pluggy rejects
+    # the duplicate MODULE before any code here runs ("Plugin already
+    # registered under a different name"), which aborts the whole session. With
+    # chronos installed, the entry point is sufficient and the conftest line
+    # must be removed; see this repo's conftest.py.
+    if config.pluginmanager.hasplugin("chronos_capture"):
+        return
     try:
         repo_root = _find_repo_root(Path(str(config.rootpath)))
         chronos_sqlite = os.environ.get("CHRONOS_SQLITE", "")

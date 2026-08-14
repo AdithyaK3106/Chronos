@@ -178,16 +178,24 @@ def api_timeline():
 
 @app.get("/api/queue")
 def api_queue():
+    """Rules awaiting a human: proposed (needs approve-rule) and unvalidated.
+
+    `proposed` was missing here, which hid the one state that exists purely to
+    demand a human decision -- a git-native rule sat in the store with no
+    dashboard surface at all. `status` is returned so the two are
+    distinguishable, since they need different actions.
+    """
     return [{
         "rule_id": r["rule_id"],
         "name": r["rule_text"] or r["rule_id"],
         "language": r["language"],
+        "status": r["status"],
         "created_at": r["created_at"],
         "evidence_preview": (r["rule_text"] or "")[:120],   # [S5]
-    } for r in rows("SELECT rule_id, language, rule_text, created_at "
-                    "FROM enforcement_rules WHERE status = ? "
+    } for r in rows("SELECT rule_id, language, rule_text, status, created_at "
+                    "FROM enforcement_rules WHERE status IN (?, ?) "
                     "ORDER BY created_at DESC",
-                    ("warn-only-unvalidated",))]
+                    ("proposed", "warn-only-unvalidated"))]
 
 
 def serve(host="127.0.0.1", port=8080):

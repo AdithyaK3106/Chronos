@@ -200,3 +200,65 @@ def test_bash_trace_is_high_signal_on_failure_text():
         {"source": "bash", "stdout": "1 test FAILED", "stderr": ""})
     assert not trace_processor._is_high_signal(
         {"source": "bash", "stdout": "ok", "stderr": ""})
+
+
+# --- Wedge 2 gap closed: pytest trace -> graph nodes -----------------------
+# Auto-captured traces used to reach the Reflector with nodes_touched empty,
+# so every auto lesson was ungrounded. Frames come from the traceback, never
+# from the test id, and the graph decides which survive.
+
+_TB = '''
+def test_thing():
+>       helper(1)
+
+tests/t.py:7: in test_thing
+    helper(1)
+chronos/x.py:12: in helper
+    return inner(v)
+  File "chronos/x.py", line 20, in inner
+    raise ValueError
+E   ValueError
+'''
+
+
+def test_candidate_symbols_reads_frames_not_test_ids():
+    names = trace_processor.candidate_symbols(
+        {"failures": [{"test_id": "tests/t.py::test_thing", "traceback": _TB}]})
+    # Every frame shape pytest emits is covered: `def`, `path:n: in f`, and the
+    # stdlib `File ..., in f` form.
+    assert "helper" in names and "inner" in names
+    assert names.count("test_thing") == 1, "first-seen order, deduped"
+
+
+def test_candidate_symbols_empty_without_a_traceback():
+    assert trace_processor.candidate_symbols({"failures": []}) == []
+    assert trace_processor.candidate_symbols(
+        {"failures": [{"traceback": ""}]}) == []
+
+
+def test_resolve_nodes_keeps_only_what_the_graph_knows():
+    import asyncio
+
+    class FakeDriver:
+        pass
+
+    async def fake_rows(driver, cypher, **kw):
+        assert kw["names"] == ["helper", "nope"]
+        return [{"name": "helper"}]
+
+    from chronos import query
+    orig = query._rows
+    query._rows = fake_rows
+    try:
+        got = asyncio.run(trace_processor.resolve_nodes(
+            FakeDriver(), "g", ["helper", "nope"]))
+    finally:
+        query._rows = orig
+    # An unresolvable name is dropped rather than passed to ground(), which is
+    # what keeps the lesson grounded instead of decorated.
+    assert got == ["helper"]
+
+
+def test_resolve_nodes_short_circuits_on_empty():
+    import asyncio
+    assert asyncio.run(trace_processor.resolve_nodes(None, "g", [])) == []

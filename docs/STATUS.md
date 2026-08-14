@@ -6,13 +6,19 @@
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
 against four real third-party repos. Wedge 4 is **complete and verified against
 the real ast-grep and OPA binaries**, with both validation-run blockers now
-fixed; its CI workflow has still never run on GitHub Actions. Wedge 2 **no
-longer requires Packmind at all**: git-native distribution is the default path
-and runs end-to-end against real git. Its **Reflector is live-verified**, its
-HTTP client is now socket-verified against a local fake, and **automatic
-failure capture works** via a pytest plugin. What remains unproven is a live
-run against a real Packmind instance — still blocked on a container runtime,
-not on code.
+fixed; its CI workflow is now installed at `.github/workflows/` with two
+pre-run faults fixed, but has still never run on GitHub Actions — this repo has
+no git remote. Wedge 2 **no longer requires Packmind at all**: git-native
+distribution is the default path and runs end-to-end against real git. Its
+**Reflector is live-verified**, its HTTP client is now socket-verified against a
+local fake, and **automatic failure capture works** via a pytest plugin —
+and those captures are now **grounded**, with traceback frames resolved against
+a real index instead of reaching the Reflector with no nodes. The **full chain
+has now run end-to-end with nothing mocked** (capture → grounded reflect → live
+quality gate → git-native proposed rule). What remains unproven is a live run
+against a real Packmind instance — still blocked on a container runtime, not on
+code — and the Curator's embedding dedup, for want of a reachable embeddings
+model.
 
 ---
 
@@ -86,7 +92,8 @@ against real git. Precisely:
 | **Automatic capture** (pytest plugin) | ✅ **LIVE-VERIFIED** — real failing suite → real trace on disk |
 | **Git-native distribution** | ✅ **LIVE-VERIFIED** — real repo: branch, commit, `proposed` state, HEAD restored |
 | **Packmind HTTP layer** | ⚠️ socket-verified against a local fake; **never against real Packmind** |
-| **Curator** — dedup + quality gate | ⚠️ mock-verified only (LLM + embeddings stubbed) |
+| **Curator** — quality gate | ✅ **LIVE-VERIFIED** — real LLM judgement; rejected one candidate with a reason, passed another to submission |
+| **Curator** — embedding dedup | ⚠️ still mock-only — the local endpoint serves no embeddings model (`text-embedding-3-small` → upstream 410, provider retired) |
 | **PR creation via `gh`** | ❌ never executed — `gh` is not installed on this machine |
 
 Read that table before relying on any capability below: the rows in the next
@@ -97,8 +104,9 @@ Agent mistakes become coding standards. Capture (pytest plugin) → Reflector
 distribution, via **one of two paths** selected by `PACKMIND_API_URL`:
 git-native draft PRs by default, Packmind when configured.
 
-Unlike the Wedge 1 and 3 tables above, ✅ here means "passes against a mock",
-not "executed against the real thing". The distinction is load-bearing.
+Unlike the Wedge 1 and 3 tables above, ✅ here means "passes against a mock"
+unless the **Verified against** column says otherwise. The distinction is
+load-bearing — read that column, not the tick.
 
 | Capability | Status | Evidence | Verified against |
 |---|---|---|---|
@@ -111,20 +119,22 @@ not "executed against the real thing". The distinction is load-bearing.
 | Doctor integration | ✅ | `packmind: ok \| N rules \| last proposal <ts>` / `not configured` / `UNREACHABLE`. | real CLI, unconfigured path only |
 | Evidence node resolves in the graph | ✅ | 40/40 real indexed symbols resolve through the query path. | **real index, no mock** |
 | **Automatic capture on test failure** | ✅ | Real failing suite → `pending.jsonl` with `total_failed`, node ids, capped tracebacks. Clean runs write nothing. | **real pytest run** |
+| **Traceback frames → graph nodes** | ✅ | Real failure → `['test_raises_inside_real_code', 'to_reflector_trace']`; graph dropped the test frame, kept the indexed function. | **real 601-node index** |
 | **Git-native proposal** | ✅ | Real repo: rule file, `chronos/rule-<id>` branch, commit, `proposed` in `enforcement_rules`, HEAD restored. | **real git** |
 | **Proposed rules are not enforced** | ✅ | `get_active_rules()` excludes `proposed`; `promote_to_blocking()` refuses it. | real SQLite |
 | **Path routing** | ✅ | `PACKMIND_API_URL` set → packmind, unset → git-native. | real env |
 | PR creation via `gh` | ❌ | Degrades to `pr_url: None`, which is tested. The `gh pr create` call itself has never run. | **nothing — `gh` not installed** |
-| Reflector dispatch from a trace | ⚠️ | Shape mapping verified structurally; no trace has produced a rule through this path. | mocked dispatch |
+| Reflector dispatch from a trace | ✅ | Real failing test → grounded candidate → live gate → `proposed` rule on a branch. | **real LLM, real graph, real git** |
 
 **Suites:** `python tests/test_wedge2.py` → ALL PASS (13 checks) ·
 `pytest tests/test_dual_path.py` → 11 passed ·
-`pytest tests/test_pytest_plugin.py` → 12 passed ·
+`pytest tests/test_pytest_plugin.py` → 16 passed ·
 `python tests/test_curator_http.py` → ALL PASS (8 checks, real HTTP, no Docker).
-Full suite: **38 passed**. None require an LLM, Packmind, or Docker.
+Full suite: **42 passed**. None require an LLM, Packmind, or Docker.
 **Size:** 1,191 lines across the seven Wedge 2 modules — up from 547, the cost
 of a second distribution path (`rule_submission.py`, 232) and automatic capture
-(`pytest_plugin.py` + `trace_processor.py`, 310).
+(`pytest_plugin.py` + `trace_processor.py`, 310). Traceback→graph resolution
+added 79 lines to `trace_processor.py` on top of that.
 
 **Round-trip:** 40/40 real indexed symbols used as evidence nodes resolve back
 through the query path — a rule whose `evidence_node` the graph can't resolve
@@ -220,13 +230,65 @@ The Bash hook is kept as a **narrow secondary net** for commands that exit 0
 while printing failure text — a linter in report mode, `pytest || true`. Its
 docstring says so. It is not the primary path and cannot be.
 
-**Known gap:** `nodes_touched` is empty on pytest traces. A pytest node id
-(`tests/t.py::test_a`) is not a graph qualified_name, and inventing one would
-produce decorated rules rather than grounded ones. `reflector.ground()` handles
-the empty case explicitly, so such a lesson is honestly labelled ungrounded —
-but it means auto-captured traces get less Wedge 1 grounding than the manual
-`chronos_capture_lesson` path, which names real nodes. Mapping test ids to graph
-nodes is the obvious next improvement.
+**Gap closed 2026-08-14: `nodes_touched` is now populated on pytest traces.**
+It was empty, so every auto-captured lesson reached the Reflector ungrounded.
+The fix does *not* map the test id — `tests/t.py::test_a` names the test, not
+the code under test, and mapping it would invent a relationship rather than
+observe one. Instead `candidate_symbols()` reads function names out of the
+traceback (all three frame shapes pytest emits: `def f(`, `path:n: in f`, and
+the stdlib `File …, in f`), and `resolve_nodes()` keeps only the ones the graph
+confirms, capped at 10.
+
+Verified against a real 601-node index of this repo: a real failing test
+produced `['test_raises_inside_real_code', 'to_reflector_trace']`, and the graph
+dropped the test frame and kept the indexed function. When nothing resolves the
+list stays empty and `reflector.ground()` still labels the lesson ungrounded —
+the honest fallback is preserved, it is just no longer the only outcome.
+Resolution runs in `_dispatch_safe` (off the test-run path, driver closed before
+the LLM call) and is best-effort: a resolution failure logs and reflects
+ungrounded rather than dropping the trace.
+
+### Live end-to-end run — capture → reflect → curate → distribute (2026-08-14)
+
+The chain ran with **no mocks at any stage**, against an OpenAI-compatible
+endpoint. This is the first time an auto-captured trace has become a proposed
+rule without a human in the middle.
+
+1. **Capture** — a real failing test wrote `pending.jsonl` (pytest plugin).
+2. **Grounding** — traceback frames resolved to the real graph node
+   `to_reflector_trace`: `last_changed 2026-08-14T00:53:32+00:00`, 3 facts,
+   0 superseded, callers `[test_to_reflector_trace_shape, _dispatch_safe]`.
+   This is the #2 mapping doing its job — without it the Reflector would have
+   seen no nodes at all.
+3. **Reflect** — three separate models each returned a grounded rule carrying
+   that evidence. Confidence 0.86 / 0.85 / 0.90, and 0.97 on a later run.
+4. **Quality gate** — ran live and **rejected** the first candidate:
+   *"overly strict and would generate false positives for legitimate
+   optional-dict patterns."* A real judgement with a reason, not a rubber stamp.
+   A second, narrower candidate passed.
+5. **Distribute** — git-native path wrote `.chronos/rules/<id>.yml`, created
+   branch `chronos/rule-<id>`, recorded the rule `proposed`, and restored HEAD
+   to `master` with uncommitted work intact. `gh` absent → `pr_url: None`, the
+   documented degradation.
+6. **Gate held** — the live-generated rule was excluded from `get_active_rules()`
+   and `promote_to_blocking()` refused it (*"still proposed — run approve-rule
+   first"*).
+
+All run artifacts (rule file, branch, `enforcement_rules` row) were removed
+afterwards.
+
+**What this run did NOT prove:**
+
+- **Embedding dedup is still mock-only.** The endpoint returned upstream 410 for
+  `text-embedding-3-small` (provider retired). With an empty rule store
+  `_duplicate_of` short-circuits before embedding, so the cosine > 0.85 path
+  never executed. This is the last mock-only piece of Wedge 2's LLM work.
+- **Model availability was flaky**, not a code fault: two models returned
+  `RateLimitError: All models exhausted` and the same trace succeeded on others.
+  Worth noting because a Reflector failure in production is indistinguishable
+  from a low-signal trace unless the logs are read — the dispatch path swallows
+  it by contract.
+- Nothing here touches Packmind; the git-native path was the one exercised.
 
 ### Live verification: Reflector passed, Packmind still blocked
 
@@ -270,10 +332,10 @@ Packmind ships only as a Compose stack, so the HTTP layer stays unverified.
 - `create_standard` reads the id as `r["id"]` with a fallback to
   `r["standard"]["id"]` because the controller's return type and the use-case
   response type disagree in the source. One live call settles which is right.
-- **The Curator's own LLM work is still mock-only.** The Reflector proved the
-  litellm path works, but the Curator's embedding-based dedup (cosine > 0.85)
-  and its quality gate have never run against a real model — the run stops at
-  `list_rules()`, before either executes.
+- **The Curator's quality gate is now live-verified** (2026-08-14) — it rejected
+  one candidate with a reason and passed another. **Its embedding dedup is not**:
+  no embeddings model was reachable, so cosine > 0.85 has still never run
+  against real vectors.
 
 Clearing this needs Docker Desktop (admin/UAC); an LLM key is no longer a
 blocker. The procedure is
@@ -353,8 +415,30 @@ Full notes, including the JSON match shape, are at the top of `enforcer.py`.
   difference is 131 docstring lines, ~65 of which are the Step-0 research block
   the PRD required in `enforcer.py`. Keeping that block was chosen over hitting
   the raw line count, since it is where the two findings above are recorded.
-- **No live CI run.** The workflow in `docs/wedge4-ci.yml` is written but has
-  never executed on GitHub Actions.
+- **No live CI run — but the workflow is now installed and its blockers fixed.**
+  It moved from `docs/wedge4-ci.yml` to `.github/workflows/chronos-enforce.yml`,
+  where Actions will actually pick it up. Reviewing it against the CLI before
+  the first run found two faults that would have failed or silently no-opped it:
+  - **`--diff origin/${{ github.base_ref }}` does not resolve.** `actions/checkout`
+    leaves the base branch unfetched on a `pull_request`, so `git diff` exits
+    non-zero and `enforce` dies on `sys.exit`. Fixed with an explicit
+    `git fetch origin <base_ref>` step feeding `FETCH_HEAD`, falling back to
+    `HEAD~1` on `push`.
+  - **`--lang typescript` was hardcoded**, which forces one language onto every
+    file in the diff. Dropped — `enforce` already infers per-file language via
+    `indexer.node_language`, which is the fix that shipped with the language
+    field.
+
+  Also: `--fail-on-block` is now omitted deliberately (advisory first — with no
+  graph in CI every verdict degrades to `warn` anyway), a `pytest tests/ -q` step
+  was added so the run doubles as the Linux check for gap 1, and a comment
+  records that the indexer submodule is intentionally not fetched (enforcement
+  reads a graph, it does not index).
+
+  **Still unrun, and this repo cannot run it: there is no git remote.** Pushing
+  to a GitHub remote is the remaining step, and it is infrastructure, not code.
+  `enforce` itself was executed locally against real HEAD~1 and completed
+  cleanly (`Checked 0 files - 0 block, 0 warn, 0 ok`).
 
 ---
 
@@ -556,14 +640,20 @@ fixes arrive as a `git pull`.
      our reading of its TypeScript. Podman or WSL2 is the cheapest path.
   2. **`gh pr create` has never executed** — `gh` is not installed here. The
      no-`gh` degradation is tested; the PR path itself is not.
-  3. **No trace has produced a rule end-to-end** — dispatch is mocked in every
-     test. Needs an LLM key plus a populated graph in one place.
+  3. **CLOSED 2026-08-14 — a trace has now produced a rule end-to-end**, live,
+     with nothing mocked. See "Live end-to-end run" below. The one piece still
+     mock-only is the Curator's **embedding dedup**: the endpoint used serves no
+     embeddings model, so `_duplicate_of` was skipped (empty rule store) rather
+     than exercised. Cosine > 0.85 remains unproven against real vectors.
 - **Upstream to Packmind:** request a metadata field on `Standard`, so evidence
   stops living inside `description`. Their response time is itself the signal on
   whether Packmind is a safe long-term dependency.
-- **Wedge 4:** no live CI run. The workflow is written but has never executed on
-  GitHub Actions, and enforcement is toothless without a graph in CI (every
-  verdict degrades to `warn`).
+- **Wedge 4:** the workflow is now installed at
+  `.github/workflows/chronos-enforce.yml` with both of its pre-run faults fixed
+  (unfetched base ref, hardcoded `--lang`), but it has still never executed —
+  **this repo has no git remote**, so the first run is blocked on infrastructure.
+  Enforcement also stays toothless until a graph is restored in CI (every verdict
+  degrades to `warn`).
 - **Per platform PRD sequencing:** all four wedges are built. Wedges 1, 3 and 4
   are verified against real tools and repos; Wedge 2 is verified against real
   git, real pytest and a real socket, but not against a real Packmind.

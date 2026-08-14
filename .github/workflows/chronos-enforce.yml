@@ -1,0 +1,93 @@
+# Chronos Wedge 4 — CI enforcement.
+#
+# What this gates on: a rule only blocks when BOTH (a) a human promoted it to
+# blocking via chronos_promote_rule, and (b) the bi-temporal graph confirms the
+# matched symbol is actually superseded. A pattern match alone is a warning.
+# That is deliberate — see chronos/policies/enforce.rego, which is the file that
+# decides, and which you can edit without touching Chronos.
+
+name: chronos-enforce
+
+on: [pull_request, push]
+
+jobs:
+  chronos-enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # enforce --diff needs history, not a shallow clone
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Chronos and ast-grep
+        # The vendored indexer submodule is deliberately NOT fetched: enforcement
+        # reads an existing graph, it does not index. `chronos doctor` reports
+        # `vendored src: MISSING` and keeps going, which is the correct state here.
+        run: |
+          pip install -e .
+          pip install ast-grep-cli
+
+      - name: Install OPA
+        run: |
+          curl -sL -o /usr/local/bin/opa \
+            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+
+      # Enforcement reads the temporal graph to confirm deprecation. Without a
+      # graph every verdict degrades to "warn" — safe, but toothless. Restore a
+      # prebuilt store or index in CI.
+      #
+      # ~/.chronos holds BOTH stores: graph.kz (the temporal graph) and
+      # chronos.db (locks, provenance, enforcement rules). Caching the directory
+      # covers both, which is the point of consolidating them.
+      - name: Restore the Chronos data directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.chronos
+          key: chronos-data-${{ github.repository }}
+
+      - name: Verify the toolchain
+        run: chronos doctor
+
+      # Proves _run_posix and the suites work on Linux — the build has only ever
+      # run on Windows. Kept ahead of enforce so a broken install fails loudly
+      # rather than as a confusing "no changed files".
+      - name: Test suite
+        run: pytest tests/ -q
+
+      # `enforce --diff` runs `git diff <ref>`, which needs a real local ref.
+      # actions/checkout leaves the base branch unfetched on a pull_request, so
+      # `origin/<base_ref>` does not resolve and enforce exits with a git error.
+      - name: Fetch the diff base
+        id: base
+        run: |
+          if [ -n "${{ github.base_ref }}" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            echo "ref=FETCH_HEAD" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+
+      # No --lang: enforce infers language per file from the extension, so a
+      # mixed-language diff checks each file against its own rules. Pass --lang
+      # only to force a single language across every file.
+      - name: Enforce
+        run: |
+          chronos --group ${{ github.repository }} enforce \
+            --diff "${{ steps.base.outputs.ref }}" \
+            --agent-id "gh-actions" \
+            --session-id "${{ github.run_id }}"
+
+# Notes
+#
+# --fail-on-block is what turns this from a report into a gate. It is omitted
+# above on purpose: start advisory, add it once you have promoted rules and a
+# graph in CI. Without a graph every verdict degrades to warn and the flag has
+# nothing to fire on anyway.
+#
+# --agent-id makes blocks attributable: every block is stamped into the Wedge 3
+# provenance ledger with the agent, session, rule id and reason, which is what
+# chronos_rule_report reads back for the leadership view.

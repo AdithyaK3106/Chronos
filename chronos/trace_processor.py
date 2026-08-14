@@ -13,6 +13,7 @@ neither may fail because a trace was malformed.
 import json
 import logging
 import os
+import re
 import sys
 import threading
 from datetime import datetime, timezone
@@ -24,6 +25,55 @@ log = logging.getLogger("chronos.trace_processor")
 
 MAX_AGE_HOURS = 24
 FAILURE_PATTERNS = ("FAILED", "ERROR", "AssertionError", "error:", "Traceback")
+
+# Candidate symbol names out of a pytest longrepr. Two frame shapes appear:
+# pytest's own rendering (`def helper(...)`, and `path:12: in helper`) and the
+# stdlib traceback it embeds (`File "x.py", line 12, in helper`).
+_FRAME_PATTERNS = (
+    re.compile(r'^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(', re.M),
+    re.compile(r'^.*?:\d+:\s+in\s+([A-Za-z_]\w*)\s*$', re.M),
+    re.compile(r'^\s*File\s+".*?",\s+line\s+\d+,\s+in\s+([A-Za-z_]\w*)', re.M),
+)
+MAX_NODES = 10   # grounding cost is one graph round-trip per node
+
+
+def candidate_symbols(trace: dict) -> list[str]:
+    """Function names appearing in a trace's tracebacks, in first-seen order.
+
+    Deliberately NOT derived from the test id: `tests/t.py::test_a` names the
+    test, not the code under test, so mapping it to a graph node would invent a
+    relationship rather than observe one. A traceback frame is different — it is
+    a function that actually executed on the way to the failure.
+
+    These are candidates, not nodes. resolve_nodes() drops the ones the graph
+    does not know, which is what keeps a lesson grounded rather than decorated.
+    """
+    seen = {}
+    for f in (trace.get("failures") or []):
+        for pat in _FRAME_PATTERNS:
+            for name in pat.findall(f.get("traceback") or ""):
+                seen.setdefault(name, None)
+    return list(seen)
+
+
+async def resolve_nodes(driver, group_id, names) -> list[str]:
+    """Keep only the candidates that exist in the graph as symbols.
+
+    The graph is the authority. An unresolvable name means the failure ran
+    through code Chronos has not indexed (a test helper, a dependency), and
+    passing it to reflector.ground() would yield a node with no history — the
+    decorated-rule failure mode this whole path exists to avoid.
+    """
+    if not names:
+        return []
+    from . import query
+    rows = await query._rows(
+        driver,
+        "MATCH (n:Entity) WHERE n.group_id = $g AND n.name IN $names "
+        "RETURN DISTINCT n.name AS name",
+        g=group_id, names=list(names))
+    known = {r["name"] for r in rows}
+    return [n for n in names if n in known][:MAX_NODES]
 
 
 def _pending_path(repo_path) -> Path:
@@ -62,10 +112,11 @@ def to_reflector_trace(trace: dict) -> dict:
     {agent_id, session_id, action, outcome, error_or_correction,
      nodes_touched, timestamp}.
 
-    nodes_touched stays empty: a test id is not a graph qualified_name, and
-    inventing one would produce decorated rules rather than grounded ones.
-    reflector.ground() handles the empty case explicitly ("no nodes named in
-    trace"), so an ungrounded lesson is honestly labelled as such."""
+    nodes_touched is filled by _dispatch_safe from traceback frames the graph
+    confirms (candidate_symbols + resolve_nodes), not here — resolution needs a
+    driver. It stays empty when nothing resolves, and reflector.ground() handles
+    that case explicitly ("no nodes named in trace"), so an ungrounded lesson is
+    honestly labelled as such rather than decorated with an invented node."""
     if trace.get("source") == "pytest":
         failures = trace.get("failures") or []
         first = failures[0] if failures else {}
@@ -96,17 +147,45 @@ def to_reflector_trace(trace: dict) -> dict:
     }
 
 
+def _resolve_touched(group_id, trace, payload):
+    """Fill payload['nodes_touched'] from the graph. Best-effort.
+
+    Opens its own driver and closes it before reflect() runs: grounding is a
+    separate set of queries and the Reflector opens what it needs, so holding a
+    connection across an LLM call would pin it for seconds for nothing."""
+    import asyncio
+
+    names = candidate_symbols(trace)
+    if not names:
+        return
+    async def go():
+        from .store import open_driver
+        drv = open_driver()
+        try:
+            return await resolve_nodes(drv, group_id, names)
+        finally:
+            await drv.close()
+    try:
+        payload["nodes_touched"] = asyncio.run(go())
+    except Exception as e:  # noqa: BLE001 -- grounding is a bonus, not a gate
+        log.warning("trace-processor: node resolution failed (%s: %s)",
+                    type(e).__name__, e)
+
+
 def _dispatch_safe(trace: dict):
     """Reflect + curate on a background thread. Swallows everything."""
     try:
         from . import triggers
         if not triggers.enabled():
             return None
+        group_id = os.environ.get("CHRONOS_GROUP_ID", "default")
         payload = to_reflector_trace(trace)
+        # Ground the lesson in real symbols before reflecting. Without this the
+        # Reflector sees only a test id and returns a decorated rule.
+        _resolve_touched(group_id, trace, payload)
         # triggers._reflect owns the sync/async bridge; reuse it rather than
         # re-deriving the event-loop handling here.
-        candidate = triggers._reflect(payload, None, os.environ.get(
-            "CHRONOS_GROUP_ID", "default"))
+        candidate = triggers._reflect(payload, None, group_id)
         if candidate is None:
             log.info("trace-processor: reflector returned None (low-signal)")
             return None

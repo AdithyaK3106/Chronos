@@ -12,20 +12,22 @@ from datetime import datetime, timedelta, timezone
 from mcp.server.fastmcp import FastMCP
 
 from . import groups, detectability, enforcer, ledger, rule_generator, rule_store
-from .store import open_driver
 
 GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
                         os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos-enforce")
 
-_driver = None
 
 
 async def driver():
-    global _driver
-    if _driver is None:
-        _driver = open_driver()
-    return _driver
+    """Delegates to wedge1_mcp, which owns the single process-wide driver.
+
+    See the note there: one Kuzu holder per process, and the unified server
+    runs all four wedges in one. A per-wedge driver deadlocked the server
+    against itself.
+    """
+    from .wedge1_mcp import driver as _shared
+    return await _shared()
 
 
 @mcp.tool()

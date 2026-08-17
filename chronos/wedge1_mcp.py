@@ -7,25 +7,94 @@ codebase-memory-mcp server, which the agent can run alongside this one.
 ponytail: proxying 15 upstream tools we'd add nothing to is pure surface area.
 """
 
+import asyncio
 import os
+import time
 from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
 from . import groups, query
-from .store import open_driver
+from .store import ensure_schema, open_driver
 
 GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
                         os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos")
 
 _driver = None
+_schema_ready = False
+# Serialises opening. Concurrent tool calls must not each try to open the store.
+_driver_lock = asyncio.Lock()
+
+# Opening measures ~2-3s uncontended. A bounded wait is what turns "the server
+# is dead" into "the graph is busy, here is why".
+DRIVER_OPEN_TIMEOUT = float(os.environ.get("CHRONOS_DRIVER_TIMEOUT", "30"))
+
+# MEASURED, and it constrains the whole design: `await driver.close()` does NOT
+# release Kuzu's lock. Verified 2026-08-17 -- open, close, then reopen in the
+# same process raises GraphLocked, and still does after `del` + gc.collect().
+# The lock is held until the PROCESS EXITS.
+#
+# So an idle-release scheme (close the driver, reopen on the next query) cannot
+# work: the reopen always fails and the server is permanently broken from that
+# point. It was implemented, tested against a fake driver that *did* release,
+# passed, and would have shipped a server that dies after its first idle
+# period. Only a real reopen caught it.
+#
+# The consequence has to be stated rather than engineered around: one process
+# owns the graph for its lifetime. Everything below follows from that.
 
 
 async def driver():
-    global _driver
-    if _driver is None:
-        _driver = open_driver()
+    """The one Kuzu driver for this process. Opened once, held until exit.
+
+    THE BUG THIS FIXES
+    ------------------
+    The first graph-backed tool call in a fresh MCP server used to return
+    nothing at all -- measured at 75s, 90s, 200s, 420s and 500s+, at ~0% CPU,
+    with no error. Every MCP client times out long before that and reports the
+    server as dead, which is exactly what a pilot agent concluded.
+
+    Cause: Kuzu allows ONE holder of the store per process, and open_driver()
+    WAITS rather than failing when the store is busy. Three separate things
+    then competed for it -- wedges 1, 2 and 4 each kept their own driver
+    global, so a client using tools from two wedges deadlocked the server
+    against itself, and a background trace-drain thread raced them both.
+
+    Three properties fix it, and each has a test in tests/test_mcp_driver.py:
+
+    1. SINGLE OWNER. Wedges 2 and 4 delegate here. One driver per process is
+       not an optimisation, it is the only correct number.
+    2. OFF THE EVENT LOOP. open_driver() is synchronous and takes ~2-3s;
+       running it inline stalls the stdio transport that serves MCP frames.
+    3. BOUNDED WAIT. A timeout converts an indefinite hang into a fast,
+       explicit, actionable error naming the likely holder.
+
+    NOT DONE, deliberately: releasing the graph when idle. close() does not
+    release Kuzu's lock (see the note above the constants), so a release-and-
+    reopen scheme leaves the server permanently unable to reopen. A long-lived
+    server therefore does hold the graph, and `chronos index` must stop it
+    first -- surfaced in the error message rather than hidden.
+    """
+    global _driver, _schema_ready
+    async with _driver_lock:
+        if _driver is None:
+            try:
+                _driver = await asyncio.wait_for(
+                    asyncio.to_thread(open_driver), timeout=DRIVER_OPEN_TIMEOUT)
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"could not open the graph within {DRIVER_OPEN_TIMEOUT}s. "
+                    f"Kuzu allows one process at a time and another one is "
+                    f"holding it -- typically another chronos-mcp server, a "
+                    f"`chronos index`/`sync` run, or `chronos daemon`. "
+                    f"Check with `python -m chronos daemon status` and look "
+                    f"for stray chronos-mcp processes."
+                ) from None
+            _schema_ready = False
+        if not _schema_ready:
+            await ensure_schema(_driver)
+            _schema_ready = True
     return _driver
 
 
@@ -53,6 +122,18 @@ async def as_of_callers(symbol: str, when: str = "now") -> dict:
     Returns an explicit no_data_reason instead of falling back to current state.
     """
     return await query.callers(await driver(), GROUP, symbol, _parse(when))
+
+
+@mcp.tool()
+async def as_of_diff(symbol: str, since: str, until: str) -> dict:
+    """Who started/stopped calling `symbol` between two points in time.
+
+    Two as_of_callers calls joined client-side, not a new graph query. Each
+    side's no_data_reason is propagated rather than collapsed into a silent
+    empty set -- an agent must know "no callers were removed" apart from
+    "the symbol wasn't indexed at since".
+    """
+    return await query.callers_diff(await driver(), GROUP, symbol, _parse(since), _parse(until))
 
 
 @mcp.tool()

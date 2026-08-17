@@ -65,7 +65,7 @@ async def main():
     tools = {t.name for t in await server.mcp.list_tools()}
     from chronos import wedge1_mcp, wedge2_mcp, wedge3_mcp, wedge4_mcp
     expected = {
-        "as_of_callers", "as_of_callees", "as_of_impact", "what_changed", "index_health",
+        "as_of_callers", "as_of_callees", "as_of_impact", "as_of_diff", "what_changed", "index_health",
         "chronos_acquire_lock", "chronos_release_lock", "chronos_check_conflicts",
         "chronos_log_provenance", "chronos_who_touched",
         "chronos_capture_lesson", "chronos_query_playbook", "chronos_propose_rule",

@@ -1,14 +1,15 @@
 # Chronos — Status
 
-**Updated:** 2026-08-14
+**Updated:** 2026-08-17
 **Scope:** All four wedges — 1 (Bi-Temporal AST Graph), 2 (Policy Playbook),
 3 (Intent & Provenance Ledger), 4 (CI Enforcement).
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
 against four real third-party repos. Wedge 4 is **complete and verified against
 the real ast-grep and OPA binaries**, with both validation-run blockers now
-fixed; its CI workflow is now installed at `.github/workflows/` with two
-pre-run faults fixed, but has still never run on GitHub Actions — this repo has
-no git remote. Wedge 2 **no longer requires Packmind at all**: git-native
+fixed; its CI workflow **now runs green on GitHub Actions**, on both `push` and
+`pull_request`, after two clean-install bugs it caught were fixed (a missing
+test dependency, and an unbounded `mcp` requirement that resolved to a 2.0 which
+had removed `mcp.server.fastmcp`). Wedge 2 **no longer requires Packmind at all**: git-native
 distribution is the default path and runs end-to-end against real git. Its
 **Reflector is live-verified**, its HTTP client is now socket-verified against a
 local fake, and **automatic failure capture works** via a pytest plugin —
@@ -94,7 +95,7 @@ against real git. Precisely:
 | **Packmind HTTP layer** | ⚠️ socket-verified against a local fake; **never against real Packmind** |
 | **Curator** — quality gate | ✅ **LIVE-VERIFIED** — real LLM judgement; rejected one candidate with a reason, passed another to submission |
 | **Curator** — embedding dedup | ⚠️ still mock-only — the local endpoint serves no embeddings model (`text-embedding-3-small` → upstream 410, provider retired) |
-| **PR creation via `gh`** | ❌ never executed — `gh` is not installed on this machine |
+| **PR creation via `gh`** | ✅ **LIVE-VERIFIED 2026-08-17** — real draft PR opened against a real remote ([#1](https://github.com/AdithyaK3106/Chronos/pull/1)). Required a bug fix first: see "The PR path had never worked" below |
 
 Read that table before relying on any capability below: the rows in the next
 table are proven against mocks unless this one says otherwise.
@@ -123,7 +124,7 @@ load-bearing — read that column, not the tick.
 | **Git-native proposal** | ✅ | Real repo: rule file, `chronos/rule-<id>` branch, commit, `proposed` in `enforcement_rules`, HEAD restored. | **real git** |
 | **Proposed rules are not enforced** | ✅ | `get_active_rules()` excludes `proposed`; `promote_to_blocking()` refuses it. | real SQLite |
 | **Path routing** | ✅ | `PACKMIND_API_URL` set → packmind, unset → git-native. | real env |
-| PR creation via `gh` | ❌ | Degrades to `pr_url: None`, which is tested. The `gh pr create` call itself has never run. | **nothing — `gh` not installed** |
+| PR creation via `gh` | ✅ | Draft PR #1, one file (`.chronos/rules/<id>.yml`), evidence block in the body. | **real `gh` 2.97.0 + real GitHub remote** |
 | Reflector dispatch from a trace | ✅ | Real failing test → grounded candidate → live gate → `proposed` rule on a branch. | **real LLM, real graph, real git** |
 
 **Suites:** `python tests/test_wedge2.py` → ALL PASS (13 checks) ·
@@ -290,6 +291,34 @@ afterwards.
   it by contract.
 - Nothing here touches Packmind; the git-native path was the one exercised.
 
+### The PR path had never worked — found by running it (2026-08-17)
+
+Installing `gh` and adding a remote was supposed to be infrastructure-only.
+Instead the first real `submit_git_native()` still returned `pr_url: None`, and
+the reason was a bug that no test could have caught:
+
+`_commit()` ran `git add -- .chronos/rules/<id>.yml`. **`.chronos/` is
+gitignored by our own recommended setup** — correctly, since it holds the db,
+logs and traces. So `git add` exited 1, `_commit` returned False, `_open_pr` was
+never reached, and the rule was recorded `proposed` with no branch pushed and no
+PR. Fixed with `git add -f` scoped to the rule file, which is the one thing
+under `.chronos/` that must be committed: it is what the PR exists to review.
+
+Two things this exposes about the earlier verification:
+
+- **"Git-native distribution — LIVE-VERIFIED" was true only up to the PR.** The
+  branch, the commit and the `proposed` row were all real. The step that turns
+  it into something a human can approve was not, and the tested degradation
+  (`pr_url: None` when `gh` is absent) masked it perfectly — the failure looked
+  exactly like the documented success-with-no-gh case.
+- **The log line actively misled.** It read `No PR created — gh CLI not found or
+  push failed` when neither had happened; `git add` had. It now reports the
+  reason actually logged above it, and `_commit` logs the `git add` stderr.
+
+The lesson generalises: a degradation path that is indistinguishable from the
+failure it hides is not a safe default, it is a blindfold. Anything that
+degrades silently needs to name *which* precondition failed.
+
 ### Live verification: Reflector passed, Packmind still blocked
 
 **The Reflector ran live on 2026-08-13** against an OpenAI-compatible endpoint
@@ -435,10 +464,42 @@ Full notes, including the JSON match shape, are at the top of `enforcer.py`.
   records that the indexer submodule is intentionally not fetched (enforcement
   reads a graph, it does not index).
 
-  **Still unrun, and this repo cannot run it: there is no git remote.** Pushing
-  to a GitHub remote is the remaining step, and it is infrastructure, not code.
-  `enforce` itself was executed locally against real HEAD~1 and completed
-  cleanly (`Checked 0 files - 0 block, 0 warn, 0 ok`).
+  **CLOSED 2026-08-17 — the workflow has now run on GitHub Actions.** Remote is
+  `AdithyaK3106/Chronos`; green on `push` (`32002499526`) and on `pull_request`
+  (`32002666029`), 1m41s. Confirmed live: `opa : ok | v1.19.0`, `80 passed` on
+  `ubuntu-latest`, the base-ref fetch resolving `FETCH_HEAD` on the PR event
+  (the fix that had never executed), and
+  `Checked 0 files - 0 block, 0 warn, 0 ok (1 skipped: no rules for that file type)`.
+
+  **It took three runs to go green, and both failures were real bugs**, not CI
+  configuration:
+
+  1. **`pytest: command not found`.** `pyproject.toml` declared no test
+     dependency, so `pip install -e .` produced a tree with no test runner. Not
+     CI-specific — anyone following the documented `pytest tests/ -q` after a
+     clean install hit the same wall. Fixed with a `[test]` extra so the
+     declaration lives with the project and one command reproduces CI locally.
+  2. **`ModuleNotFoundError: No module named 'mcp.server.fastmcp'`.** `mcp>=1.2`
+     had no upper bound and resolved to **2.0.0, which removed that module**.
+     All five `*_mcp.py` files import `FastMCP` from it, so **every MCP entry
+     point — the entire product surface — died at import on any fresh install
+     after 2.0 shipped.** Invisible here only because this machine happened to
+     have 1.28.1. Pinned to `mcp>=1.2,<2` (resolves to 1.29.0, verified in a
+     clean venv). Moving to the 2.x API is a real migration, not a bump.
+
+  The second one is the strongest argument in this document for having a CI at
+  all: a clean-room install found a total-breakage bug that 80 local tests, four
+  real-repo validations and a full manual pilot all missed, because every one of
+  them ran against an environment that was already correct.
+
+  Hardening applied in the same pass: `push` scoped to `master` (an open PR was
+  running the whole job twice per commit), `concurrency` cancelling superseded
+  runs, pip caching for the ~200MB graphiti/litellm install, and OPA pinned to
+  1.19.0 with `curl -f` — OPA 1.0 was a breaking Rego change, so `latest` would
+  eventually have broken `enforce.rego` silently.
+
+  **Still toothless, by design:** with no graph in CI every verdict degrades to
+  `warn`, and `--fail-on-block` stays omitted until a store is restored.
 
 ---
 
@@ -596,9 +657,14 @@ Disable with `CHRONOS_DAEMON=0` (honoured even when a daemon is running).
 
 ## Gaps
 
-**1. Non-Windows build unverified.** `_run_posix` is the simpler branch (plain
-`make`, no MSYS2 path translation or `TMPDIR` workaround) but has never executed
-here. One Linux CI run settles it.
+**1. CLOSED 2026-08-17 — the suites now run on Linux.** CI is live at
+`AdithyaK3106/Chronos` and green on both `push` and `pull_request`
+(run `32002499526`, `80 passed` on `ubuntu-latest` in 1m41s). Note the
+narrowing: this proves the *suites* pass on Linux, **not** that
+`build_cbm._run_posix` works — the workflow deliberately does not fetch the
+indexer submodule (`vendored src: MISSING`, as designed), so the POSIX build
+branch is still unexecuted. Building the vendored indexer in CI is a separate,
+slower job.
 
 **1b. Adjacent-node conflict detection (Wedge 3).** The platform PRD's Wedge 3 P0
 asks for the graph to catch structurally-adjacent edits. Locks currently cover
@@ -671,8 +737,10 @@ fixes arrive as a `git pull`.
 
 ## Next
 
-- **Blocking on nobody:** Linux CI build; load test on a large monorepo;
-  adjacent-node conflict expansion for Wedge 3.
+- **Blocking on nobody:** load test on a large monorepo; adjacent-node conflict
+  expansion for Wedge 3; building the vendored indexer on Linux (the CI job
+  skips the submodule, so `_run_posix` is still unexecuted — the suites passing
+  on Linux does not cover it).
 - **Wedge 2 — no longer blocking anything.** Git-native distribution is the
   default and needs no external service, so the wedge is demoable end-to-end
   today. Three gaps remain, none blocking:
@@ -681,8 +749,10 @@ fixes arrive as a `git pull`.
      (`tests/fake_packmind.py`, `chronos doctor --fake-packmind`), which proves
      our client is internally consistent, **not** that the real API agrees with
      our reading of its TypeScript. Podman or WSL2 is the cheapest path.
-  2. **`gh pr create` has never executed** — `gh` is not installed here. The
-     no-`gh` degradation is tested; the PR path itself is not.
+  2. **CLOSED 2026-08-17 — `gh pr create` has now executed**, opening a real
+     draft PR (#1) against a real remote. It required fixing a bug that made the
+     PR path unreachable in any repo that gitignores `.chronos/` — see "The PR
+     path had never worked" above.
   3. **CLOSED 2026-08-14 — a trace has now produced a rule end-to-end**, live,
      with nothing mocked. See "Live end-to-end run" below. The one piece still
      mock-only is the Curator's **embedding dedup**: the endpoint used serves no
@@ -691,12 +761,11 @@ fixes arrive as a `git pull`.
 - **Upstream to Packmind:** request a metadata field on `Standard`, so evidence
   stops living inside `description`. Their response time is itself the signal on
   whether Packmind is a safe long-term dependency.
-- **Wedge 4:** the workflow is now installed at
-  `.github/workflows/chronos-enforce.yml` with both of its pre-run faults fixed
-  (unfetched base ref, hardcoded `--lang`), but it has still never executed —
-  **this repo has no git remote**, so the first run is blocked on infrastructure.
-  Enforcement also stays toothless until a graph is restored in CI (every verdict
-  degrades to `warn`).
+- **Wedge 4: CLOSED 2026-08-17.** The workflow runs green on GitHub Actions on
+  both events; the base-ref fetch and per-file language inference are now
+  verified live rather than by review. Enforcement still stays toothless until a
+  graph is restored in CI (every verdict degrades to `warn`), which is the next
+  real step for this wedge — the cache step is in place but nothing populates it.
 - **Per platform PRD sequencing:** all four wedges are built. Wedges 1, 3 and 4
   are verified against real tools and repos; Wedge 2 is verified against real
   git, real pytest and a real socket, but not against a real Packmind.

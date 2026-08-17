@@ -162,6 +162,55 @@ def test_rule_id_is_stable(no_packmind):
     assert rule_submission.rule_id_for({"rule_text": "different"}) != a
 
 
+def _git(args, cwd):
+    return subprocess.run(["git", "-C", str(cwd)] + args,
+                          capture_output=True, text=True, check=False)
+
+
+@pytest.mark.skipif(not rule_submission.shutil.which("git"), reason="git not installed")
+def test_rule_file_commits_even_though_chronos_is_gitignored(
+        tmp_path, monkeypatch, no_packmind):
+    """The rule file must reach a commit in a repo that gitignores .chronos/.
+
+    Regression for the bug that made the git-native PR path unreachable in
+    every repo set up the way we recommend: `git add` (no -f) exits 1 on an
+    ignored path, `_commit` returns False, and `_open_pr` is never called, so
+    the run degrades to `pr_url: None` while *looking* exactly like the tested
+    "no gh installed" case.
+
+    Uses a real git repo on purpose. The other tests here fake `.git` with
+    mkdir, which is why none of them could catch this -- with no real git,
+    `git add` never runs and the ignore rule never applies.
+    """
+    monkeypatch.setenv("CHRONOS_SQLITE", str(tmp_path / "test.db"))
+    assert _git(["init", "-q", "-b", "main"], tmp_path).returncode == 0 or \
+        _git(["init", "-q"], tmp_path).returncode == 0
+    _git(["config", "user.email", "t@example.com"], tmp_path)
+    _git(["config", "user.name", "t"], tmp_path)
+    # The setup Chronos itself recommends, and the source of the bug.
+    (tmp_path / ".gitignore").write_text(".chronos/\n", encoding="utf-8")
+    _git(["add", ".gitignore"], tmp_path)
+    _git(["commit", "-qm", "init"], tmp_path)
+
+    # No remote and no gh: _open_pr must still be *reached* and fail at push,
+    # which is the documented degradation. What must not happen is failing
+    # earlier, at the commit.
+    r = rule_submission.submit_git_native(CANDIDATE, str(tmp_path))
+    rule_id = r["rule_id"]
+
+    branch = f"{rule_submission.BRANCH_PREFIX}{rule_id}"
+    assert r["branch"] == branch, "branch was not created"
+
+    # The commit exists on the rule branch and contains the rule file.
+    files = _git(["show", "--name-only", "--format=", branch], tmp_path).stdout
+    assert f"{rule_id}.yml" in files, (
+        f"rule file never made it into the commit on {branch}; got: {files!r}")
+
+    # And the developer was put back where they started.
+    head = _git(["rev-parse", "--abbrev-ref", "HEAD"], tmp_path).stdout.strip()
+    assert head != branch, "left the developer on the chronos branch"
+
+
 def test_resolve_repo_path_precedence(tmp_path, monkeypatch):
     monkeypatch.setenv("CHRONOS_REPO_PATH", str(tmp_path / "from-env"))
     assert rule_submission.resolve_repo_path(None) == str(tmp_path / "from-env")

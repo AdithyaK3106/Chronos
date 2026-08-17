@@ -1,9 +1,9 @@
 # Chronos End-to-End Pilot — Findings
 
 **Date:** 2026-08-14
-**Repo A:** `C:/Users/urbra/OneDrive/Desktop/Projects/MediAssist` (git, Python)
-**Repo B:** `C:/Users/urbra/OneDrive/Desktop/Projects/Cooling project` (git, Python, **path contains a space**)
-**Chronos:** `C:/Users/urbra/OneDrive/Desktop/Projects/New ortho` @ `b75176e`
+**Repo A:** `C:/Users/u/Projects/MediAssist` (git, Python)
+**Repo B:** `C:/Users/u/Projects/Cooling project` (git, Python, **path contains a space**)
+**Chronos:** `C:/Users/u/Projects/New ortho` @ `b75176e`
 
 Test plan says "cooling project"; the actual directory is `Cooling project`.
 The plan's `find` one-liner missed it (it matches `cooling` exactly, not
@@ -544,7 +544,7 @@ scoping.
 upstream db : ...C-Users-...-MediAssist.db      <- repo A's database
 upstream    : 2440 nodes, 398 temporal edges    <- repo A's numbers
 chronos     : stale | 730 nodes | 572/572       <- repo B's numbers (follows --group)
-database    : C:\Users\urbra\.chronos\chronos.db | 11 events | 4 rules   <- global, same for both
+database    : C:\Users\u\.chronos\chronos.db | 11 events | 4 rules   <- global, same for both
 ```
 
 The `chronos:` line honours `--group` while the `upstream:` line ignores

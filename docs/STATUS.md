@@ -575,6 +575,57 @@ Linux `_run_posix` build, `chronos gc` on a fresh repo.
 
 ---
 
+## The temporal premise, tested across a real third-party refactor (2026-08-17)
+
+Everything before this tested Chronos on a *snapshot*. The differentiated
+claim -- "what did this look like before the refactor" -- had never been
+exercised on a repo we do not control, because every graph held a single
+timestamp and zero supersessions. This closes that.
+
+**Setup.** litestar (litestar-org/litestar, 3,505 commits), which merged two
+real middleware migrations two days apart: CORSMiddleware (#4952, Aug 15) and
+ResponseCacheMiddleware (#4953, Aug 17). Indexed at `7e56d307` (Aug 11,
+pre-migration), then again at `49a61dc3` (HEAD, post). `valid_at` came from
+the real commit times, not wall clock.
+
+`#4953` is the ideal shape: the class **moved module**
+(`middleware/response_cache.py` -> `middleware/_internal/response_cache.py`)
+and **changed base class** (`AbstractMiddleware` -> `ASGIMiddleware`), while
+its caller stayed put in `mapping.py`.
+
+| Query | Chronos answered | Ground truth (`git grep` at the SHA) | Verdict |
+|---|---|---|---|
+| Callers of `ResponseCacheMiddleware` **as of Aug 12** | `build_route_middleware_stack` (`mapping.py`) | call at `mapping.py:212`, inside `def build_route_middleware_stack` (line 170) | **exact** -- recall 1.0, no false positives |
+| Callers **now** | 3: the original plus two new tests | `mapping.py:213` + the new test file #4953 added | **correct** |
+| `what_changed(Aug 12 -> now)` | `added=165 invalidated=62`, 6 response-cache facts | file moved, base class changed | **correct** |
+| Base-class migration | `AbstractMiddleware` 10 -> 8 callers, `ASGIMiddleware` 6 -> 8 | two middlewares migrated | **correct** |
+
+**Why this is not a dressed-up `git log -S`:** the pre-refactor answer is not
+derivable from the working tree at all. `litestar/middleware/response_cache.py`
+is *deleted* at HEAD, so grepping the checkout cannot find the old structure;
+you would have to know which commit to check out first, which is the question.
+
+**The bi-temporal record, verified directly in the store:**
+
+```
+build_route_middleware_stack -> ResponseCacheMiddleware  valid=2026-08-11  SUPERSEDED
+build_route_middleware_stack -> ResponseCacheMiddleware  valid=2026-08-17  current
+```
+
+The same caller/target pair exists as two distinct facts, because the module
+path underneath changed. That is the premise doing real work.
+
+**Coverage gate:** 0.69 on litestar (library code), so this measured the
+temporal claim rather than an indexer failure -- the confound that would have
+made the result meaningless. See the coverage section below.
+
+**Verdict: the premise holds.** Chronos answers before/after questions
+correctly on a third-party refactor it had never seen, and the answers are not
+obtainable from the current checkout. It ships with a known coverage
+limitation, not a broken premise.
+
+---
+
 ## Verified against real repos
 
 Not fixtures — third-party projects indexed with the locally-built indexer.
@@ -652,6 +703,60 @@ runs rather than discovering the conflict after, and `doctor` degrades to
 dies on the condition being diagnosed is useless.
 
 Disable with `CHRONOS_DAEMON=0` (honoured even when a daemon is running).
+
+---
+
+## Call-graph coverage — the limitation, measured
+
+`as_of_callers` once answered *"'checkConflicts' existed but had no callers"*
+for a NestJS method with three live production call sites. The graph was not
+lying about itself: the vendored indexer resolves `this.method()` but **not**
+`this.injectedDep.method()`, so no CALLS edge was ever built. An agent cannot
+tell that answer from a correct one, which makes it the most dangerous defect
+found in this project.
+
+Fixing the indexer means writing a TypeScript type resolver across ~292k lines
+of vendored C. Instead the limitation is **measured and surfaced**:
+
+| Repo | Language / style | Coverage |
+|---|---|---|
+| Opencode | TypeScript | **0.77** |
+| litestar | Python (framework) | **0.69** |
+| Shiplog | TypeScript (Next.js) | 0.40 |
+| Setu | TypeScript (**NestJS DI**) | **0.08** |
+
+It is **not** a language split -- Opencode is TypeScript at 0.77. It is
+dependency-injection density. Setu puts everything behind an injected service;
+litestar and Opencode do not.
+
+**Getting the metric right mattered more than shipping it.** The naive form
+(every Method/Function) scored litestar 0.28 and Setu 0.17 -- ranking a
+healthy, well-tested framework as *worse* than the genuinely broken repo,
+because litestar has 3,650 test callables and Setu's `.spec.ts` files were
+never indexed. Excluding dunders (`__init__` is invoked by the interpreter,
+so no call edge can exist), test functions, and test paths gives the true
+ordering. Two traps are pinned by tests in `tests/test_groups_coverage.py`:
+
+- SQLite `LIKE '__%'` treats `_` as a single-char wildcard and matches nearly
+  every identifier. Use `substr(name,1,2) <> '__'`.
+- A blanket `'%test%'` path filter also eats `litestar/testing/`, a real
+  library module -- measured: it excluded 3,650 of 3,683 callables, leaving a
+  denominator of 33 and a meaningless ratio.
+
+Coverage is computed at index time, stored in a manifest beside the index, and
+read by `doctor`. Setu now reports:
+
+```
+coverage    : 18% call-graph (75/429 callables)
+              ERROR low call-graph coverage (18%). Caller queries will
+              under-report -- as_of_callers may return 0 for symbols that do
+              have callers.
+              Likely cause: NestJS/Angular dependency injection detected
+              (@Injectable x40).
+```
+
+Zero-result queries carry the same context inline (`index_coverage`,
+`coverage_warning`), so an agent weighing an empty answer sees why.
 
 ---
 

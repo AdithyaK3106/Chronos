@@ -1,0 +1,4 @@
+id: git-subprocess-check-false
+language: python
+rule:
+  pattern: subprocess.run($$$, check=True)

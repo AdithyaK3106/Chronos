@@ -110,8 +110,14 @@ def _checkout_branch(repo_path, branch):
 
 
 def _commit(repo_path, rel_path, rule_id, name):
-    add = _git(["add", "--", rel_path], repo_path)
+    # -f because .chronos/ is gitignored by our own recommended setup (the db,
+    # logs and traces belong nowhere near a commit). The rule file is the one
+    # thing under it that must be committed — it is what the PR exists to
+    # review. Without -f, `git add` exits 1 on every repo that ignores
+    # .chronos/, _commit returns False, and the PR is silently never opened.
+    add = _git(["add", "-f", "--", rel_path], repo_path)
     if add.returncode != 0:
+        _log(f"[Chronos] git add failed: {(add.stderr or '').strip()[:200]}")
         return False
     r = _git(["commit", "-m", f"chronos: propose rule {rule_id} — {name}"], repo_path)
     if r.returncode == 0:
@@ -224,7 +230,7 @@ def submit_git_native(candidate: dict, repo_path: str) -> dict:
     _log(f"[Chronos] Rule proposed: {name}")
     _log(f"[Chronos] Branch: {branch or '(none)'}")
     _log(f"[Chronos] PR: {pr_url}" if pr_url
-         else "[Chronos] No PR created — gh CLI not found or push failed")
+         else "[Chronos] No PR created — see the reason logged above")
     _log("[Chronos] To approve: merge the PR, then run:")
     _log(f"  python -m chronos approve-rule {rule_id}")
 

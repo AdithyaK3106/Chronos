@@ -8,7 +8,18 @@
 
 name: chronos-enforce
 
-on: [pull_request, push]
+# push is scoped to the default branch: an open PR from a branch in this repo
+# would otherwise run the whole job twice for one set of commits.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# A second push to the same PR makes the first run's verdict obsolete. Cancel it
+# rather than paying for a result nobody will read.
+concurrency:
+  group: chronos-enforce-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   chronos-enforce:
@@ -21,20 +32,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip # graphiti-core[kuzu] + litellm are ~200MB of wheels
 
       - name: Install Chronos and ast-grep
         # The vendored indexer submodule is deliberately NOT fetched: enforcement
         # reads an existing graph, it does not index. `chronos doctor` reports
         # `vendored src: MISSING` and keeps going, which is the correct state here.
+        #
+        # .[test] pulls pytest via the optional-dependency group in pyproject.
+        # Without it the suite step dies on `pytest: command not found`, because
+        # the runtime deps do not include a test runner.
         run: |
-          pip install -e .
+          python -m pip install --upgrade pip
+          pip install -e '.[test]'
           pip install ast-grep-cli
 
+      # Pinned, not `latest`: OPA 1.0 was a breaking Rego change (v0 policies stop
+      # parsing -- see docs/STATUS.md, Wedge 4 tool research). An unpinned upgrade
+      # would break enforce.rego silently on some future run.
+      # -f makes curl exit non-zero on a 404 instead of writing an HTML error page
+      # into the binary, which then fails much later with a confusing exec error.
       - name: Install OPA
         run: |
-          curl -sL -o /usr/local/bin/opa \
-            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
-          chmod +x /usr/local/bin/opa
+          curl -sSLf -o "$RUNNER_TEMP/opa" \
+            https://openpolicyagent.org/downloads/v1.19.0/opa_linux_amd64_static
+          chmod +x "$RUNNER_TEMP/opa"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/opa" version
 
       # Enforcement reads the temporal graph to confirm deprecation. Without a
       # graph every verdict degrades to "warn" — safe, but toothless. Restore a

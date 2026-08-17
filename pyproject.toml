@@ -9,6 +9,13 @@ dependencies = [
     "litellm>=1.50",
 ]
 
+# The suites run on plain pytest -- no plugins beyond `pytester`, which ships
+# with pytest itself. Declared as an extra rather than a hard dependency so a
+# partner installing Chronos does not pull a test runner into production.
+# CI installs `.[test]`; `pip install -e .` alone stays lean.
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
 [project.scripts]
 chronos = "chronos.cli:main"
 # The entry point. One server, every tool from all four wedges.

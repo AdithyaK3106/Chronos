@@ -5,7 +5,13 @@ description = "Bi-temporal AST knowledge graph for AI coding agents"
 requires-python = ">=3.10"
 dependencies = [
     "graphiti-core[kuzu]>=0.29",
-    "mcp>=1.2",
+    # Upper bound is load-bearing, not caution: mcp 2.0.0 removed
+    # `mcp.server.fastmcp` outright, and all five *_mcp.py modules import
+    # FastMCP from it. `mcp>=1.2` silently resolved to 2.0 on any fresh
+    # install and every MCP module died on import -- which is exactly how CI
+    # found this. Lifting the bound is a real migration to the 2.x API, not a
+    # version bump.
+    "mcp>=1.2,<2",
     "litellm>=1.50",
 ]
 

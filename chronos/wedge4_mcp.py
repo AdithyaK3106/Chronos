@@ -11,10 +11,11 @@ from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
-from . import detectability, enforcer, ledger, rule_generator, rule_store
+from . import groups, detectability, enforcer, ledger, rule_generator, rule_store
 from .store import open_driver
 
-GROUP = os.environ.get("CHRONOS_GROUP_ID", "default")
+GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                        os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos-enforce")
 
 _driver = None

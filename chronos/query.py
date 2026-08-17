@@ -55,19 +55,65 @@ async def _directional(driver, q, group_id, name, at, key) -> dict:
         return out
     # Empty result is ambiguous: no data at that time, or no such symbol ever?
     # P0-4 / edge case: agents must get an explicit signal, never a silent fallback.
+    #
+    # The distinction below is load-bearing and must NOT be collapsed before it
+    # reaches the API response. This function is the only place that still knows
+    # WHY the list is empty; everything above it sees `count: 0` and cannot tell
+    # "genuinely uncalled" from "the indexer never built the edge".
     known = await _rows(driver, _EXISTS, g=group_id, name=name)
     bounds = await _rows(driver, _BOUNDS, g=group_id)
     first = bounds[0].get("first") if bounds else None
     if not known:
-        out["no_data_reason"] = f"symbol '{name}' is not present in the graph for any time period"
+        out["no_data_reason"] = "symbol_not_indexed"
+        out["message"] = f"symbol '{name}' is not present in the graph for any time period"
     elif first and t < _utc(first):
-        out["no_data_reason"] = (
+        out["no_data_reason"] = "predates_earliest_record"
+        out["message"] = (
             f"requested time {t.isoformat()} predates the graph's earliest record "
-            f"({_utc(first).isoformat()}); no history exists for this period"
-        )
+            f"({_utc(first).isoformat()}); no history exists for this period")
     else:
-        out["no_data_reason"] = f"'{name}' existed but had no {key} at {t.isoformat()}"
+        # The symbol is indexed and the window is valid, so the graph holds no
+        # edge. That is NOT the same as "the code has no callers" -- it was
+        # exactly this message, phrased as a fact about the code, that led an
+        # agent to conclude a method with three live call sites was unused.
+        out["no_data_reason"] = "no_edges_in_graph"
+        out["message"] = (
+            f"'{name}' is indexed but the graph holds no {key} at {t.isoformat()}. "
+            f"This means no {key[:-1]} EDGE was extracted -- not necessarily that "
+            f"none exists in the source.")
+    _annotate_coverage(out, group_id)
     return out
+
+
+def _annotate_coverage(out: dict, group_id: str) -> None:
+    """Attach index coverage to a zero result, so the caller can weigh it.
+
+    A zero-caller answer from a graph with 8% call coverage means something
+    very different from the same answer at 77%. Reading the manifest is cheap
+    (one small JSON) and never fails the query: coverage is context, and a
+    query must not break because context is unavailable.
+    """
+    try:
+        from . import coverage as _cov
+        from .upstream import find_db
+        up = find_db()
+        if not up:
+            return
+        m = _cov.read_manifest(up)
+        if not m or m.get("group_id") != group_id:
+            return
+        c = m.get("callable_coverage")
+        if c is None:
+            return
+        out["index_coverage"] = c
+        if c < _cov.WARN_BELOW:
+            out["coverage_warning"] = (
+                f"only {c:.0%} of callable symbols in this index have any caller "
+                f"edge, so this result may be incomplete.")
+            if m.get("probable_cause"):
+                out["coverage_warning"] += f" {m['probable_cause']}"
+    except Exception:
+        return  # context is optional; never fail a query for it
 
 
 async def changes(driver, group_id: str, since: datetime, until: datetime | None = None) -> dict:

@@ -101,14 +101,29 @@ async def main():
     assert "old_api" not in names_now and "new_api" not in names
 
     # --- anti-hallucination: pre-history returns explicit no-data, not current state ---
+    # no_data_reason is a machine-readable code and `message` carries the prose.
+    # Both are asserted: an agent branches on the code, a human reads the message,
+    # and a regression in either one is a P0-4 violation.
     pre = await query.callees(drv, G, "handler", T0 - timedelta(days=365))
     assert pre["count"] == 0, pre
-    assert "predates" in pre.get("no_data_reason", ""), pre
-    print(f"ok  pre-history -> {pre['no_data_reason'][:58]}...")
+    assert pre.get("no_data_reason") == "predates_earliest_record", pre
+    assert "predates" in pre.get("message", ""), pre
+    print(f"ok  pre-history -> {pre['no_data_reason']}")
 
     unknown = await query.callees(drv, G, "does_not_exist", LATER)
-    assert unknown["count"] == 0 and "not present" in unknown["no_data_reason"]
+    assert unknown["count"] == 0
+    assert unknown["no_data_reason"] == "symbol_not_indexed", unknown
+    assert "not present" in unknown.get("message", ""), unknown
     print("ok  unknown symbol -> explicit no-data, no silent fallback")
+
+    # The distinction that matters: a symbol that IS indexed but has no edge
+    # must NOT report the same reason as one that was never indexed. Collapsing
+    # these is what told an agent a method with 3 live callers was unused.
+    indexed_no_edge = await query.callers(drv, G, "handler", LATER)
+    if indexed_no_edge["count"] == 0:
+        assert indexed_no_edge["no_data_reason"] == "no_edges_in_graph", indexed_no_edge
+        assert "not necessarily" in indexed_no_edge.get("message", ""), indexed_no_edge
+        print("ok  indexed-but-no-edge -> distinct from not-indexed")
 
     # --- change feed ---
     ch = await query.changes(drv, G, T0 + timedelta(days=1), LATER)

@@ -247,7 +247,9 @@ async def roundtrip(repo=None):
     unresolved = []
     for name in sample:
         res = await query.callers(drv, G, name)
-        if "is not present in the graph" in (res.get("no_data_reason") or ""):
+        # The code, not the prose: "not indexed" is the only unresolved case.
+        # A symbol that is indexed but has no caller edge still resolved fine.
+        if res.get("no_data_reason") == "symbol_not_indexed":
             unresolved.append(name)
 
     assert not unresolved, (

@@ -19,6 +19,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import groups
 from .pytest_plugin import _find_repo_root
 
 log = logging.getLogger("chronos.trace_processor")
@@ -178,7 +179,8 @@ def _dispatch_safe(trace: dict):
         from . import triggers
         if not triggers.enabled():
             return None
-        group_id = os.environ.get("CHRONOS_GROUP_ID", "default")
+        group_id = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                        os.environ.get("CHRONOS_REPO_PATH"))
         payload = to_reflector_trace(trace)
         # Ground the lesson in real symbols before reflecting. Without this the
         # Reflector sees only a test id and returns a decorated rule.

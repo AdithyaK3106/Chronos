@@ -12,10 +12,11 @@ from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
-from . import query
+from . import groups, query
 from .store import open_driver
 
-GROUP = os.environ.get("CHRONOS_GROUP_ID", "default")
+GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                        os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos")
 
 _driver = None
@@ -66,10 +67,13 @@ async def as_of_impact(symbol: str, when: str = "now", depth: int = 2) -> dict:
     """Transitive callers of `symbol` at a point in time -- blast radius of a change."""
     d, t = await driver(), _parse(when)
     seen, frontier, layers = {symbol}, [symbol], []
-    for _ in range(max(1, min(depth, 5))):
+    root = None
+    for hop in range(max(1, min(depth, 5))):
         nxt = []
         for s in frontier:
             r = await query.callers(d, GROUP, s, t)
+            if hop == 0:
+                root = r  # the seed query carries the why-empty diagnosis
             for c in r["callers"]:
                 if c["name"] not in seen:
                     seen.add(c["name"])
@@ -78,8 +82,16 @@ async def as_of_impact(symbol: str, when: str = "now", depth: int = 2) -> dict:
             break
         layers.append(nxt)
         frontier = nxt
-    return {"symbol": symbol, "as_of": (t or datetime.now(timezone.utc)).isoformat(),
-            "layers": layers, "total_impacted": len(seen) - 1}
+    out = {"symbol": symbol, "as_of": (t or datetime.now(timezone.utc)).isoformat(),
+           "layers": layers, "total_impacted": len(seen) - 1}
+    # A bare {"layers": [], "total_impacted": 0} is indistinguishable from
+    # "not indexed", "no callers", and "wrong symbol name". The seed query
+    # already knows which; carry it rather than dropping it on the floor.
+    if not layers and root:
+        for k in ("no_data_reason", "message", "index_coverage", "coverage_warning"):
+            if k in root:
+                out[k] = root[k]
+    return out
 
 
 @mcp.tool()

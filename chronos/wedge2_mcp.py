@@ -10,13 +10,14 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from . import curator, reflector
+from . import groups, curator, reflector
 from .curator import _get_submission_path
 from .playbook import Packmind, PackmindError, PackmindNotConfigured
 from .rule_submission import resolve_repo_path
 from .store import open_driver
 
-GROUP = os.environ.get("CHRONOS_GROUP_ID", "default")
+GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                        os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos-playbook")
 
 _driver = None

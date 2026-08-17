@@ -11,10 +11,27 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import query
+from . import coverage, groups, query
 from .store import GraphLocked, ensure_schema, open_driver
 from .sync import Syncer, content_hash
 from .upstream import UpstreamGraph, find_db
+
+
+def _claim_group(args, repo=None) -> str:
+    """The group to write into, with ownership asserted.
+
+    Exits rather than merging when another repo owns the group: a wrong group
+    silently invalidates the other repo's entire history, which is worse than
+    a failed command. See groups.py for the incident this prevents.
+    """
+    repo = repo or getattr(args, "repo", None)
+    group = groups.resolve(getattr(args, "group", None), repo)
+    if repo:
+        try:
+            groups.claim(group, repo)
+        except groups.GroupConflict as e:
+            sys.exit(f"group conflict: {e}")
+    return group
 
 
 def _open_upstream(args) -> UpstreamGraph:
@@ -77,6 +94,7 @@ def commit_time(repo: str | None) -> datetime:
 
 
 async def do_sync(args):
+    group = _claim_group(args)
     up = _open_upstream(args)
     nodes, edges = up.nodes(), up.edges()
     up.close()
@@ -84,16 +102,20 @@ async def do_sync(args):
     drv = open_driver()
     await ensure_schema(drv)
     t0 = time.time()
-    st = await Syncer(drv, args.group).sync(nodes, edges, at)
-    print(f"synced {args.group} @ {at.isoformat()} in {time.time()-t0:.1f}s: {st}")
+    st = await Syncer(drv, group).sync(nodes, edges, at)
+    groups.log(group, "SYNC", f"{st}", args.repo or "")
+    print(f"synced {group} @ {at.isoformat()} in {time.time()-t0:.1f}s: {st}")
     print(f"  content-hash {content_hash(nodes, edges)}")
     await drv.close()
 
 
 async def do_health(args):
+    # Read the same group writes go to, or health reports on a graph the repo
+    # does not own -- the original BUG-1 shape, one layer down.
+    group = groups.resolve(getattr(args, "group", None), args.repo)
     drv = open_driver()
     await ensure_schema(drv)
-    h = await query.health(drv, args.group, find_db(repo=args.repo))
+    h = await query.health(drv, group, find_db(repo=args.repo))
     print(json.dumps(h, indent=2))
     await drv.close()
     # non-zero exit on a graph you should not trust -- usable in CI/monitoring
@@ -133,28 +155,65 @@ async def do_index(args):
     """Index a repo with the vendored indexer, then sync it (P0-1 + P0-2 in one step)."""
     from .indexer import index_repo_graph
     repo = args.repo or "."
-    # Claim the graph BEFORE the indexer runs. Indexing is ~15s of subprocess
-    # work; discovering afterwards that another process holds the store would
-    # throw all of it away.
+    # Claim the group BEFORE the indexer runs, for the same reason the graph is
+    # claimed early: indexing is ~15s of subprocess work, and a group conflict
+    # discovered afterwards would throw all of it away -- or worse, merge two
+    # repos' histories. See groups.py.
+    group = _claim_group(args, repo)
     drv = open_driver()
     t0 = time.time()
     nodes, edges = index_repo_graph(repo, mode=args.mode)
     print(f"indexed {repo}: {len(nodes)} nodes, {len(edges)} edges in {time.time()-t0:.1f}s")
     at = commit_time(repo)
     await ensure_schema(drv)
-    st = await Syncer(drv, args.group).sync(nodes, edges, at)
-    print(f"synced {args.group} @ {at.isoformat()}: {st}")
+    st = await Syncer(drv, group).sync(nodes, edges, at)
+    groups.log(group, "INDEX", f"{st}", repo)
+    print(f"synced {group} @ {at.isoformat()}: {st}")
+
+    # Coverage is computed here, at index time, and stored beside the index --
+    # doctor reads the manifest rather than rescanning. A caller query is only
+    # as trustworthy as the call graph behind it, so this number has to exist
+    # before anyone asks as_of_callers a question.
+    up = find_db(repo=repo)
+    if up:
+        cov = coverage.write_manifest(up, group, at.isoformat())
+        c = cov.get("callable_coverage")
+        if c is not None:
+            print(f"  callable coverage {c:.0%} "
+                  f"({cov['callable_with_callers']}/{cov['callable_total']} callables)")
+        line = coverage.warning_line(cov)
+        if line:
+            print(f"  {line}")
     await drv.close()
+
+
+def do_release_group(args):
+    """Drop a group claim so a different repo can index into it."""
+    if groups.release(args.group_id):
+        print(f"released '{args.group_id}' -- another repo may now claim it")
+    else:
+        print(f"no claim on '{args.group_id}'")
+
+
+def do_index_log(args):
+    """Recent ingestions. SKIP rows are rejected writes -- see groups.py."""
+    rows = groups.recent(30)
+    if not rows:
+        print("no ingestions recorded")
+        return
+    for r in rows:
+        print(f"{r['ts'][:19]}  {r['outcome']:8} {r['group_id'][:34]:34} {r['reason'][:60]}")
 
 
 async def do_gc(args):
     """Delete nodes whose facts have all been superseded (dry-run by default)."""
+    group = groups.resolve(getattr(args, "group", None), getattr(args, "repo", None))
     drv = open_driver()
     await ensure_schema(drv)
     if not args.execute:
-        o = await query.orphans(drv, args.group)
+        o = await query.orphans(drv, group)
         print(f"{o['orphans']} orphaned nodes of {o['nodes_total']} ({o['pct']}%) in "
-              f"group '{args.group}'")
+              f"group '{group}'")
         for s in o["sample"]:
             print(f"   would delete: {s['name']}  [{s['path'] or 'no path'}]")
         if o["orphans"] > len(o["sample"]):
@@ -162,8 +221,8 @@ async def do_gc(args):
         print("\ndry run -- nothing deleted. Re-run with --execute to delete."
               if o["orphans"] else "\nnothing to collect.")
     else:
-        r = await query.collect_orphans(drv, args.group)
-        print(f"deleted {r['deleted']} orphaned nodes from '{args.group}': "
+        r = await query.collect_orphans(drv, group)
+        print(f"deleted {r['deleted']} orphaned nodes from '{group}': "
               f"{r['nodes_before']} -> {r['nodes_after']} nodes")
     await drv.close()
 
@@ -700,6 +759,18 @@ async def do_doctor(args):
             n, e = g.nodes(), g.edges()
             print(f"upstream    : {len(n)} nodes, {len(e)} temporal edges")
         g.close()
+        # Read the manifest written at index time; fall back to computing it so
+        # an index built before coverage tracking still reports something.
+        cov = coverage.read_manifest(p) or coverage.compute(p)
+        c = cov.get("callable_coverage")
+        if c is None:
+            print(f"coverage    : unknown ({cov.get('reason', 'not computed')})")
+        else:
+            print(f"coverage    : {c:.0%} call-graph "
+                  f"({cov.get('callable_with_callers')}/{cov.get('callable_total')} callables)")
+            line = coverage.warning_line(cov)
+            if line:
+                print(f"              {line}")
     # Doctor must keep working when the graph is held by the daemon -- a
     # diagnostic that dies on the condition you are diagnosing is useless. Every
     # other line below still prints.
@@ -712,15 +783,30 @@ async def do_doctor(args):
     if drv is not None:
         try:
             await ensure_schema(drv)
-            h = await query.health(drv, args.group)
+            grp = groups.resolve(getattr(args, "group", None), getattr(args, "repo", None))
+            h = await query.health(drv, grp)
             print(f"chronos     : {h['status']} | {h['nodes']} nodes | "
                   f"{h['facts_current']}/{h['facts_total']} facts current | last {h['last_sync']}")
-            o = await query.orphans(drv, args.group, sample=0)
+            print(f"group       : {grp}")
+            o = await query.orphans(drv, grp, sample=0)
             if o["pct"] > 10:
                 print(f"              WARNING: {o['orphans']} orphaned nodes ({o['pct']}% of total) "
-                      f"-- run: chronos --group {args.group} gc")
+                      f"-- run: chronos --group {grp} gc")
         finally:
             await drv.close()
+
+    # Rejected ingestions are only useful if someone can see them. A SKIP that
+    # nobody reads is the silent merge it was meant to replace.
+    try:
+        skips = [r for r in groups.recent(50) if r["outcome"] == "SKIP"]
+        if skips:
+            print(f"index log   : {len(skips)} REJECTED ingestion(s) -- group conflicts")
+            for r in skips[:3]:
+                print(f"              {r['ts'][:19]}  {r['reason'][:88]}")
+        else:
+            print("index log   : ok | no rejected ingestions")
+    except Exception as e:
+        print(f"index log   : unavailable ({type(e).__name__})")
 
     # Unification: one line for one database. Locks, provenance and enforcement
     # rules share chronos.db, so a partner has a single path to back up.
@@ -820,6 +906,10 @@ def main():
     doc.add_argument("--fake-packmind", action="store_true",
                      help="verify the Packmind HTTP layer against a local fake "
                           "(no credentials, no Docker); exit 1 on failure")
+    rg = sub.add_parser("release-group",
+                        help="release a group claim so another repo can use it")
+    rg.add_argument("group_id", help="group id to release")
+    sub.add_parser("index-log", help="recent ingestions, including rejected ones")
     gc = sub.add_parser("gc", help="delete nodes whose facts are all superseded")
     gc.add_argument("--execute", action="store_true", help="actually delete (default: dry run)")
     apr = sub.add_parser("approve-rule",
@@ -860,11 +950,12 @@ def main():
           "health": do_health, "doctor": do_doctor, "gc": do_gc,
           "enforce": do_enforce, "init": do_init,
           "approve-rule": do_approve_rule, "promote-rule": do_promote_rule,
-          "dashboard": do_dashboard, "daemon": do_daemon}[args.cmd]
+          "dashboard": do_dashboard, "daemon": do_daemon,
+          "release-group": do_release_group, "index-log": do_index_log}[args.cmd]
     try:
         # dashboard and daemon are sync (uvicorn owns its loop; daemon control
         # is plain socket I/O); everything else is a coroutine
-        if args.cmd in ("dashboard", "daemon"):
+        if args.cmd in ("dashboard", "daemon", "release-group", "index-log"):
             fn(args)
         else:
             asyncio.run(fn(args))

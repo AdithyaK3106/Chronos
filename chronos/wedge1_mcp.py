@@ -28,7 +28,15 @@ _driver_lock = asyncio.Lock()
 
 # Opening measures ~2-3s uncontended. A bounded wait is what turns "the server
 # is dead" into "the graph is busy, here is why".
-DRIVER_OPEN_TIMEOUT = float(os.environ.get("CHRONOS_DRIVER_TIMEOUT", "30"))
+#
+# 30s was not enough in practice: this window also has to absorb retries
+# against the trace_processor race (see driver()'s docstring) and that race's
+# actual duration was measured to sometimes exceed 30s, not the milliseconds
+# assumed when the retry was added -- a real GraphLocked surfaced after the
+# full 30s, then the very next call succeeded instantly. 90s keeps the same
+# "genuinely stuck" cutoff meaningful (a real cross-process holder still
+# fails, just after longer) while giving the self-resolving case real room.
+DRIVER_OPEN_TIMEOUT = float(os.environ.get("CHRONOS_DRIVER_TIMEOUT", "90"))
 
 # MEASURED, and it constrains the whole design: `await driver.close()` does NOT
 # release Kuzu's lock. Verified 2026-08-17 -- open, close, then reopen in the

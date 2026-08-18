@@ -52,6 +52,13 @@ def main():
     assert ledger.release(con, NODE, "agent-a")["reason"] == "not_locked"
     print("ok  release rejects non-owner, succeeds for owner")
 
+    # --- release returns the lock's intent, for wedge3_mcp's propose-rule nudge ---
+    ledger.acquire(con, NODE, "agent-a", "sess-1", "refactor the fallback loop", 300)
+    released = ledger.release(con, NODE, "agent-a", "sess-1")
+    assert released["intent"] == "refactor the fallback loop", released
+    assert "intent" not in ledger.release(con, NODE, "agent-a")  # not_locked: nothing to report
+    print("ok  release carries the lock's intent back for the caller")
+
     # --- expiry: an expired lock is swept, not treated as held ---
     ledger.acquire(con, NODE, "agent-a", "sess-1", "short lived", 1)
     assert ledger.status(con)["active_locks"] == 1

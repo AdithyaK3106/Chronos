@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from mcp.server.fastmcp import FastMCP
 
 from . import groups, query
-from .store import ensure_schema, open_driver
+from .store import GraphLocked, ensure_schema, open_driver
 
 GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
                         os.environ.get("CHRONOS_REPO_PATH"))
@@ -79,10 +79,35 @@ async def driver():
     global _driver, _schema_ready
     async with _driver_lock:
         if _driver is None:
-            try:
-                _driver = await asyncio.wait_for(
-                    asyncio.to_thread(open_driver), timeout=DRIVER_OPEN_TIMEOUT)
-            except asyncio.TimeoutError:
+            # trace_processor._resolve_touched opens its OWN driver on a
+            # background thread (deliberately -- it must not pin this driver
+            # across an LLM call). Kuzu's lock is a real OS file lock, unaware
+            # both opens share a process, so this module's very first open can
+            # lose that race to a same-process caller that will release within
+            # milliseconds. Retrying inside DRIVER_OPEN_TIMEOUT turns a
+            # self-resolving race into a few hundred ms of extra latency
+            # instead of a raw GraphLocked surfacing to whatever tool call
+            # happened to go first.
+            deadline = time.monotonic() + DRIVER_OPEN_TIMEOUT
+            last_err = None
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                try:
+                    _driver = await asyncio.wait_for(
+                        asyncio.to_thread(open_driver), timeout=remaining)
+                    last_err = None
+                    break
+                except GraphLocked as e:
+                    last_err = e
+                    await asyncio.sleep(0.2)
+                except asyncio.TimeoutError:
+                    last_err = None
+                    break
+            if _driver is None:
+                if last_err is not None:
+                    raise last_err
                 raise RuntimeError(
                     f"could not open the graph within {DRIVER_OPEN_TIMEOUT}s. "
                     f"Kuzu allows one process at a time and another one is "

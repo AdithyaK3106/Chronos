@@ -16,6 +16,12 @@ Defects that fed it, each with a test here:
   2. opening ran on the event loop, stalling stdio -> test_open_runs_off_the_event_loop
   3. wedges 2 and 4 each opened their own driver   -> test_single_driver_owner
   4. concurrent calls raced to open                -> test_concurrent_calls_open_once
+  5. background drain thread's OWN open_driver()   -> test_transient_lock_is_retried
+     (trace_processor.py, a separate thread) races this module's very first
+     open for the same OS-level Kuzu lock -- same process, so the docstring's
+     "single owner" fix doesn't cover it. Found 2026-08-18: a fresh server's
+     first index_health call landed inside the drain thread's brief open and
+     surfaced a raw GraphLocked instead of retrying a self-resolving race.
 
 And one constraint discovered the hard way: close() does NOT release Kuzu's
 lock, so the driver must be held for the process lifetime
@@ -32,6 +38,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from chronos import wedge1_mcp, wedge2_mcp, wedge4_mcp  # noqa: E402
+from chronos.store import GraphLocked  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -183,6 +190,56 @@ def test_concurrent_calls_open_once(monkeypatch):
 
     asyncio.run(go())
     assert opens["n"] == 1, f"{opens['n']} concurrent opens; the lock did not serialise"
+
+
+def test_transient_lock_is_retried(monkeypatch):
+    """A GraphLocked from a same-process, self-resolving race must be retried,
+    not surfaced raw to the caller.
+
+    trace_processor._resolve_touched opens its own driver on a background
+    thread; if it holds the OS-level Kuzu lock for the ~200ms it needs, this
+    module's very first open loses that race. The race resolves itself within
+    milliseconds (the other opener closes immediately after), so the fix is a
+    short retry window, not a fresh failure.
+    """
+    attempts = {"n": 0}
+
+    def flaky_open():
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise GraphLocked("the graph is locked by another process.\n  Held by: chronos-mcp (PID 1).\n")
+        return _FakeDriver()
+
+    monkeypatch.setattr(wedge1_mcp, "open_driver", flaky_open)
+
+    async def go():
+        t0 = time.monotonic()
+        d = await wedge1_mcp.driver()
+        return d, time.monotonic() - t0
+
+    driver, elapsed = asyncio.run(go())
+    assert isinstance(driver, _FakeDriver)
+    assert attempts["n"] == 3, "did not retry past the transient GraphLocked"
+    assert elapsed < 5, f"retry took {elapsed:.1f}s -- too slow for a self-resolving race"
+
+
+def test_persistent_lock_still_raises(monkeypatch):
+    """A GraphLocked that never clears must still surface, not retry forever."""
+    def always_locked():
+        raise GraphLocked("the graph is locked by another process.\n  Held by: some-other-tool (PID 2).\n")
+
+    monkeypatch.setattr(wedge1_mcp, "open_driver", always_locked)
+    monkeypatch.setattr(wedge1_mcp, "DRIVER_OPEN_TIMEOUT", 1.0)
+
+    async def go():
+        t0 = time.monotonic()
+        with pytest.raises(GraphLocked) as ei:
+            await wedge1_mcp.driver()
+        return time.monotonic() - t0, str(ei.value)
+
+    elapsed, msg = asyncio.run(go())
+    assert elapsed < 5, f"took {elapsed:.1f}s -- retry loop did not respect the timeout"
+    assert "some-other-tool" in msg, "lost the real holder info while retrying"
 
 
 class _FakeDriver:

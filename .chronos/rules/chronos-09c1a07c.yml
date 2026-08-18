@@ -1,0 +1,4 @@
+# Chronos proposed rule — no ast-grep pattern yet.
+# Run chronos generate-rule to make it executable.
+id: chronos-09c1a07c
+# rule: IF middleware is to be added to the stack THEN instantiate it using the shared middleware factory with appropriate cache configuration.

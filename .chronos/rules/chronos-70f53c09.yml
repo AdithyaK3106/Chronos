@@ -1,0 +1,4 @@
+# Chronos proposed rule — no ast-grep pattern yet.
+# Run chronos generate-rule to make it executable.
+id: chronos-70f53c09
+# rule: IF the constructor signature of a class is changed THEN update all calling functions to use keyword arguments for any new parameters.

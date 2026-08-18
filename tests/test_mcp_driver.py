@@ -65,11 +65,14 @@ def test_single_driver_owner():
 
 
 def test_open_is_bounded(monkeypatch):
-    """A graph that never opens must raise, not hang.
+    """A graph that never opens (blocks, no exception) must raise, not hang.
 
-    This is the regression that matters: open_driver() blocks indefinitely when
-    another process holds the store, so without a timeout the tool call never
+    This is the regression that matters: open_driver() sometimes blocks
+    indefinitely -- Kuzu's own lock handling is not consistently fail-fast,
+    confirmed live 2026-08-18 -- so without a timeout the tool call never
     returns and the client cannot tell a busy graph from a crashed server.
+    This is also the case where the underlying thread cannot be cancelled and
+    leaks; the message must say so rather than implying a retry would help.
     """
     def never_opens():
         time.sleep(30)  # far longer than the timeout under test
@@ -85,9 +88,10 @@ def test_open_is_bounded(monkeypatch):
 
     elapsed, msg = asyncio.run(go())
     assert elapsed < 5, f"took {elapsed:.1f}s -- the wait is not bounded"
-    # The message must name the cause and a next step, not just fail.
-    assert "one process at a time" in msg
-    assert "chronos-mcp" in msg or "daemon status" in msg
+    # The message must name the cause and a next step, not just fail, and
+    # must not claim a retry happened (timed-out attempts are not retried).
+    assert "blocking on the lock" in msg or "leaked" in msg
+    assert "daemon status" in msg
 
 
 def test_open_runs_off_the_event_loop(monkeypatch):
@@ -240,6 +244,40 @@ def test_persistent_lock_still_raises(monkeypatch):
     elapsed, msg = asyncio.run(go())
     assert elapsed < 5, f"took {elapsed:.1f}s -- retry loop did not respect the timeout"
     assert "some-other-tool" in msg, "lost the real holder info while retrying"
+
+
+def test_blocking_after_locked_stops_not_retries(monkeypatch):
+    """A GraphLocked followed by a blocking (never-returning) attempt must stop
+    on the timeout, not start a second attempt on top of the leaked thread.
+
+    Reproduces the real 2026-08-18 case: Kuzu's lock handling is inconsistent
+    -- one attempt raised GraphLocked (retried correctly), the next just
+    blocked with no exception, and the asyncio.wait_for timeout that caught it
+    used to discard the real holder info and imply the situation was a plain
+    "server busy" rather than a leaked thread that a retry cannot fix.
+    """
+    attempts = {"n": 0}
+
+    def locked_then_blocks():
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise GraphLocked("the graph is locked by another process.\n  Held by: chronos-mcp (PID 1).\n")
+        time.sleep(30)  # never returns within the test's timeout
+
+    monkeypatch.setattr(wedge1_mcp, "open_driver", locked_then_blocks)
+    monkeypatch.setattr(wedge1_mcp, "DRIVER_OPEN_TIMEOUT", 1.0)
+
+    async def go():
+        t0 = time.monotonic()
+        with pytest.raises(RuntimeError) as ei:
+            await wedge1_mcp.driver()
+        return time.monotonic() - t0, str(ei.value)
+
+    elapsed, msg = asyncio.run(go())
+    assert elapsed < 5, f"took {elapsed:.1f}s -- timeout was not respected"
+    assert attempts["n"] == 2, f"expected exactly one retry then stop, got {attempts['n']} attempts"
+    assert "blocking on the lock" in msg or "leaked" in msg
+    assert "chronos-mcp" in msg, "lost the earlier GraphLocked's holder info"
 
 
 class _FakeDriver:

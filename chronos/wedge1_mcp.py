@@ -96,8 +96,23 @@ async def driver():
             # self-resolving race into a few hundred ms of extra latency
             # instead of a raw GraphLocked surfacing to whatever tool call
             # happened to go first.
+            #
+            # Kuzu's own lock handling is inconsistent, confirmed 2026-08-18:
+            # sometimes open_driver() raises GraphLocked immediately (the case
+            # above retries), other times it blocks synchronously inside
+            # Kuzu's C layer with no exception at all -- the ONLY thing that
+            # can interrupt that is asyncio.wait_for's timeout, which raises
+            # TimeoutError, not GraphLocked. When that happens the thread
+            # running open_driver() is still blocked inside Kuzu and Python
+            # cannot cancel it -- it leaks for the rest of the process
+            # lifetime. So on TimeoutError this stops immediately rather than
+            # retrying: a second attempt would risk leaking a second thread on
+            # top of the first for no benefit, since the underlying cause
+            # (Kuzu blocking instead of failing fast) is not something a retry
+            # here can fix.
             deadline = time.monotonic() + DRIVER_OPEN_TIMEOUT
             last_err = None
+            timed_out = False
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -111,9 +126,20 @@ async def driver():
                     last_err = e
                     await asyncio.sleep(0.2)
                 except asyncio.TimeoutError:
-                    last_err = None
+                    timed_out = True
                     break
             if _driver is None:
+                if timed_out:
+                    raise RuntimeError(
+                        f"could not open the graph within {DRIVER_OPEN_TIMEOUT}s "
+                        f"-- Kuzu appears to be blocking on the lock rather than "
+                        f"failing fast (a background thread is now leaked; this "
+                        f"is a known Kuzu behavior, not recoverable by retrying). "
+                        f"{'Last known holder: ' + str(last_err) if last_err else ''} "
+                        f"Check with `python -m chronos daemon status` and look "
+                        f"for stray chronos-mcp processes; a server restart "
+                        f"clears the leaked thread."
+                    ) from None
                 if last_err is not None:
                     raise last_err
                 raise RuntimeError(

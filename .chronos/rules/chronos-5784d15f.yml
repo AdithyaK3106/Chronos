@@ -1,0 +1,4 @@
+# Chronos proposed rule — no ast-grep pattern yet.
+# Run chronos generate-rule to make it executable.
+id: chronos-5784d15f
+# rule: IF a middleware class constructor signature changes THEN update all calling functions to use the new keyword-only arguments.

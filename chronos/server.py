@@ -19,9 +19,13 @@ Naming: tools keep the names they already had. Wedge 1's tools are
 every existing agent config for a cosmetic gain, so they are left alone.
 """
 
+import asyncio
+import functools
+import itertools
 import os
 import threading
 import time
+from datetime import datetime, timezone
 
 from mcp.server.fastmcp import FastMCP
 
@@ -54,8 +58,71 @@ TOOLS = [as_of_callers, as_of_callees, as_of_impact, as_of_diff, what_changed, i
          chronos_generate_rule, chronos_enforce, chronos_promote_rule,
          chronos_list_rules, chronos_rule_report]
 
+# In-flight call tracker, for chronos_mcp_status. All tools serialize behind
+# the single Kuzu driver's asyncio.Lock (wedge1_mcp.driver()), so when several
+# agents share this one server, a slow call (an LLM completion, typically)
+# makes every other call wait with no visibility into who's holding things up
+# or for how long -- indistinguishable from a graph lock or a dead server.
+# This does not change queueing behaviour; it only makes the wait legible.
+_IN_FLIGHT = {}
+_call_ids = itertools.count()
+_tracker_lock = threading.Lock()
+
+
+def _agent_id_of(kwargs) -> str:
+    """Best-effort caller identity. Most tools take agent_id directly;
+    chronos_capture_lesson nests it in its trace dict instead."""
+    direct = kwargs.get("agent_id")
+    if direct:
+        return direct
+    trace = kwargs.get("trace")
+    if isinstance(trace, dict) and trace.get("agent_id"):
+        return trace["agent_id"]
+    return "(unnamed caller)"
+
+
+def _track(tool):
+    @functools.wraps(tool)
+    async def wrapped(*args, **kwargs):
+        call_id = next(_call_ids)
+        entry = {
+            "tool": tool.__name__,
+            "agent_id": _agent_id_of(kwargs),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+        with _tracker_lock:
+            _IN_FLIGHT[call_id] = entry
+        try:
+            return await tool(*args, **kwargs)
+        finally:
+            with _tracker_lock:
+                _IN_FLIGHT.pop(call_id, None)
+    return wrapped
+
+
 for _tool in TOOLS:
-    mcp.tool()(_tool)
+    mcp.tool()(_track(_tool) if asyncio.iscoroutinefunction(_tool) else _tool)
+
+
+@mcp.tool()
+def chronos_mcp_status() -> dict:
+    """What's currently running on this server, and who's waiting behind it.
+
+    Every tool call serializes behind one process-wide graph driver (see
+    wedge1_mcp.driver()), so a slow call -- almost always an LLM completion --
+    makes every other agent's call wait with no error and no progress signal.
+    Call this before a potentially slow tool, or when a call seems stuck, to
+    see whether something else is already running and who owns it, rather
+    than assuming the server is dead or the graph is locked."""
+    with _tracker_lock:
+        calls = sorted(_IN_FLIGHT.values(), key=lambda e: e["started_at"])
+    if not calls:
+        return {"busy": False, "in_flight": []}
+    now = datetime.now(timezone.utc)
+    for c in calls:
+        c["running_for_seconds"] = round(
+            (now - datetime.fromisoformat(c["started_at"])).total_seconds(), 1)
+    return {"busy": True, "in_flight": calls}
 
 
 def main():

@@ -5,6 +5,7 @@ it calls before starting work. Packmind is the store — Chronos only reflects,
 curates, and reads back.
 """
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -74,7 +75,9 @@ async def chronos_capture_lesson(trace: dict) -> dict:
             "submission_path": path,
             "packmind_configured": bool(os.environ.get("PACKMIND_API_URL")),
         }
-    result = curator.curate(candidate, packmind=store)
+    # curate() makes blocking litellm calls; off the event loop or every other
+    # MCP tool call stalls behind this one for the LLM's full response time.
+    result = await asyncio.to_thread(curator.curate, candidate, packmind=store)
     return {
         "candidate_rule": candidate,
         "submitted": result["submitted"],
@@ -118,7 +121,7 @@ async def chronos_propose_rule(rule_text: str, reason: str, agent_id: str) -> di
         "source_trace_id": "",
         "agent_id": agent_id,
     }
-    result = curator.curate(candidate, packmind=pm())
+    result = await asyncio.to_thread(curator.curate, candidate, packmind=pm())
     return {
         **result,
         "submission_path": result.get("submission_path", _get_submission_path()),

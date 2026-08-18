@@ -184,6 +184,26 @@ def get_active_rules(language=None, con=None) -> list[dict]:
             c.close()
 
 
+def get_all_rules(language=None, con=None) -> list[dict]:
+    """Every rule regardless of status, including 'proposed'.
+
+    Unlike get_active_rules, not filtered on yaml_pattern: git-native proposals
+    from the curator never carry one (that's a Wedge 4 concept). For dedup: a
+    near-duplicate awaiting its own PR review must still block a second
+    proposal, even though it isn't enforced yet."""
+    c, own = _use(con)
+    try:
+        q = "SELECT * FROM enforcement_rules"
+        args = ()
+        if language:
+            q += " WHERE language=?"
+            args = (language,)
+        return [dict(r) for r in c.execute(q + " ORDER BY rule_id", args).fetchall()]
+    finally:
+        if own:
+            c.close()
+
+
 def get_rule(rule_id, con=None) -> dict | None:
     c, own = _use(con)
     try:

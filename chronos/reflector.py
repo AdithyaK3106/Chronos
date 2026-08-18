@@ -5,6 +5,7 @@ in getActor, which was refactored 14 days ago and lost 2 of its 33 callers" is a
 lesson. The temporal context is what the LLM reflects on.
 """
 
+import asyncio
 import json
 import os
 from datetime import datetime, timezone
@@ -105,7 +106,9 @@ async def ground(driver, group_id, nodes):
 async def reflect(driver, group_id, trace):
     """Trace -> CandidateRule dict, or None if there is no durable lesson here."""
     context = await ground(driver, group_id, trace.get("nodes_touched"))
-    raw = complete(PROMPT.format(
+    # complete() is a blocking litellm call; off the event loop so it doesn't
+    # stall every other MCP tool call for the LLM's full response time.
+    raw = await asyncio.to_thread(complete, PROMPT.format(
         trace=json.dumps(trace, indent=2),
         context=json.dumps(context, indent=2) if context else "(no nodes named in trace)",
     ))

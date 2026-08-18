@@ -6,6 +6,7 @@ blocking is an explicit human act, and is refused for rules that failed
 detectability.
 """
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -36,7 +37,10 @@ async def chronos_generate_rule(rule_text: str, language: str, rule_id: str,
     """Turn a plain-English playbook rule into a validated ast-grep CI check.
 
     Pipeline: LLM generation -> detectability -> stored as warn-only."""
-    gen = rule_generator.generate(rule_text, language, rule_id, evidence_node)
+    # generate() makes a blocking litellm call; off the event loop so it
+    # doesn't stall every other MCP tool call for the LLM's full response time.
+    gen = await asyncio.to_thread(rule_generator.generate, rule_text, language,
+                                   rule_id, evidence_node)
     if not gen["automatable"]:
         return {"rule_id": rule_id, "automatable": False,
                 "detectability_passed": False, "false_positive_risk": False,

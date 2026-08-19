@@ -4,10 +4,17 @@ ponytail: one-shot seed script, not a management command. Re-run is idempotent
 (upsert_rule/promote_to_blocking are both upsert-safe).
 """
 
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+# Repo-local, matching demo/build_graph.py -- so the seeded rules ship
+# committed inside demo/novapay/.chronos/ instead of the global
+# ~/.chronos/chronos.db, and a fresh clone has them without reseeding.
+os.environ.setdefault("CHRONOS_SQLITE", str(ROOT / "demo" / "novapay" / ".chronos" / "chronos.db"))
 
 from chronos import rule_store
 

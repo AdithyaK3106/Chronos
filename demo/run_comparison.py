@@ -209,6 +209,7 @@ async def run_enforce(final_code: str) -> dict:
 
     import os
     os.environ.setdefault("CHRONOS_DB", str(NOVAPAY / ".chronos" / "graph.kz"))
+    os.environ.setdefault("CHRONOS_SQLITE", str(NOVAPAY / ".chronos" / "chronos.db"))
     group = GROUP
 
     target = NOVAPAY / "src" / "payments" / "new_endpoint.py"

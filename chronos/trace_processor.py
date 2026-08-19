@@ -10,6 +10,7 @@ a caller: this runs on MCP server startup and inside `chronos enforce`, and
 neither may fail because a trace was malformed.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -148,40 +149,92 @@ def to_reflector_trace(trace: dict) -> dict:
     }
 
 
+_RESOLVE_OPEN_TIMEOUT = 5.0
+
+
 def _resolve_touched(group_id, trace, payload):
     """Fill payload['nodes_touched'] from the graph. Best-effort.
 
     Opens its own driver and closes it before reflect() runs: grounding is a
     separate set of queries and the Reflector opens what it needs, so holding a
     connection across an LLM call would pin it for seconds for nothing."""
-    import asyncio
+    import queue
 
     names = candidate_symbols(trace)
     if not names:
         return
-    async def go():
+
+    # BOUNDED OPEN, ON A DETACHED THREAD. open_driver() is synchronous and
+    # Kuzu's lock handling is inconsistent (see wedge1_mcp.driver()'s
+    # docstring): it sometimes raises GraphLocked immediately, but can also
+    # block inside Kuzu's C layer with no exception at all -- and once that
+    # happens Python genuinely cannot cancel the thread.
+    #
+    # An earlier version of this fix wrapped the same call in
+    # asyncio.wait_for(asyncio.to_thread(...), timeout=...) and called that
+    # "bounded". It wasn't: asyncio.to_thread's worker still has to be
+    # *joined* before asyncio.run() can return, so a wait_for timeout there
+    # only stops the await -- the enclosing asyncio.run(go()) call, and
+    # therefore this whole function, still blocked for the full 10s in
+    # testing (tests/test_trace_processor_open.py caught this).
+    #
+    # A plain, non-blocking daemon thread has no join step this function is
+    # forced to wait through: it reports its result via a queue, this
+    # function waits on the queue with a real timeout, and if nothing shows
+    # up in time it gives up and returns -- leaving the thread to leak
+    # (accepted, same as wedge1_mcp.driver()'s TimeoutError branch) without
+    # taking this caller down with it.
+    result_q: "queue.Queue" = queue.Queue(maxsize=1)
+
+    def open_and_resolve():
         from .store import GraphLocked, open_driver
         try:
             drv = open_driver()
-        except GraphLocked:
-            # DEADLOCK GUARD. This runs on a background thread started by the
-            # MCP server, while the server's own tool handlers hold the Kuzu
-            # driver -- and Kuzu allows exactly one holder per process. Racing
-            # for it wedged the whole server: the first graph-backed tool call
-            # blocked forever on a lock held by its own process, at ~0% CPU,
-            # with no timeout and no error. Grounding is a bonus, never worth
-            # a hung server, so we skip it and reflect ungrounded.
-            log.info("trace-processor: graph busy, reflecting ungrounded")
-            return []
+        except GraphLocked as e:
+            result_q.put(("locked", e))
+            return
+        except Exception as e:  # noqa: BLE001 -- report, don't crash the thread
+            result_q.put(("error", e))
+            return
         try:
-            return await resolve_nodes(drv, group_id, names)
+            resolved = asyncio.run(resolve_nodes(drv, group_id, names))
+            result_q.put(("ok", resolved))
+        except Exception as e:  # noqa: BLE001
+            result_q.put(("error", e))
         finally:
-            await drv.close()
+            asyncio.run(drv.close())
+
+    threading.Thread(target=open_and_resolve, daemon=True,
+                      name="chronos-resolve-touched").start()
+
     try:
-        payload["nodes_touched"] = asyncio.run(go())
-    except Exception as e:  # noqa: BLE001 -- grounding is a bonus, not a gate
+        kind, value = result_q.get(timeout=_RESOLVE_OPEN_TIMEOUT)
+    except queue.Empty:
+        # Same leaked-thread cost as wedge1_mcp.driver()'s TimeoutError
+        # branch -- unavoidable once Kuzu is in the blocking-not-raising
+        # state -- but bounded to _RESOLVE_OPEN_TIMEOUT instead of silently
+        # consuming the main driver's whole 90s budget. Reproduced by racing
+        # index_health against this path: the main open timed out at 90s and
+        # reported its own leaked thread.
+        log.info("trace-processor: graph open timed out after %ss, "
+                  "reflecting ungrounded", _RESOLVE_OPEN_TIMEOUT)
+        return
+
+    if kind == "locked":
+        # DEADLOCK GUARD. This runs on a background thread started by the
+        # MCP server, while the server's own tool handlers hold the Kuzu
+        # driver -- and Kuzu allows exactly one holder per process. Racing
+        # for it wedged the whole server: the first graph-backed tool call
+        # blocked forever on a lock held by its own process, at ~0% CPU,
+        # with no timeout and no error. Grounding is a bonus, never worth a
+        # hung server, so we skip it and reflect ungrounded.
+        log.info("trace-processor: graph busy, reflecting ungrounded")
+        return
+    if kind == "error":
         log.warning("trace-processor: node resolution failed (%s: %s)",
-                    type(e).__name__, e)
+                    type(value).__name__, value)
+        return
+    payload["nodes_touched"] = value
 
 
 def _dispatch_safe(trace: dict):

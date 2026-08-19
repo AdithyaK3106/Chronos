@@ -94,8 +94,15 @@ against real git. Precisely:
 | **Git-native distribution** | ✅ **LIVE-VERIFIED** — real repo: branch, commit, `proposed` state, HEAD restored |
 | **Packmind HTTP layer** | ⚠️ socket-verified against a local fake; **never against real Packmind** |
 | **Curator** — quality gate | ✅ **LIVE-VERIFIED** — real LLM judgement; rejected one candidate with a reason, passed another to submission |
-| **Curator** — embedding dedup | ⚠️ still mock-only — the local endpoint serves no embeddings model (`text-embedding-3-small` → upstream 410, provider retired) |
+| **Curator** — embedding dedup | ✅ **LIVE-VERIFIED 2026-08-19** — `CHRONOS_EMBED_MODEL=ollama/all-minilm` via litellm, real Ollama server; near-duplicate scored 0.89 (correctly flagged), unrelated rule scored below threshold (correctly passed) |
 | **PR creation via `gh`** | ✅ **LIVE-VERIFIED 2026-08-17** — real draft PR opened against a real remote ([#1](https://github.com/AdithyaK3106/Chronos/pull/1)). Required a bug fix first: see "The PR path had never worked" below |
+
+**Full chain, fully local, 2026-08-19:** `curate()` run end-to-end with both
+`CHRONOS_EMBED_MODEL=ollama/all-minilm` and `CHRONOS_LLM_MODEL=ollama/qwen2.5-coder:7b`
+— no OpenAI, no mocks. Dedup ran against a real existing-rules list, the quality
+gate passed a real candidate, and git-native submission opened a real draft PR
+([#5](https://github.com/AdithyaK3106/Chronos/pull/5)). Confirms Wedge 2's LLM
+and embedding dependencies both have a working fully-offline path.
 
 Read that table before relying on any capability below: the rows in the next
 table are proven against mocks unless this one says otherwise.

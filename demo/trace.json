@@ -153,7 +153,7 @@
         "tokens": 45,
         "running_tokens": 2045,
         "tool_call_n": 19,
-        "code": "import requests\n\ndef notify_payment_service(order_id, amount_cents):\n    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n    return resp.json()\n"
+        "code": "import requests\n\ndef notify_provider_sync(order_id, amount_cents):\n    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n    return resp.json()\n"
       }
     ],
     "total_tokens": 2045,
@@ -162,23 +162,23 @@
     "calls_per_file": 1.5,
     "cost_usd": 0.0123,
     "elapsed_s": 0.0,
-    "final_code": "import requests\n\ndef notify_payment_service(order_id, amount_cents):\n    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n    return resp.json()\n",
+    "final_code": "import requests\n\ndef notify_provider_sync(order_id, amount_cents):\n    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n    return resp.json()\n",
     "uses_deprecated_pattern": true,
     "shipped_correct_pattern": false
   },
   "with_chronos": {
     "events": [
       {
-        "t": 4.24,
+        "t": 3.45,
         "action": "mcp_call",
         "target": "as_of_callees(process_payment)",
         "tokens": 62,
         "running_tokens": 62,
         "tool_call_n": 1,
-        "result_preview": "{\"as_of\": \"2026-08-19T06:01:45.926471+00:00\", \"symbol\": \"process_payment\", \"callees\": [{\"name\": \"charge_card\", \"path\": \"src/payments/client.py\", \"rel\": \"CALLS\"}, {\"name\": \"record_charge\", \"path\": \"src/payments/ledger.py\", \"rel\": \"CALLS\"}], \"count\": 2}"
+        "result_preview": "{\"as_of\": \"2026-08-19T08:12:46.613767+00:00\", \"symbol\": \"process_payment\", \"callees\": [{\"name\": \"charge_card\", \"path\": \"src/payments/client.py\", \"rel\": \"CALLS\"}, {\"name\": \"record_charge\", \"path\": \"src/payments/ledger.py\", \"rel\": \"CALLS\"}], \"count\": 2}"
       },
       {
-        "t": 4.43,
+        "t": 3.57,
         "action": "mcp_call",
         "target": "as_of_diff(notify_provider_sync, since=2026-06-03, until=2026-06-20)",
         "tokens": 86,
@@ -187,7 +187,7 @@
         "result_preview": "{\"symbol\": \"notify_provider_sync\", \"since\": \"2026-06-03T00:00:00+00:00\", \"until\": \"2026-06-20T00:00:00+00:00\", \"added\": [], \"removed\": [{\"name\": \"process_payment\", \"path\": \"src/payments/service.py\", \"rel\": \"CALLS\"}], \"stable\": [], \"summary\": {\"added_count\": 0, \"removed_count\": 1, \"stable_count\": 0},"
       },
       {
-        "t": 4.43,
+        "t": 3.57,
         "action": "write_code",
         "target": "src/payments/new_endpoint.py",
         "tokens": 61,
@@ -201,10 +201,40 @@
     "files_touched": 0,
     "calls_per_file": null,
     "cost_usd": 0.0013,
-    "elapsed_s": 4.43,
+    "elapsed_s": 3.57,
     "final_code": "import httpx\n\nasync def notify_payment_service(order_id, amount_cents):\n    async with httpx.AsyncClient() as client:\n        resp = await client.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n        return resp.json()\n",
     "uses_deprecated_pattern": false,
     "shipped_correct_pattern": true
+  },
+  "enforce": {
+    "rows": [
+      {
+        "file": "src/payments/new_endpoint.py",
+        "verdict": "block",
+        "line": "4",
+        "rule_id": "no-requests",
+        "message": "pattern matches deprecated node confirmed by temporal graph [new_endpoint.py:4]"
+      },
+      {
+        "file": "src/payments/new_endpoint.py",
+        "verdict": "warn",
+        "line": "3",
+        "rule_id": "require-type-hints",
+        "message": "rule in warn-only mode [new_endpoint.py:3]"
+      },
+      {
+        "file": "src/payments/new_endpoint.py",
+        "verdict": "warn",
+        "line": "",
+        "rule_id": "wedge2-live-genrule-1",
+        "message": "rule failed to parse, not enforced: Error: Cannot parse rule .chronos\\rules\\wedge2-live-genrule-1.yml\nHelp: The file is not a valid ast-grep rule. Please refer to doc and fix the error.\nSee also: https://ast-grep.github.io/guide/rule-config.html\n\n\u00e2\u0153\u2013 Caused by\n\u00e2\u2022\u00b0\u00e2\u2013\u00bb Fail to parse yaml as RuleConfig\n\u00e2\u2022\u00b0\u00e2\u2013\u00bb missing field `rule`"
+      }
+    ],
+    "blocks": 1,
+    "warns": 2,
+    "oks": 0,
+    "checked": 1,
+    "skipped": 0
   },
   "summary": {
     "token_savings_pct": 90,

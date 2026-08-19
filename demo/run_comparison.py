@@ -93,11 +93,15 @@ def run_without():
             "running_tokens": total_tokens,
             "tool_call_n": len(events) + 1,
         })
-    # Final code: reuses the still-visible `requests` pattern -- correct
-    # per most of the codebase, wrong per the actual current standard.
+    # Final code: reuses the still-visible `requests` pattern AND the old
+    # function name it copied from legacy_notify.py -- correct per most of
+    # the codebase, wrong per the actual current standard. The function name
+    # matters: it's what the no-requests rule's $NAME capture matches against
+    # the graph, and notify_provider_sync is confirmed retired there (both
+    # of its facts are closed) -- see docs/migration-guide.md.
     final_code = (
         "import requests\n\n"
-        "def notify_payment_service(order_id, amount_cents):\n"
+        "def notify_provider_sync(order_id, amount_cents):\n"
         "    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n"
         "    return resp.json()\n"
     )
@@ -191,14 +195,42 @@ async def run_with():
     }
 
 
+# --- Real CI enforcement against the WITHOUT-Chronos agent's output: a real
+# `enforce_files` call (chronos/cli.py) against the real `no-requests` rule,
+# not a hardcoded HTML block. ---
+async def run_enforce(final_code: str) -> dict:
+    from chronos.cli import enforce_files
+    from chronos.store import open_driver
+
+    import os
+    os.environ.setdefault("CHRONOS_DB", str(NOVAPAY / ".chronos" / "graph.kz"))
+    group = "c-users-urbra-onedrive-desktop-projects-new-ortho-demo-novapay"
+
+    target = NOVAPAY / "src" / "payments" / "new_endpoint.py"
+    target.write_text(final_code, encoding="utf-8")
+    try:
+        drv = open_driver()
+        try:
+            report = await enforce_files(
+                ["src/payments/new_endpoint.py"], str(NOVAPAY), group=group, driver=drv,
+            )
+        finally:
+            await drv.close()
+    finally:
+        target.unlink(missing_ok=True)
+    return report
+
+
 def main():
     without = run_without()
     withc = asyncio.run(run_with())
+    enforce_report = asyncio.run(run_enforce(without["final_code"]))
 
     out = {
         "task": "Add a new endpoint that calls the payment processing service.",
         "without_chronos": without,
         "with_chronos": withc,
+        "enforce": enforce_report,
         "summary": {
             "token_savings_pct": round(100 * (1 - withc["total_tokens"] / without["total_tokens"])),
             "tool_call_ratio": f"{without['tool_calls']}:{withc['tool_calls']}",
@@ -216,6 +248,8 @@ def main():
           f"{withc['files_touched']} files, ${withc['cost_usd']}")
     print(f"savings: {out['summary']['token_savings_pct']}% tokens, "
           f"{out['summary']['cost_savings_pct']}% cost")
+    print(f"ENFORCE: {enforce_report['blocks']} block, {enforce_report['warns']} warn, "
+          f"{enforce_report['oks']} ok -- {enforce_report['rows']}")
 
 
 if __name__ == "__main__":

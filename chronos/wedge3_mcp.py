@@ -37,8 +37,25 @@ def chronos_acquire_lock(node_id: str, agent_id: str, session_id: str = "",
 
 @mcp.tool()
 def chronos_release_lock(node_id: str, agent_id: str, session_id: str = "") -> dict:
-    """Release an intent lock. Only the agent that acquired it may release it."""
-    return ledger.release(con(), node_id, agent_id, session_id)
+    """Release an intent lock. Only the agent that acquired it may release it.
+
+    On a successful release, adds a suggestion (not an instruction) to consider
+    chronos_propose_rule if the work just finished taught something durable.
+    Locking is the closest signal Wedge 3 has to "this was deliberate, scoped
+    work" -- most tool calls are too frequent/low-signal to nudge on, a
+    completed lock is not. The LLM decides; nothing is proposed automatically.
+    """
+    result = ledger.release(con(), node_id, agent_id, session_id)
+    if result.get("released"):
+        intent = result.get("intent") or "this change"
+        result["suggestion"] = (
+            f"Lock released on {node_id} (intent: \"{intent}\"). If this work "
+            f"surfaced a durable lesson -- a footgun, a convention worth "
+            f"enforcing, a pattern other agents should follow -- consider "
+            f"calling chronos_propose_rule. Skip it if nothing here "
+            f"generalizes; most changes don't need a rule."
+        )
+    return result
 
 
 @mcp.tool()

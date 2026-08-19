@@ -160,8 +160,19 @@ def _resolve_touched(group_id, trace, payload):
     if not names:
         return
     async def go():
-        from .store import open_driver
-        drv = open_driver()
+        from .store import GraphLocked, open_driver
+        try:
+            drv = open_driver()
+        except GraphLocked:
+            # DEADLOCK GUARD. This runs on a background thread started by the
+            # MCP server, while the server's own tool handlers hold the Kuzu
+            # driver -- and Kuzu allows exactly one holder per process. Racing
+            # for it wedged the whole server: the first graph-backed tool call
+            # blocked forever on a lock held by its own process, at ~0% CPU,
+            # with no timeout and no error. Grounding is a bonus, never worth
+            # a hung server, so we skip it and reflect ungrounded.
+            log.info("trace-processor: graph busy, reflecting ungrounded")
+            return []
         try:
             return await resolve_nodes(drv, group_id, names)
         finally:

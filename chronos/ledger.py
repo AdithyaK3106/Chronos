@@ -148,8 +148,9 @@ def release(con, node_id: str, agent_id: str, session_id: str | None = None) -> 
         return {"released": False, "reason": "not_locked", "node_id": node_id}
     if row["agent_id"] != agent_id:
         return {"released": False, "reason": "not_owner", "held_by": _lock_row(row)}
+    intent = row["intent"]
     con.execute("DELETE FROM intent_locks WHERE node_id = ?", (node_id,))
-    return {"released": True, "node_id": node_id}
+    return {"released": True, "node_id": node_id, "intent": intent}
 
 
 def check_conflicts(con, node_ids: list[str]) -> dict:

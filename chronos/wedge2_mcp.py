@@ -5,6 +5,7 @@ it calls before starting work. Packmind is the store — Chronos only reflects,
 curates, and reads back.
 """
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -14,21 +15,25 @@ from . import groups, curator, reflector
 from .curator import _get_submission_path
 from .playbook import Packmind, PackmindError, PackmindNotConfigured
 from .rule_submission import resolve_repo_path
-from .store import open_driver
 
 GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
                         os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos-playbook")
 
-_driver = None
 _pm = None
 
 
 async def driver():
-    global _driver
-    if _driver is None:
-        _driver = open_driver()
-    return _driver
+    """Delegates to wedge1_mcp, which owns the single process-wide driver.
+
+    Each wedge used to keep its own `_driver` global. In the unified server all
+    four wedges live in ONE process, and Kuzu allows one holder per process --
+    so calling a Wedge 2 tool after a Wedge 1 tool made the second wedge block
+    on a lock the first already held, inside the same process. No error, no
+    timeout, ~0% CPU: the server just stopped answering.
+    """
+    from .wedge1_mcp import driver as _shared
+    return await _shared()
 
 
 def pm():
@@ -70,7 +75,9 @@ async def chronos_capture_lesson(trace: dict) -> dict:
             "submission_path": path,
             "packmind_configured": bool(os.environ.get("PACKMIND_API_URL")),
         }
-    result = curator.curate(candidate, packmind=store)
+    # curate() makes blocking litellm calls; off the event loop or every other
+    # MCP tool call stalls behind this one for the LLM's full response time.
+    result = await asyncio.to_thread(curator.curate, candidate, packmind=store)
     return {
         "candidate_rule": candidate,
         "submitted": result["submitted"],
@@ -114,7 +121,7 @@ async def chronos_propose_rule(rule_text: str, reason: str, agent_id: str) -> di
         "source_trace_id": "",
         "agent_id": agent_id,
     }
-    result = curator.curate(candidate, packmind=pm())
+    result = await asyncio.to_thread(curator.curate, candidate, packmind=pm())
     return {
         **result,
         "submission_path": result.get("submission_path", _get_submission_path()),

@@ -65,21 +65,24 @@ async def main():
     tools = {t.name for t in await server.mcp.list_tools()}
     from chronos import wedge1_mcp, wedge2_mcp, wedge3_mcp, wedge4_mcp
     expected = {
-        "as_of_callers", "as_of_callees", "as_of_impact", "what_changed", "index_health",
+        "as_of_callers", "as_of_callees", "as_of_impact", "as_of_diff", "what_changed", "index_health",
         "chronos_acquire_lock", "chronos_release_lock", "chronos_check_conflicts",
         "chronos_log_provenance", "chronos_who_touched",
         "chronos_capture_lesson", "chronos_query_playbook", "chronos_propose_rule",
         "chronos_playbook_health",
         "chronos_generate_rule", "chronos_enforce", "chronos_promote_rule",
         "chronos_list_rules", "chronos_rule_report",
+        # server.py-only: reports in-flight calls, not owned by any one wedge.
+        "chronos_mcp_status",
     }
     assert tools == expected, f"missing {expected - tools}, extra {tools - expected}"
     per_wedge = 0
     for m in (wedge1_mcp, wedge2_mcp, wedge3_mcp, wedge4_mcp):
         per_wedge += len(await m.mcp.list_tools())
-    assert len(tools) == per_wedge, f"unified={len(tools)} but wedges total {per_wedge}"
+    server_only = len(tools) - per_wedge
+    assert server_only == 1, f"unified={len(tools)} but wedges total {per_wedge} (expected exactly 1 server-only tool: chronos_mcp_status)"
     assert server.mcp.name == "chronos"
-    ok(f"unified server exposes all {len(tools)} tools from 4 wedges (sum matches)")
+    ok(f"unified server exposes all {len(tools)} tools: {per_wedge} from 4 wedges + {server_only} server-only")
 
     # --- 2. CHRONOS_AUTO_TRIGGERS=false disables every trigger -------------
     os.environ["CHRONOS_AUTO_TRIGGERS"] = "false"

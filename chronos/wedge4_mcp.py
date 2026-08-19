@@ -6,26 +6,29 @@ blocking is an explicit human act, and is refused for rules that failed
 detectability.
 """
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
 from . import groups, detectability, enforcer, ledger, rule_generator, rule_store
-from .store import open_driver
 
 GROUP = groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
                         os.environ.get("CHRONOS_REPO_PATH"))
 mcp = FastMCP("chronos-enforce")
 
-_driver = None
 
 
 async def driver():
-    global _driver
-    if _driver is None:
-        _driver = open_driver()
-    return _driver
+    """Delegates to wedge1_mcp, which owns the single process-wide driver.
+
+    See the note there: one Kuzu holder per process, and the unified server
+    runs all four wedges in one. A per-wedge driver deadlocked the server
+    against itself.
+    """
+    from .wedge1_mcp import driver as _shared
+    return await _shared()
 
 
 @mcp.tool()
@@ -34,7 +37,10 @@ async def chronos_generate_rule(rule_text: str, language: str, rule_id: str,
     """Turn a plain-English playbook rule into a validated ast-grep CI check.
 
     Pipeline: LLM generation -> detectability -> stored as warn-only."""
-    gen = rule_generator.generate(rule_text, language, rule_id, evidence_node)
+    # generate() makes a blocking litellm call; off the event loop so it
+    # doesn't stall every other MCP tool call for the LLM's full response time.
+    gen = await asyncio.to_thread(rule_generator.generate, rule_text, language,
+                                   rule_id, evidence_node)
     if not gen["automatable"]:
         return {"rule_id": rule_id, "automatable": False,
                 "detectability_passed": False, "false_positive_risk": False,

@@ -131,6 +131,30 @@ async def main():
     assert any(c["dst"] == "old_api" for c in ch["removed"]), ch
     print(f"ok  what-changed: +{len(ch['added'])} -{len(ch['removed'])}")
 
+    # --- P0-4 regression: a narrow window must never return MORE than a wide
+    #     one over the same range. The bug this pins returned every row
+    #     regardless of since/until -- a 7-day window outnumbered a 90-day one. ---
+    now = datetime.now(timezone.utc)
+    narrow = await query.changes(drv, G, now - timedelta(days=7), now)
+    wide = await query.changes(drv, G, now - timedelta(days=90), now)
+    assert narrow["count"] <= wide["count"], (narrow, wide)
+    assert narrow.get("no_data_reason") == "no_changes_in_window", narrow
+    print(f"ok  narrow window ({narrow['count']}) <= wide window ({wide['count']})")
+
+    # --- as_of_diff: symbol-scoped diff over two as_of_callers calls. This is
+    #     the litestar ResponseCacheMiddleware shape -- router called handler
+    #     before the refactor, still does after; handler's OWN callees moved
+    #     from old_api to new_api, so diff old_api's callers across the window. ---
+    diff = await query.callers_diff(drv, G, "old_api", MID, LATER)
+    assert [c["name"] for c in diff["removed"]] == ["handler"], diff
+    assert diff["added"] == [], diff
+    assert diff["summary"] == {"added_count": 0, "removed_count": 1, "stable_count": 0}, diff
+    print("ok  as_of_diff: old_api lost its only caller across the refactor")
+
+    stable_diff = await query.callers_diff(drv, G, "new_api", T1, LATER)
+    assert [c["name"] for c in stable_diff["stable"]] == ["handler"], stable_diff
+    print("ok  as_of_diff: new_api's caller is stable once introduced")
+
     # --- health ---
     h = await query.health(drv, G)
     assert h["facts_total"] == 3 and h["facts_current"] == 2, h

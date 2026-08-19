@@ -1,0 +1,4 @@
+# Chronos proposed rule — no ast-grep pattern yet.
+# Run chronos generate-rule to make it executable.
+id: chronos-c01ec5ca
+# rule: Never call open_driver() from a second process while Chronos MCP server is running — Kuzu allows only one process to hold the graph, causing GraphLocked errors.

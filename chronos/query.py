@@ -116,6 +116,32 @@ def _annotate_coverage(out: dict, group_id: str) -> None:
         return  # context is optional; never fail a query for it
 
 
+async def callers_diff(driver, group_id: str, name: str, since: datetime, until: datetime) -> dict:
+    """Callers of `name` added/removed/stable between two points in time.
+
+    Built as two as-of calls plus a client-side set difference, not a new
+    graph query -- reuses the already-tested point-in-time primitive, and its
+    no_data_reason, rather than risking a second way to be wrong about the
+    same data.
+    """
+    t1, t2 = await callers(driver, group_id, name, since), await callers(driver, group_id, name, until)
+    before = {c["name"]: c for c in t1["callers"]}
+    after = {c["name"]: c for c in t2["callers"]}
+    added = [after[n] for n in after.keys() - before.keys()]
+    removed = [before[n] for n in before.keys() - after.keys()]
+    stable = [after[n] for n in after.keys() & before.keys()]
+    out = {
+        "symbol": name, "since": t1["as_of"], "until": t2["as_of"],
+        "added": added, "removed": removed, "stable": stable,
+        "summary": {"added_count": len(added), "removed_count": len(removed),
+                    "stable_count": len(stable)},
+    }
+    for key, res in (("since_no_data_reason", t1), ("until_no_data_reason", t2)):
+        if "no_data_reason" in res:
+            out[key] = res["no_data_reason"]
+    return out
+
+
 async def changes(driver, group_id: str, since: datetime, until: datetime | None = None) -> dict:
     """Structural facts created or superseded in a window -- 'what changed here'."""
     s, u = _utc(since), _utc(until)
@@ -127,9 +153,12 @@ async def changes(driver, group_id: str, since: datetime, until: datetime | None
         MATCH (n:Entity)-[:RELATES_TO]->(e:RelatesToNode_)-[:RELATES_TO]->(m:Entity)
         WHERE e.group_id=$g AND e.invalid_at > $s AND e.invalid_at <= $u
         RETURN n.name AS src, e.name AS rel, m.name AS dst""", g=group_id, s=s, u=u)
-    return {"since": s.isoformat(), "until": u.isoformat(),
-            "added": added, "removed": removed,
-            "count": len(added) + len(removed)}
+    out = {"since": s.isoformat(), "until": u.isoformat(),
+           "added": added, "removed": removed,
+           "count": len(added) + len(removed)}
+    if out["count"] == 0:
+        out["no_data_reason"] = "no_changes_in_window"
+    return out
 
 
 # A node is orphaned only if it once had facts and every one is now superseded.

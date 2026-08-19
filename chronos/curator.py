@@ -70,12 +70,16 @@ def _duplicate_of(rule_text, existing):
 
 
 def _existing_rules(pm):
-    """Current rules for the dedup check, from whichever store is active."""
+    """Rules for the dedup check, from whichever store is active.
+
+    Git-native: get_all_rules(), not get_active_rules() — a rule sits at
+    'proposed' until its PR is merged, so restricting to active rules made
+    dedup blind to every proposal still awaiting review (the common case)."""
     if pm is not None:
         return pm.list_rules()
     from . import rule_store
     return [{"name": r["rule_id"], "rule_text": r["rule_text"]}
-            for r in rule_store.get_active_rules()
+            for r in rule_store.get_all_rules()
             if r.get("rule_text")]
 
 

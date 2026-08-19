@@ -17,6 +17,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent / "novapay"
 ROOT = Path(__file__).resolve().parent.parent
 
+# Fixed, not derived from REPO's absolute path -- a path-derived group id
+# would differ on every clone, breaking every script and .mcp.json that
+# names it explicitly. See chronos/groups.py::derive.
+GROUP = "novapay-demo"
+
 
 def sh(*args, cwd=REPO, check=True):
     r = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
@@ -38,7 +43,7 @@ def main():
         sh("git", "checkout", "-q", sha)
         print(f"[{i}/{len(commits)}] indexing {sha[:8]} ...")
         r = subprocess.run(
-            [sys.executable, "-m", "chronos", "index", "--repo", str(REPO)],
+            [sys.executable, "-m", "chronos", "--group", GROUP, "index", "--repo", str(REPO)],
             cwd=ROOT, env=env, capture_output=True, text=True,
         )
         print(r.stdout.strip())

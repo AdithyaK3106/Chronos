@@ -25,6 +25,11 @@ ROOT = Path(__file__).resolve().parent.parent
 NOVAPAY = ROOT / "demo" / "novapay"
 sys.path.insert(0, str(ROOT))
 
+# Fixed group id -- must match demo/build_graph.py's GROUP, and .mcp.json's
+# CHRONOS_GROUP_ID, so a fresh clone reproduces the same demo (a path-derived
+# id would differ per clone; see chronos/groups.py::derive).
+GROUP = "novapay-demo"
+
 
 def toks(text: str) -> int:
     return max(1, len(text) // 4)
@@ -134,7 +139,7 @@ async def run_with():
 
     import os
     os.environ["CHRONOS_DB"] = str(NOVAPAY / ".chronos" / "graph.kz")
-    group = "c-users-urbra-onedrive-desktop-projects-new-ortho-demo-novapay"
+    group = GROUP
 
     events = []
     total_tokens = 0
@@ -204,7 +209,7 @@ async def run_enforce(final_code: str) -> dict:
 
     import os
     os.environ.setdefault("CHRONOS_DB", str(NOVAPAY / ".chronos" / "graph.kz"))
-    group = "c-users-urbra-onedrive-desktop-projects-new-ortho-demo-novapay"
+    group = GROUP
 
     target = NOVAPAY / "src" / "payments" / "new_endpoint.py"
     target.write_text(final_code, encoding="utf-8")

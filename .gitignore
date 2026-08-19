@@ -7,3 +7,4 @@ build/
 !.ortho/decisions.jsonl
 !**/.ortho/decisions.jsonl
 *.kz/
+demo/novapay/

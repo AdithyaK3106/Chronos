@@ -75,7 +75,7 @@
         "tool_call_n": 9
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/notifications/client.py",
         "tokens": 104,
@@ -83,7 +83,7 @@
         "tool_call_n": 10
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "grep_search",
         "target": "httpx",
         "tokens": 55,
@@ -91,7 +91,7 @@
         "tool_call_n": 11
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "docs/migration-guide.md",
         "tokens": 231,
@@ -99,7 +99,7 @@
         "tool_call_n": 12
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/users/routes.py",
         "tokens": 57,
@@ -107,7 +107,7 @@
         "tool_call_n": 13
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/orders/repository.py",
         "tokens": 151,
@@ -115,7 +115,7 @@
         "tool_call_n": 14
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/db.py",
         "tokens": 36,
@@ -123,7 +123,7 @@
         "tool_call_n": 15
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/orders/schemas.py",
         "tokens": 57,
@@ -131,7 +131,7 @@
         "tool_call_n": 16
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/payments/service.py",
         "tokens": 162,
@@ -139,7 +139,7 @@
         "tool_call_n": 17
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "read_file",
         "target": "src/payments/client.py",
         "tokens": 183,
@@ -147,7 +147,7 @@
         "tool_call_n": 18
       },
       {
-        "t": 0.0,
+        "t": 0.01,
         "action": "write_code",
         "target": "src/payments/new_endpoint.py",
         "tokens": 45,
@@ -161,7 +161,7 @@
     "files_touched": 13,
     "calls_per_file": 1.5,
     "cost_usd": 0.0123,
-    "elapsed_s": 0.0,
+    "elapsed_s": 0.01,
     "final_code": "import requests\n\ndef notify_provider_sync(order_id, amount_cents):\n    resp = requests.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n    return resp.json()\n",
     "uses_deprecated_pattern": true,
     "shipped_correct_pattern": false
@@ -169,16 +169,16 @@
   "with_chronos": {
     "events": [
       {
-        "t": 3.45,
+        "t": 13.98,
         "action": "mcp_call",
         "target": "as_of_callees(process_payment)",
         "tokens": 62,
         "running_tokens": 62,
         "tool_call_n": 1,
-        "result_preview": "{\"as_of\": \"2026-08-19T08:12:46.613767+00:00\", \"symbol\": \"process_payment\", \"callees\": [{\"name\": \"charge_card\", \"path\": \"src/payments/client.py\", \"rel\": \"CALLS\"}, {\"name\": \"record_charge\", \"path\": \"src/payments/ledger.py\", \"rel\": \"CALLS\"}], \"count\": 2}"
+        "result_preview": "{\"as_of\": \"2026-08-19T08:29:29.057984+00:00\", \"symbol\": \"process_payment\", \"callees\": [{\"name\": \"charge_card\", \"path\": \"src/payments/client.py\", \"rel\": \"CALLS\"}, {\"name\": \"record_charge\", \"path\": \"src/payments/ledger.py\", \"rel\": \"CALLS\"}], \"count\": 2}"
       },
       {
-        "t": 3.57,
+        "t": 14.19,
         "action": "mcp_call",
         "target": "as_of_diff(notify_provider_sync, since=2026-06-03, until=2026-06-20)",
         "tokens": 86,
@@ -187,7 +187,7 @@
         "result_preview": "{\"symbol\": \"notify_provider_sync\", \"since\": \"2026-06-03T00:00:00+00:00\", \"until\": \"2026-06-20T00:00:00+00:00\", \"added\": [], \"removed\": [{\"name\": \"process_payment\", \"path\": \"src/payments/service.py\", \"rel\": \"CALLS\"}], \"stable\": [], \"summary\": {\"added_count\": 0, \"removed_count\": 1, \"stable_count\": 0},"
       },
       {
-        "t": 3.57,
+        "t": 14.19,
         "action": "write_code",
         "target": "src/payments/new_endpoint.py",
         "tokens": 61,
@@ -201,7 +201,7 @@
     "files_touched": 0,
     "calls_per_file": null,
     "cost_usd": 0.0013,
-    "elapsed_s": 3.57,
+    "elapsed_s": 14.19,
     "final_code": "import httpx\n\nasync def notify_payment_service(order_id, amount_cents):\n    async with httpx.AsyncClient() as client:\n        resp = await client.post(PAYMENT_URL, json={\"order_id\": order_id, \"amount\": amount_cents})\n        return resp.json()\n",
     "uses_deprecated_pattern": false,
     "shipped_correct_pattern": true

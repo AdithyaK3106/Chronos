@@ -18,6 +18,11 @@ def main():
     scratch = NOVAPAY / "src" / "payments" / "new_endpoint.py"
     scratch.unlink(missing_ok=True)
 
+    # chronos-audit.log isn't tracked (it's a running append-only log, not a
+    # fixture) -- git checkout/clean below won't touch it, so drop it here or
+    # a re-run of the demo appends onto a log from the previous run.
+    (NOVAPAY / ".chronos" / "chronos-audit.log").unlink(missing_ok=True)
+
     r = subprocess.run(["git", "checkout", "--", ".chronos", "src"], cwd=NOVAPAY,
                        capture_output=True, text=True)
     if r.returncode != 0:

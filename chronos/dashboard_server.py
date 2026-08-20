@@ -92,6 +92,18 @@ def stats():
                      f"AND date(timestamp) >= date('now', '-13 days') "
                      f"AND date(timestamp) < date('now', '-6 days')", enf_actions)
     fresh = api_freshness()
+    agents = rows("SELECT count(*) n FROM agents WHERE status='active'")
+    pending_gates = rows("SELECT count(*) n FROM gate_requests WHERE status='pending'")
+    since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    anomalies_7d = rows("SELECT count(*) n FROM anomaly_events WHERE detected_at >= ?", (since_7d,))
+    # audit.verify() re-hashes the whole log on every call; fine for a table
+    # scan but the stats tile only needs pass/fail, not the full result.
+    from . import audit as _audit
+    audit_ok = None
+    try:
+        audit_ok = _audit.verify()["valid"]
+    except Exception:  # noqa: BLE001 -- a missing/unreadable log must not 500 the dashboard
+        pass
     return {
         "total_nodes": graph_node_count(),
         "active_locks": locks[0]["n"] if locks else 0,
@@ -101,6 +113,10 @@ def stats():
         "enforced_this_week": this_week[0]["n"] if this_week else 0,
         "enforced_last_week": last_week[0]["n"] if last_week else 0,
         "last_indexed_at": fresh["last_success_at"],
+        "active_agents": agents[0]["n"] if agents else 0,
+        "pending_gates": pending_gates[0]["n"] if pending_gates else 0,
+        "anomalies_7d": anomalies_7d[0]["n"] if anomalies_7d else 0,
+        "audit_valid": audit_ok,
     }
 
 
@@ -301,6 +317,73 @@ def api_archive(rule_id: str):
                 (rule_id,))
     con.commit()
     return {"rule_id": rule_id, "status": "archived"}
+
+
+# ─── governance (F1-F7) ──────────────────────────────────────────────────
+# Same read-only-over-SQLite contract as the rest of this file. audit.verify()
+# is the one exception -- it re-reads and re-hashes chronos-audit.log off
+# disk rather than a table, but it's still pure computation, no mutation.
+
+@app.get("/api/agents")
+def api_agents():
+    """F1/F2: every registered agent plus its permission manifest, if any."""
+    from . import permissions as _perm
+    out = []
+    for r in rows("SELECT agent_id, name, agent_type, status, owner, created_at "
+                  "FROM agents ORDER BY created_at DESC"):
+        perm = _perm.get_permissions(r["agent_id"])
+        out.append({**r, "permissions": perm})
+    return out
+
+
+@app.get("/api/auth-events")
+def api_auth_events():
+    """F1: recent key resolutions (ok/invalid_key/suspended/no_key), most
+    recent first -- the feed that shows auth is actually being checked."""
+    return rows("SELECT id, key_prefix, resolved_agent_id, status, timestamp "
+                "FROM auth_events ORDER BY id DESC LIMIT 50")
+
+
+@app.get("/api/audit")
+def api_audit():
+    """F4: hash-chain verification result plus basic stats. Computed fresh on
+    every call -- the log is typically a few thousand lines, and correctness
+    here matters more than shaving the recompute."""
+    from . import audit as _audit
+    v = _audit.verify()
+    s = _audit.stats()
+    return {**v, **s}
+
+
+@app.get("/api/gates")
+def api_gates():
+    """F5: pending sensitive-module gate requests awaiting human approval."""
+    from . import gates as _gates
+    return _gates.list_pending()
+
+
+@app.get("/api/anomalies")
+def api_anomalies():
+    """F6: recent flagged anomalies plus which agents are still in learning
+    mode (no baseline yet, so they can never be flagged)."""
+    from . import anomaly as _anomaly
+    return _anomaly.report(since_hours=24 * 7)
+
+
+@app.get("/api/sensitive-reads")
+def api_sensitive_reads():
+    """F7: recent reads/writes against sensitive-tagged paths. Content is
+    never logged anywhere in this pipeline -- only path, label, and severity."""
+    from . import sensitive as _sensitive  # noqa: F401 -- import kept for symmetry/clarity
+    since = (datetime.now(timezone.utc) - timedelta(hours=24 * 7)).isoformat()
+    out = rows("SELECT node_id, agent_id, session_id, reason, timestamp "
+              "FROM provenance_events WHERE action='sensitive_read' "
+              "AND timestamp >= ? ORDER BY id DESC LIMIT 50", (since,))
+    for r in out:
+        hit = json.loads(r["reason"]) if r["reason"] else {}
+        r["label"] = hit.get("label")
+        r["severity"] = hit.get("severity")
+    return out
 
 
 def serve(host="127.0.0.1", port=8080):

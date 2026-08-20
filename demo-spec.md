@@ -403,3 +403,31 @@ The demo repo should be fully runnable offline — no external services, no clou
 | Option 2 (dashboard) | 1–2 weeks | Investor meetings, CDO pitches, broader go-to-market | Third |
 
 Option 3 and Option 2 are complementary — the demo repo *uses* the dashboard. Build Option 3 first and the dashboard work can be layered in on top of the same repo.
+
+---
+---
+
+## Addendum: F1-F7 Governance Features
+
+Added after the options above were built. Not a rewrite of the spec —
+this is what changed on top of it once agent identity, permissions, audit,
+gates, anomaly detection, and sensitive-read tracking (`ai-governance-research.md`)
+were implemented.
+
+**Dashboard (Option 2):** four new panels below the original activity/enforcement
+split — Gates (pending human approvals, with a copy-pasteable `chronos gates
+approve <id>` command), Agents & permissions (manifests: read-only, path-scoped,
+emergency-lock-allowed), Behavioural anomalies (flagged sessions + which agents
+are still in learning mode), and Sensitive reads. Plus a governance stat row
+(active agents, audit chain valid/tampered, gates pending, anomalies this week).
+All read-only over the same `chronos.db`, same 2s poll loop as the rest of the
+dashboard — no new live-update mechanism.
+
+**Demo repo (Option 3):** `demo/seed_governance.py` (new, run via `make
+demo-fixture`) seeds three agents onto NovaPay — `claude-code`/`cursor`
+unrestricted, `intern-bot` read-only and scoped to `src/payments/**` — plus a
+pending gate on `src/payments/secrets/**` and a flagged anomaly from a seeded
+9-day history, so the new panels aren't empty on first open. `make
+demo-scenario-4` ("Human in the Loop") is a new scripted scenario: an agent's
+lock request on payment-provider credentials is blocked by the gate, a human
+approves it via `chronos gates approve`, the agent's retry succeeds.

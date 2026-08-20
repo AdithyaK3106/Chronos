@@ -1,8 +1,12 @@
 # Chronos — Status
 
-**Updated:** 2026-08-17
-**Scope:** All four wedges — 1 (Bi-Temporal AST Graph), 2 (Policy Playbook),
-3 (Intent & Provenance Ledger), 4 (CI Enforcement).
+**Updated:** 2026-08-20
+**Scope:** Four wedges — 1 (Bi-Temporal AST Graph), 2 (Policy Playbook),
+3 (Intent & Provenance Ledger), 4 (CI Enforcement) — plus F1-F7, the agent
+governance layer built on top of them (identity, permissions, lock TTL/crash
+recovery, tamper-evident audit, human-in-the-loop gates, anomaly detection,
+sensitive-read tracking), and a working demo (NovaPay fixture, dashboard,
+live presentation mode).
 **Verdict:** Wedges 1 and 3 are **functionally complete and verified end-to-end**
 against four real third-party repos. Wedge 4 is **complete and verified against
 the real ast-grep and OPA binaries**, with both validation-run blockers now
@@ -20,6 +24,15 @@ quality gate → git-native proposed rule). What remains unproven is a live run
 against a real Packmind instance — still blocked on a container runtime, not on
 code — and the Curator's embedding dedup, for want of a reachable embeddings
 model.
+
+**F1-F7 governance layer is functionally complete and verified two ways**: an
+8-scenario stress test driving every feature through real MCP tool calls
+(`tests/stress_test_mcp.py`, 8/8 pass including gate approval with no
+`GITHUB_TOKEN`), and a separate pass against a real external repo (litestar,
+~6,800 nodes) under 30-agent/3,000-call concurrent production-representative
+load. One real concurrency bug was found and fixed this way (an unsynchronized
+audit-log race), and one architectural bug was found and fixed by a follow-up
+review (five tools bypassing auth entirely). See the dedicated section below.
 
 ---
 
@@ -510,6 +523,190 @@ Full notes, including the JSON match shape, are at the top of `enforcer.py`.
 
 ---
 
+## F1-F7 — Agent Governance Layer
+
+Seven features built on top of the four wedges, sourced from an external
+implementation spec (`ai-governance-research.md`): agent identity/auth,
+per-agent permission scoping, lock TTL/priority/crash recovery, a
+tamper-evident audit log, human-in-the-loop gates on sensitive paths,
+behavioural anomaly detection, and sensitive-read tracking. Built in
+dependency order (F4 → F1 → F2 → F3 → F5 → F6 → F7), each wired through a
+single `_track()` wrapper in `server.py` so auth, permission checks, and
+sensitive-read tagging apply uniformly to every governed tool call.
+
+**New modules:** `identity.py` (F1), `permissions.py` (F2), `audit.py` (F4),
+`gates.py` (F5), `anomaly.py` (F6), `sensitive.py` (F7). F3 extends the
+existing `ledger.py`/`wedge3_mcp.py`. New schema: `agents`, `auth_events`,
+`agent_permissions`, `gate_requests`, `agent_baselines`, `anomaly_events` in
+`chronos.db`. New CLI: `chronos agent {create,list,rotate-key,suspend,delete,
+set-permissions,show-permissions,check-permissions}`, `chronos audit
+{verify,export,stats}`, `chronos locks {list,release,release-all}`,
+`chronos gates {list,approve,deny}`.
+
+| Feature | Status | Evidence |
+|---|---|---|
+| **F1** Agent identity & API-key auth | ✅ | `identity.resolve_key()` — valid key → `agent_id` resolved; invalid → `invalid_key`; suspended agent's key → `suspended`; no key under `CHRONOS_AUTH=strict` → `auth_required`. All four paths driven through a real MCP session, not called directly. |
+| **F2** Per-agent permission scoping | ✅ | Real manifests enforced through `_track()`: a `read_only` agent's `chronos_acquire_lock` → `permission_denied`; an agent scoped to `allowed_paths: [src/frontend/**]` blocked on `src/auth/**`, allowed on its own scope; an unrestricted agent unaffected. |
+| **F3** Lock TTL, priority, crash recovery | ✅ | 10 agents racing one node concurrently → exactly 1 acquired (real `asyncio.gather`, not sequential). 2s TTL lock, real 3.5s wait → next acquire succeeds. `priority='emergency'` against a held lock → `preemption_pending` + grace window, not an outright reject. `mark_pending_release()`/re-`acquire()` reclaim path exercised in the litestar run below. |
+| **F4** Tamper-evident audit log | ✅ | SHA-256 hash-chained JSONL, one entry per governed action. `audit.verify()` returns `VALID` after 50 concurrent writes from the lock-storm scenario; re-verified at 3,926 entries under the litestar production-load run (real concurrent write pressure, not a serial test). A real concurrency bug was found and fixed here — see below. |
+| **F5** Human-in-the-loop gates | ✅ | `.chronos/protected.yml`-matched path → lock request returns `gate_pending`, not held. `chronos gates approve <id>` (CLI, no `GITHUB_TOKEN` needed) flips `gate_requests.status` and `intent_locks.status: pending_approval → held`; the same agent's retry then returns `acquired: true, renewed: true`. `chronos_check_gate_status` now also returns `manual_approval_required`/`cli_command` when no token is configured, so a blocked agent's response is self-documenting instead of a silent `pending` forever. |
+| **F6** Behavioural anomaly detection | ✅ | Session reconstruction from `provenance_events` (30-min idle gap), baseline requires ≥7 days of history. Seeded 8-day-history agent + one 40-call outlier session (vs. a 4-call baseline) → flagged `HIGH_VOLUME`, real rule evaluation, not a stubbed check. Agents with <7 days of history are correctly reported as `learning_mode`, never flagged. |
+| **F7** Sensitive-read tracking | ✅ | `sensitive.classify_path()` against `.chronos/sensitive.yml` (defaults cover `.env*`, `*secret*`, `*credential*`, `*.pem`, `id_rsa`, etc.) tags a matching read with `{label, severity, pattern_matched}` and logs it via the same provenance+audit path as every other event. Verified never touches file content — only the path string. |
+
+**Suite:** `python tests/stress_test_mcp.py --features F1,F2,F3,F4,F5,F6,F7` →
+**8/8 scenarios PASS** (authentication, permissions, lock_storm,
+audit_integrity, gate_flow, anomaly_detection, sensitive_tracking,
+concurrent_load — `stress-report-20260820T041716Z.md`). `gate_flow` passes
+with no `GITHUB_TOKEN` set, exercising the CLI-only approval path exclusively.
+`concurrent_load`: 15 calls, 0.92s wall, 16.3 calls/s, p50 187ms, p95 312ms, 0
+errors, lock correctness held under concurrency.
+
+### Verified against a real external repo under production-representative load
+
+Beyond the stress test's synthetic fixtures, F1/F2/F3/F4/F6/F7 were also
+driven through a real, already-running MCP server against litestar
+(litestar-org/litestar, ~6,800 indexed nodes) — a repo Chronos does not
+control, using real code paths (`litestar/app.py::Litestar.__init__`, etc.),
+not mocks. F5 was not exercised in this pass (no `GITHUB_TOKEN` in this
+environment; covered separately by the stress test's `gate_flow` scenario).
+
+**Production load test:** 30 concurrent logical agents × 100 calls each
+(3,000 total) against one long-lived MCP server, deliberately including
+graph-backed tools (`as_of_callers`, `index_health`) in the mix rather than
+avoiding them — **3,000/3,000 completed, 0 errors, 0 client-side timeouts**,
+169.8s wall, 17.7 calls/s sustained throughput.
+
+| Tool | Calls | p50 | p95 | max |
+|---|---|---|---|---|
+| `chronos_acquire_lock` | 768 | 1.59s | 1.95s | 4.3s |
+| `chronos_release_lock` | 451 | 1.59s | 1.91s | 3.8s |
+| `chronos_log_provenance` | 601 | 1.61s | 1.95s | 4.5s |
+| `chronos_check_conflicts` | 440 | 1.55s | 1.89s | 4.3s |
+| `chronos_who_touched` | 279 | 1.56s | 1.92s | 4.3s |
+| `as_of_callers` (graph) | 309 | 1.88s | 2.27s | 11.2s |
+| `index_health` (graph) | 152 | 1.81s | 2.27s | 11.2s |
+
+Post-run: audit chain valid across 3,926 entries under real concurrent write
+pressure, locks correctly drained to zero, no leaked server processes. The
+uniform ~1.5-1.9s p50 across every tool — including trivially cheap reads —
+is not per-tool cost: it reflects `_track()` serializing auth/permission
+checks behind one process-wide path under the 30-way concurrency cap, so this
+number is a throughput ceiling for the current architecture (~17.7 calls/s,
+~1,060/min), not a per-call latency claim.
+
+**This load test predates the two fixes below** (commit `9de3b08` landed
+after it) — it does not exercise the closed auth bypass or the graph-warmup
+thread, only confirms the audit-chain fix and F1-F3/F6/F7 hold under load.
+
+### A real concurrency bug, found by the stress test's lock_storm scenario
+
+`audit.append()` read the log's last line, computed the next entry's
+`prev_hash`, then wrote — three steps with no lock around them. Sequential
+single-call testing never exercised this; the `lock_storm` scenario's ten
+concurrent `chronos_acquire_lock` calls did, and `audit.verify()` came back
+`TAMPERED -- chain_broken`. Fixed with a `threading.Lock()` around the
+read-then-write critical section. Re-confirmed intact both in the stress
+test's own re-run and, independently, across the 3,926-entry litestar load
+test above — the fix holds under materially heavier concurrency than the bug
+that found it.
+
+### A real architectural gap, found by a follow-up review, now closed
+
+Five tools — `chronos_sensitive_reads`, `chronos_check_gate_status`,
+`chronos_anomaly_report`, `chronos_trigger_anomaly_check`,
+`chronos_trigger_baseline_recompute` — were registered directly on the
+`FastMCP` instance via a bare `@mcp.tool()` decorator instead of through the
+`TOOLS` list, so `_track()` never wrapped them: **zero auth enforcement, even
+under `CHRONOS_AUTH=strict`.** Found by an explicit audit of every
+`@mcp.tool()` decorator in the codebase, not by a test failure — the stress
+test's own auth scenario had been (incorrectly) using one of these
+unwrapped tools to verify rejection, which passed vacuously regardless of
+whether auth worked. Fixed by moving all five into `TOOLS`. `chronos_mcp_status`
+stays deliberately exempt — it is the tool used to diagnose a stuck server,
+so it cannot itself block on that same server's auth path — with a comment
+recording that as a conscious choice, not an oversight.
+
+Re-verified with a targeted check: all five now return `auth_required` under
+strict mode with no key; `chronos_mcp_status` stays open; a real graph call
+issued 3s after server start (giving the new warmup thread — see next —
+a head start) returned in 7.3s, not the up-to-90s cold-open ceiling.
+
+### Kuzu cold-open hang — background warmup added, not fixed
+
+The pre-existing, documented, nondeterministic Kuzu cold-open hang
+(`wedge1_mcp.py`'s own docstring — the driver's first open can block up to
+`CHRONOS_DRIVER_TIMEOUT` with no exception at all) is unrelated to F1-F7 and
+was not caused by this work; confirmed by reproducing it against the
+project's own untouched demo fixture with zero code changes involved. A
+`chronos-graph-warmup` daemon thread now pre-opens the driver in the
+background before the MCP transport comes up, so a cold-open hang (if it
+happens) happens before any client is waiting on it rather than stalling the
+first real tool call. It calls `store.open_driver()`/`ensure_schema()`
+directly rather than awaiting `wedge1_mcp.driver()`'s coroutine, because that
+coroutine's `asyncio.Lock` is not safe to await from two different event
+loops (the warmup thread's vs. `mcp.run()`'s) — this was caught in review
+before it shipped, not found by a test failure.
+
+**Scope limits, stated plainly:** F5 was not exercised against a real
+external repo (no `GITHUB_TOKEN` in either environment used for this work) —
+only against the stress test's own fixture and the CLI-only approval path.
+The litestar production-load run predates the auth-bypass fix and the
+warmup thread, so neither is verified under that specific load profile yet.
+
+---
+
+## Demo — NovaPay fixture, dashboard, presentation mode
+
+Per `demo-spec.md` Option 3 (self-contained demo repo) and Option 2
+(dashboard), both built and both now cover F1-F7 in addition to the original
+wedge 1-4 scope.
+
+**NovaPay fixture** (`demo/novapay/`, its own nested git repo, `.chronos/`
+tracked): a small realistic FastAPI payments codebase with a real
+`requests`→`httpx` refactor in its git history, 4 seeded playbook rules,
+3 seeded ledger sessions, and — new — 3 seeded F1-F7 agents (`claude-code`/
+`cursor` unrestricted, `intern-bot` read-only and scoped to
+`src/payments/**`), a pending sensitive-module gate on payment-provider
+credentials, and a real flagged `HIGH_VOLUME` anomaly (`demo/seed_governance.py`,
+wired into `make demo-fixture`). `make demo-scenario-4` scripts the
+human-in-the-loop flow live: agent blocked by the gate → `chronos gates
+approve` → retry returns `acquired: true, renewed: true` — verified against
+the real committed fixture, not a scratch copy.
+
+**Dashboard** (`chronos/dashboard_server.py` + `dashboard.html`): 6 new
+read-only API endpoints (`/api/agents`, `/api/auth-events`, `/api/audit`,
+`/api/gates`, `/api/anomalies`, `/api/sensitive-reads`) plus a governance
+rollup on `/api/stats`. Four new panels — Gates (with a copy-to-clipboard
+`chronos gates approve` command), Agents & permissions, Behavioural
+anomalies, Sensitive reads — verified rendering real seeded data through the
+actual FastAPI app (`TestClient`), not screenshotted or mocked.
+
+**Presentation mode** (`chronos/presentation.html`, served at `/present`): a
+13-slide live pitch deck (title, wedges 1-4, F1-F7, closing recap), each
+slide pulling one real number off the same APIs the dashboard uses via a
+15s poll, plus a real per-session bar chart for F6 (`/api/anomalies/{agent_id}
+/sessions`, new) driven by the actual seeded 8-normal-sessions-vs-1-outlier
+data. Manual slide advance (click/arrow keys/edge-click), no auto-timer.
+
+**Caught and fixed one accidental side effect during this build:** reading
+`chronos.db` through `db.get_db()` while pointed at novapay's real fixture
+path triggers schema-migration writes (`CREATE TABLE IF NOT EXISTS` for the
+new F1-F7 tables) even on a read-only dashboard smoke test, which dirtied the
+committed file during testing. Reset via `git checkout` before every real
+commit; not a defect in the shipped code, a hazard of testing against the
+tracked fixture directly rather than a scratch copy.
+
+**Known gap, not fixed:** `demo/seed_ledger.py`'s `agent_id="cursor"` (a
+plain string, predates F1) and `demo/seed_governance.py`'s
+`identity.create_agent("cursor", ...)` (a minted hex token) are different
+identities under the hood, so the anomaly panel's `learning_mode_agents` list
+can show what looks like "cursor" twice under two different ids. Cosmetic
+only — fixing it means either an API change to `create_agent` (accept a
+caller-supplied `agent_id`) or renaming the older seed script's string ids,
+neither done here.
+
+---
+
 ## Unification
 
 Packaging change, not a wedge change. No wedge logic was modified — the diff is
@@ -893,6 +1090,25 @@ fixes arrive as a `git pull`.
   spike question ("can its file locking extend to AST-node granularity without a
   fork?") was bypassed: node-level locking keyed on Wedge 1 identities is ~260
   lines and needs no external coordination substrate.
+- **F1-F7 governance layer:** functionally complete, 8/8 stress scenarios pass,
+  verified against a real external repo under 3,000-call concurrent load. Two
+  real gaps remain:
+  1. **F5 has never run against a real GitHub-backed gate** (`GITHUB_TOKEN` +
+     `poll_github_approvals()`'s PR-comment relay) — only the CLI-only
+     approval path is verified, in both the stress test and the litestar
+     pass. The PR-comment code path exists and is read-reviewed, not
+     exercised.
+  2. **The litestar production-load run predates the auth-bypass fix and the
+     graph-warmup thread** (both landed in `9de3b08`, after that run). Audit
+     integrity and F1-F3/F6/F7 correctness are confirmed under that load;
+     the closed auth bypass and the warmup thread's effect on the Kuzu
+     cold-open hang under concurrent load are not yet re-verified at that
+     scale.
+  3. **`_track()` serializes every governed call** behind one process-wide
+     path — the litestar load test's uniform ~1.5-1.9s p50 across every tool
+     is this ceiling, not per-tool cost (~17.7 calls/s sustained). Not a
+     bug, but a real scaling question for a design partner running more
+     than a handful of concurrent agents against one server.
 
 ---
 

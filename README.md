@@ -92,7 +92,8 @@ Or register the server by hand:
     } } }
 ```
 
-That is the whole config — 19 tools across all four wedges. Ready to copy from
+That is the whole config — 26 tools across all four wedges plus F1-F7
+governance. Ready to copy from
 [docs/mcp-config.json](mcp-config.json).
 
 Wedge 1 tools: `as_of_callers`, `as_of_callees`, `as_of_impact`, `what_changed`,
@@ -213,6 +214,32 @@ one is traceable to an agent, a session, and a rule.
 The decision logic is `chronos/policies/enforce.rego` — a real OPA policy file,
 editable and auditable without touching Python.
 
+## Agent governance (F1-F7)
+
+Seven features on top of the four wedges above, for teams running multiple
+agents against one Chronos server:
+
+| | What it does |
+|---|---|
+| **Identity & auth** | Agents authenticate with an API key. `CHRONOS_AUTH=strict` rejects unrecognized callers outright. |
+| **Permissions** | Per-agent manifest: read-only, path-scoped (allow/deny globs), capped concurrent locks. |
+| **Lock TTL & recovery** | Locks expire; a crashed agent can't wedge a node. Emergency-priority requests preempt with a grace window, not a silent reject. |
+| **Audit log** | Every governed action hash-chained into an append-only log. `chronos audit verify` catches a single edited byte. |
+| **Sensitive-module gates** | Mark a path protected; a lock request against it parks for human approval (`chronos gates approve <id>`) instead of going through. |
+| **Anomaly detection** | Learns each agent's normal session shape after 7+ days; flags volume/off-hours/path-deviation outliers. |
+| **Sensitive-read tracking** | Logs access to `.env`/credential/key-shaped paths — path and severity only, never file content. |
+
+```bash
+chronos agent create --name my-agent --type custom    # issue a key
+chronos audit verify                                  # VALID -- N entries verified
+chronos gates approve <gate_id>                       # unblock a pending gate
+```
+
+Opt-in and additive — an install with no agents registered behaves exactly as
+before. Verified via `python tests/stress_test_mcp.py` (8/8 scenarios) and
+against a real external repo under 3,000-call concurrent load; see
+`docs/STATUS.md` for the evidence tables.
+
 ## How it fits together
 
 ```
@@ -235,7 +262,7 @@ chronos/      upstream.py  read upstream's SQLite (schema by introspection)
               sync.py      upstream rows -> bi-temporal nodes/edges
               store.py     Kuzu/Neo4j driver          query.py  as-of reads
               cli.py       chronos                    wedge1_mcp.py  its tools
-              server.py    THE MCP server (all 19)     db.py  one SQLite handle
+              server.py    THE MCP server (all 26)     db.py  one SQLite handle
               triggers.py  cross-wedge feedback loops
               ledger.py    intent locks + provenance  wedge3_mcp.py  its server
               reflector.py trace -> candidate rule    curator.py  gate + submit
@@ -243,10 +270,16 @@ chronos/      upstream.py  read upstream's SQLite (schema by introspection)
               rule_generator.py rule -> ast-grep      detectability.py  validate
               enforcer.py  ast-grep + OPA + stamp     rule_store.py  lifecycle
               policies/enforce.rego  the decision     wedge4_mcp.py  its server
+              identity.py  F1 agent auth              permissions.py  F2 scoping
+              audit.py     F4 hash-chained log         gates.py  F5 human approval
+              anomaly.py   F6 behavioural detection    sensitive.py  F7 read tracking
+              dashboard_server.py  read-only API       dashboard.html  + presentation.html
 docs/         STATUS.md (what's verified, decisions), prd-v1.md, prd-platform.md
 tests/        test_chronos.py (bi-temporal contract), test_wedge2.py (playbook),
               test_wedge3.py (ledger), test_wedge4.py (enforcement),
-              test_unification.py (one server, one db, triggers)
+              test_unification.py (one server, one db, triggers),
+              stress_test_mcp.py (F1-F7, 8 scenarios via real MCP calls)
+demo/         novapay/ fixture repo, seed_*.py, demo_scenario_*.py
 vendor/       codebase-memory-mcp submodule, pinned
 ```
 
@@ -299,6 +332,26 @@ resolution that distinguishes `client.send()` from `server.send()` spans
 `src/pipeline/` plus `internal/cbm/` (~292k lines), so copying a subset yields a
 parser without the resolution, and copying all of it is a fork. Upgrades are an
 explicit submodule bump; upstream fixes arrive as a `git pull`, not a re-port.
+
+## Demo
+
+A self-contained demo repo (`demo/novapay`) with a pre-indexed graph, seeded
+rules, ledger sessions, and F1-F7 governance state (agents, a pending gate,
+a flagged anomaly) — nothing empty on first open:
+
+```bash
+make demo-fixture       # one-time: build the graph, seed rules/ledger/governance
+make demo-start         # print the MCP config, ready to connect an agent
+make demo-scenario-1    # a blocked write, live
+make demo-scenario-4    # gate approval: blocked -> human approves -> retry succeeds
+```
+
+`chronos dashboard` starts a read-only dashboard (`dashboard_server.py`) with
+live activity, enforcement, and governance panels. Its "Present" button opens
+`/present` — a
+13-slide live pitch deck, each slide pulling a real number off the running
+system, built for walking someone through what Chronos does without a
+terminal.
 
 ## Not built (deferred, per PRD)
 

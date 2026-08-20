@@ -64,6 +64,71 @@ CREATE TABLE IF NOT EXISTS enforcement_rules (
     promoted_at          TEXT,
     promoted_by          TEXT
 );
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id    TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    agent_type  TEXT NOT NULL,
+    key_hash    TEXT NOT NULL,
+    key_prefix  TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'active',
+    owner       TEXT,
+    description TEXT,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_agents_key_hash ON agents(key_hash);
+CREATE TABLE IF NOT EXISTS auth_events (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    key_prefix         TEXT NOT NULL,
+    resolved_agent_id  TEXT,
+    status             TEXT NOT NULL,
+    ip                 TEXT,
+    timestamp          TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS agent_permissions (
+    agent_id            TEXT PRIMARY KEY,
+    allowed_paths       TEXT,
+    denied_paths        TEXT,
+    read_only           INTEGER NOT NULL DEFAULT 0,
+    allowed_tools       TEXT,
+    max_concurrent_locks INTEGER,
+    allow_emergency_locks INTEGER NOT NULL DEFAULT 0,
+    updated_at          TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS gate_requests (
+    gate_id                 TEXT PRIMARY KEY,
+    node_id                 TEXT NOT NULL,
+    agent_id                TEXT NOT NULL,
+    session_id              TEXT NOT NULL,
+    protected_module_label  TEXT NOT NULL,
+    status                  TEXT NOT NULL DEFAULT 'pending',
+    requested_at            TEXT NOT NULL,
+    resolved_at             TEXT,
+    resolved_by             TEXT,
+    denial_reason           TEXT,
+    pr_number               INTEGER,
+    expires_at              TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS agent_baselines (
+    agent_id                     TEXT PRIMARY KEY,
+    computed_at                  TEXT NOT NULL,
+    days_of_history              INTEGER NOT NULL,
+    avg_tool_calls_per_session   REAL NOT NULL,
+    avg_unique_files_per_session REAL NOT NULL,
+    avg_session_duration_seconds REAL NOT NULL,
+    active_hour_buckets          TEXT NOT NULL,
+    avg_write_locks_per_session  REAL NOT NULL,
+    common_path_prefixes         TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS anomaly_events (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL,
+    session_id      TEXT NOT NULL,
+    detected_at     TEXT NOT NULL,
+    anomaly_types   TEXT NOT NULL,
+    session_metrics TEXT NOT NULL,
+    baseline_metrics TEXT NOT NULL,
+    severity        TEXT NOT NULL
+);
 """
 
 
@@ -117,6 +182,14 @@ def connect(path=None) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")  # concurrent readers during a write
     con.execute("PRAGMA busy_timeout=5000")
     con.executescript(SCHEMA)
+    # intent_locks predates these columns; CREATE TABLE IF NOT EXISTS won't add
+    # them to an existing table, so ALTER them in, tolerating "already exists".
+    for stmt in ("ALTER TABLE intent_locks ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'",
+                 "ALTER TABLE intent_locks ADD COLUMN status TEXT NOT NULL DEFAULT 'held'"):
+        try:
+            con.execute(stmt)
+        except sqlite3.OperationalError:
+            pass
     return con
 
 

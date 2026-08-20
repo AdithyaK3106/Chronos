@@ -625,6 +625,155 @@ def do_daemon(args):
     print("  Stop with: python -m chronos daemon stop")
 
 
+def do_agent(args):
+    from . import identity, permissions
+    verb = args.agent_verb
+
+    if verb == "create":
+        r = identity.create_agent(args.name, args.type, owner=args.owner,
+                                  description=args.description)
+        print(f"Created agent {r['agent_id']} ({r['name']}, {r['agent_type']})")
+        print(f"\nAPI key (shown once, will not be shown again):\n  {r['raw_key']}\n")
+        return
+
+    if verb == "list":
+        rows = identity.list_agents()
+        if not rows:
+            print("no agents registered")
+            return
+        print(f"{'agent_id':34} {'name':20} {'type':14} {'status':10} {'owner':12} created_at")
+        for r in rows:
+            print(f"{r['agent_id']:34} {r['name'][:20]:20} {r['agent_type'][:14]:14} "
+                  f"{r['status']:10} {(r['owner'] or '')[:12]:12} {r['created_at'][:19]}")
+        return
+
+    if verb == "rotate-key":
+        r = identity.rotate_key(args.agent_id)
+        if not r["rotated"]:
+            print(f"could not rotate: {r['reason']}")
+            raise SystemExit(1)
+        print(f"New API key for {args.agent_id} (old key immediately invalidated):\n  {r['raw_key']}")
+        return
+
+    if verb == "suspend":
+        if not args.confirm:
+            print("this suspends the agent (its key stops authenticating). Pass --confirm.")
+            raise SystemExit(1)
+        r = identity.suspend_agent(args.agent_id)
+        print(f"suspended {args.agent_id}" if r["suspended"] else f"failed: {r['reason']}")
+        return
+
+    if verb == "delete":
+        if not args.confirm:
+            print("this soft-deletes the agent. Pass --confirm.")
+            raise SystemExit(1)
+        r = identity.delete_agent(args.agent_id)
+        print(f"deleted {args.agent_id}" if r["deleted"] else f"failed: {r['reason']}")
+        return
+
+    if verb == "set-permissions":
+        try:
+            manifest = permissions.load_manifest(args.file)
+        except ValueError as e:
+            print(f"invalid manifest: {e}")
+            raise SystemExit(1)
+        permissions.set_permissions(args.agent_id, manifest)
+        print(f"permissions set for {args.agent_id}")
+        return
+
+    if verb == "show-permissions":
+        print(permissions.to_yaml(args.agent_id))
+        return
+
+    if verb == "check-permissions":
+        r = permissions.check(args.agent_id, args.tool, args.path)
+        if r["allowed"]:
+            print("ALLOW")
+        else:
+            print(f"DENY -- {r['reason']}: {r['rule']}")
+        return
+
+
+def do_locks(args):
+    from . import ledger
+    con = ledger.connect()
+    verb = args.locks_verb
+    if verb == "list":
+        rows = ledger.list_locks(con)
+        if not rows:
+            print("no active locks")
+            return
+        print(f"{'node_id':50} {'agent_id':20} {'status':16} {'priority':10} {'acquired_at':26} expires_at")
+        for r in rows:
+            print(f"{r['node_id'][:50]:50} {r['agent_id'][:20]:20} {r['status']:16} "
+                  f"{r['priority']:10} {r['acquired_at'][:19]:26} {r['expires_at'][:19]}")
+        return
+    if verb == "release":
+        if not args.confirm:
+            print("this force-releases the lock regardless of holder. Pass --confirm.")
+            raise SystemExit(1)
+        r = ledger.force_release(con, args.node_id)
+        print(r)
+        return
+    if verb == "release-all":
+        if not args.confirm:
+            print("this force-releases every lock held by this agent. Pass --confirm.")
+            raise SystemExit(1)
+        n = ledger.release_all(con, args.agent)
+        print(f"released {n} lock(s) held by {args.agent}")
+        return
+
+
+def do_gates(args):
+    from . import gates
+    verb = args.gates_verb
+    if verb == "list":
+        rows = gates.list_pending()
+        if not rows:
+            print("no pending gate requests")
+            return
+        print(f"{'gate_id':26} {'node_id':40} {'module':16} {'agent_id':20} {'requested_at':22} expires_at")
+        for r in rows:
+            print(f"{r['gate_id']:26} {r['node_id'][:40]:40} {r['protected_module_label'][:16]:16} "
+                  f"{r['agent_id'][:20]:20} {r['requested_at'][:19]:22} {r['expires_at'][:19]}")
+        return
+    if verb == "approve":
+        r = gates.approve(args.gate_id, "cli")
+        print(r if r["resolved"] else f"could not approve: {r['reason']}")
+        return
+    if verb == "deny":
+        r = gates.deny(args.gate_id, "cli", args.reason)
+        print(r if r["resolved"] else f"could not deny: {r['reason']}")
+        return
+
+
+def do_audit(args):
+    from . import audit
+    verb = args.audit_verb
+    if verb == "verify":
+        r = audit.verify()
+        if r["valid"]:
+            print(f"VALID -- {r['checked']} entries verified")
+            return
+        print(f"TAMPERED -- broken at {r['broken_at']}: {r['reason']}")
+        if "expected" in r:
+            print(f"  expected: {r['expected']}")
+            print(f"  actual:   {r['actual']}")
+        raise SystemExit(1)
+    if verb == "export":
+        out = audit.export(fmt=args.format, since=args.since, until=args.until)
+        if args.output:
+            Path(args.output).write_text(out, encoding="utf-8")
+            print(f"wrote {args.output}")
+        else:
+            print(out)
+        return
+    if verb == "stats":
+        s = audit.stats()
+        print(json.dumps(s, indent=2))
+        return
+
+
 def do_dashboard(args):
     """Serve the read-only developer dashboard.
 
@@ -921,6 +1070,60 @@ def main():
     pro.add_argument("rule_id")
     pro.add_argument("--by", default=os.environ.get("USER") or "unknown",
                      help="who is promoting (recorded in the ledger)")
+    ag = sub.add_parser("agent", help="agent identity, keys, and permissions")
+    ag_sub = ag.add_subparsers(dest="agent_verb", required=True)
+    agc = ag_sub.add_parser("create", help="register a new agent identity")
+    agc.add_argument("--name", required=True)
+    agc.add_argument("--type", required=True, dest="type")
+    agc.add_argument("--owner")
+    agc.add_argument("--description")
+    ag_sub.add_parser("list", help="list registered agents")
+    agr = ag_sub.add_parser("rotate-key", help="issue a new key, invalidating the old one")
+    agr.add_argument("agent_id")
+    ags = ag_sub.add_parser("suspend", help="suspend an agent's key")
+    ags.add_argument("agent_id")
+    ags.add_argument("--confirm", action="store_true")
+    agd = ag_sub.add_parser("delete", help="soft-delete an agent")
+    agd.add_argument("agent_id")
+    agd.add_argument("--confirm", action="store_true")
+    agp = ag_sub.add_parser("set-permissions", help="apply a permission manifest")
+    agp.add_argument("agent_id")
+    agp.add_argument("--file", required=True)
+    agv = ag_sub.add_parser("show-permissions", help="print an agent's current manifest")
+    agv.add_argument("agent_id")
+    agk = ag_sub.add_parser("check-permissions", help="dry-run allow/deny for a path+tool")
+    agk.add_argument("agent_id")
+    agk.add_argument("--path", required=True)
+    agk.add_argument("--tool", required=True)
+
+    lk = sub.add_parser("locks", help="inspect and force-release intent locks")
+    lk_sub = lk.add_subparsers(dest="locks_verb", required=True)
+    lk_sub.add_parser("list", help="show all active locks")
+    lkr = lk_sub.add_parser("release", help="force-release one lock")
+    lkr.add_argument("node_id")
+    lkr.add_argument("--confirm", action="store_true")
+    lka = lk_sub.add_parser("release-all", help="force-release all locks for an agent")
+    lka.add_argument("--agent", required=True)
+    lka.add_argument("--confirm", action="store_true")
+
+    gt = sub.add_parser("gates", help="sensitive-module approval gates")
+    gt_sub = gt.add_subparsers(dest="gates_verb", required=True)
+    gt_sub.add_parser("list", help="pending gate requests")
+    gta = gt_sub.add_parser("approve", help="approve a pending gate")
+    gta.add_argument("gate_id")
+    gtd = gt_sub.add_parser("deny", help="deny a pending gate")
+    gtd.add_argument("gate_id")
+    gtd.add_argument("reason", nargs="?")
+
+    aud = sub.add_parser("audit", help="tamper-evident audit log: verify, export, stats")
+    aud_sub = aud.add_subparsers(dest="audit_verb", required=True)
+    av = aud_sub.add_parser("verify", help="recompute the hash chain")
+    ax = aud_sub.add_parser("export", help="export entries")
+    ax.add_argument("--format", dest="format", default="json", choices=["json", "cef"])
+    ax.add_argument("--output")
+    ax.add_argument("--since")
+    ax.add_argument("--until")
+    aud_sub.add_parser("stats", help="entry count, date range, size")
     dash = sub.add_parser("dashboard", help="serve the developer dashboard")
     dash.add_argument("--port", type=int, default=8080)
     dash.add_argument("--host", default="127.0.0.1")
@@ -951,11 +1154,13 @@ def main():
           "enforce": do_enforce, "init": do_init,
           "approve-rule": do_approve_rule, "promote-rule": do_promote_rule,
           "dashboard": do_dashboard, "daemon": do_daemon,
-          "release-group": do_release_group, "index-log": do_index_log}[args.cmd]
+          "release-group": do_release_group, "index-log": do_index_log,
+          "audit": do_audit, "agent": do_agent, "locks": do_locks, "gates": do_gates}[args.cmd]
     try:
         # dashboard and daemon are sync (uvicorn owns its loop; daemon control
         # is plain socket I/O); everything else is a coroutine
-        if args.cmd in ("dashboard", "daemon", "release-group", "index-log"):
+        if args.cmd in ("dashboard", "daemon", "release-group", "index-log", "audit",
+                        "agent", "locks", "gates"):
             fn(args)
         else:
             asyncio.run(fn(args))

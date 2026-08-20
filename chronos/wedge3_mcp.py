@@ -23,7 +23,8 @@ def con():
 
 @mcp.tool()
 def chronos_acquire_lock(node_id: str, agent_id: str, session_id: str = "",
-                         intent: str = "", ttl_seconds: int = ledger.DEFAULT_TTL) -> dict:
+                         intent: str = "", ttl_seconds: int = ledger.DEFAULT_TTL,
+                         priority: str = "normal") -> dict:
     """Declare intent to modify a node, blocking other agents from it.
 
     node_id is the qualified name from the structural graph (e.g.
@@ -31,8 +32,16 @@ def chronos_acquire_lock(node_id: str, agent_id: str, session_id: str = "",
     holder's agent_id and intent if someone else holds it. Expired locks are swept
     first, so a crashed agent never wedges a node. Re-acquiring your own lock
     extends it.
+
+    priority='emergency' requires the caller's permission manifest to set
+    allow_emergency_locks; otherwise it's silently downgraded to 'elevated'.
     """
-    return ledger.acquire(con(), node_id, agent_id, session_id, intent, ttl_seconds)
+    if priority == "emergency":
+        from . import permissions
+        perms = permissions.get_permissions(agent_id)
+        if not perms or not perms.get("allow_emergency_locks"):
+            priority = "elevated"
+    return ledger.acquire(con(), node_id, agent_id, session_id, intent, ttl_seconds, priority)
 
 
 @mcp.tool()

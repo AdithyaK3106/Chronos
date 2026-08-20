@@ -22,13 +22,15 @@ every existing agent config for a cosmetic gain, so they are left alone.
 import asyncio
 import functools
 import itertools
+import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
 
+from . import audit, identity, permissions, sensitive
 from .wedge1_mcp import (as_of_callees, as_of_callers, as_of_diff,
                          as_of_impact, index_health, what_changed)
 from .wedge2_mcp import (chronos_capture_lesson, chronos_playbook_health,
@@ -81,19 +83,114 @@ def _agent_id_of(kwargs) -> str:
     return "(unnamed caller)"
 
 
+def _node_id_of(kwargs) -> str | None:
+    return kwargs.get("node_id")
+
+
+def _current_api_key() -> str | None:
+    """The MCP client's API key, from its process environment.
+
+    ponytail: FastMCP's stdio transport inherits the parent process env, so
+    the key set in the client's MCP config env block is just os.environ here.
+    """
+    return os.environ.get("CHRONOS_API_KEY")
+
+
+def _authenticate(tool_name: str, kwargs: dict) -> dict:
+    """Runs before every tool call. Returns {"ok": True, "agent_id": ...} or
+    {"ok": False, "error": {...}}."""
+    strict = os.environ.get("CHRONOS_AUTH") == "strict"
+    key = _current_api_key()
+    result = identity.resolve_key(key)
+    if result["status"] == "ok":
+        return {"ok": True, "agent_id": result["agent_id"]}
+    if not strict:
+        # Not enforcing: identity comes from the payload as before, whether
+        # or not a key was presented.
+        return {"ok": True, "agent_id": _agent_id_of(kwargs)}
+    if result["status"] == "no_key":
+        return {"ok": False, "error": {"error": "auth_required",
+                "message": "CHRONOS_AUTH=strict requires a CHRONOS_API_KEY"}}
+    return {"ok": False, "error": {"error": "auth_failed", "reason": result["status"]}}
+
+
+def _check_permissions(agent_id: str, tool_name: str, kwargs: dict) -> dict:
+    node_id = _node_id_of(kwargs)
+    check = permissions.check(agent_id, tool_name, node_id)
+    if not check["allowed"]:
+        try:
+            from . import ledger
+            ledger.log_event(permissions.db.get_db(), node_id or tool_name, agent_id,
+                             kwargs.get("session_id", ""), "permission_denied", check["reason"])
+        except Exception:  # noqa: BLE001 -- denial logging must never block the denial
+            pass
+    return check
+
+
+def _tag_sensitive(agent_id: str, kwargs: dict) -> None:
+    """Side-effect only: logs a sensitive_read provenance+audit entry. Never
+    touches file content -- only the path, label, severity, and matched glob."""
+    node_id = _node_id_of(kwargs)
+    if not node_id:
+        return
+    hit = sensitive.classify_path(node_id.split("::", 1)[0])
+    if not hit:
+        return
+    try:
+        from . import ledger
+        # ledger.log_event already writes the provenance row AND appends to
+        # the audit log; data_sensitivity/label are added on top of that
+        # generic audit entry here so audit consumers can filter by severity
+        # without re-parsing the reason JSON.
+        ledger.log_event(permissions.db.get_db(), node_id, agent_id,
+                         kwargs.get("session_id", ""), "sensitive_read", json.dumps(hit))
+    except Exception:  # noqa: BLE001 -- tagging is a side effect, never fatal
+        return
+    if hit["severity"] == "high" and os.environ.get("CHRONOS_SLACK_WEBHOOK"):
+        _notify_slack(f"High-severity sensitive read: {agent_id} read {node_id} "
+                      f"({hit['label']})")
+
+
+def _notify_slack(text: str) -> None:
+    webhook = os.environ.get("CHRONOS_SLACK_WEBHOOK")
+    if not webhook:
+        return
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            webhook, data=json.dumps({"text": text}).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:  # noqa: BLE001 -- a notification failure must never break a tool call
+        pass
+
+
 def _track(tool):
+    is_async = asyncio.iscoroutinefunction(tool)
+
     @functools.wraps(tool)
     async def wrapped(*args, **kwargs):
         call_id = next(_call_ids)
+        auth = _authenticate(tool.__name__, kwargs)
+        if not auth["ok"]:
+            return auth["error"]
+        agent_id = auth["agent_id"]
+        perm = _check_permissions(agent_id, tool.__name__, kwargs)
+        if not perm["allowed"]:
+            return {"error": "permission_denied", "reason": perm["reason"],
+                    "tool": tool.__name__, "agent_id": agent_id}
+
         entry = {
             "tool": tool.__name__,
-            "agent_id": _agent_id_of(kwargs),
+            "agent_id": agent_id,
             "started_at": datetime.now(timezone.utc).isoformat(),
         }
         with _tracker_lock:
             _IN_FLIGHT[call_id] = entry
         try:
-            return await tool(*args, **kwargs)
+            result = await tool(*args, **kwargs) if is_async else tool(*args, **kwargs)
+            _tag_sensitive(agent_id, kwargs)
+            return result
         finally:
             with _tracker_lock:
                 _IN_FLIGHT.pop(call_id, None)
@@ -101,7 +198,83 @@ def _track(tool):
 
 
 for _tool in TOOLS:
-    mcp.tool()(_track(_tool) if asyncio.iscoroutinefunction(_tool) else _tool)
+    mcp.tool()(_track(_tool))
+
+
+@mcp.tool()
+def chronos_sensitive_reads(agent_id: str = None, since_hours: int = 168) -> dict:
+    """Recent reads/writes against paths classified as sensitive (F7).
+
+    Defaults to the last 7 days. Never includes file content -- only path,
+    label, severity, and the matched pattern (carried in `reason`)."""
+    from . import db as _db
+    con = _db.get_db()
+    since = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).isoformat()
+    q = ("SELECT node_id, agent_id, session_id, reason, timestamp FROM provenance_events "
+         "WHERE action='sensitive_read' AND timestamp >= ?")
+    args = [since]
+    if agent_id:
+        q += " AND agent_id=?"
+        args.append(agent_id)
+    rows = con.execute(q + " ORDER BY id DESC LIMIT 200", args).fetchall()
+    reads = []
+    high = 0
+    for r in rows:
+        hit = json.loads(r["reason"]) if r["reason"] else {}
+        if hit.get("severity") == "high":
+            high += 1
+        reads.append({"node_id": r["node_id"], "agent_id": r["agent_id"],
+                      "session_id": r["session_id"], "label": hit.get("label"),
+                      "severity": hit.get("severity"), "timestamp": r["timestamp"]})
+    return {"reads": reads, "total": len(reads), "high_severity_count": high}
+
+
+@mcp.tool()
+def chronos_check_gate_status(gate_id: str) -> dict:
+    """Poll a sensitive-module gate request (F5): pending, approved, denied, or expired."""
+    from . import gates
+    gate = gates.get_gate(gate_id)
+    if gate is None:
+        return {"error": "no such gate", "gate_id": gate_id}
+    return {"gate_id": gate_id, "status": gate["status"], "module": gate["protected_module_label"],
+            "requested_at": gate["requested_at"], "resolved_at": gate["resolved_at"],
+            "resolved_by": gate["resolved_by"]}
+
+
+@mcp.tool()
+def chronos_anomaly_report(agent_id: str = None, since_hours: int = 24) -> dict:
+    """Recent behavioural anomalies (F6): unusually high volume, off-hours
+    activity, path deviation, or a write-lock spike vs. an agent's baseline."""
+    from . import anomaly
+    return anomaly.report(agent_id, since_hours)
+
+
+@mcp.tool()
+def chronos_trigger_anomaly_check(agent_id: str) -> dict:
+    """Test infrastructure: run the anomaly check on an agent's most recent
+    session right now, instead of waiting for it to go idle for 30 minutes
+    and the sweeper to notice. Not part of the F6 spec's steady state."""
+    from . import anomaly, db as _db
+    con = _db.get_db()
+    rows = con.execute(
+        "SELECT node_id, agent_id, session_id, action, timestamp FROM provenance_events "
+        "WHERE agent_id=? ORDER BY timestamp", (agent_id,)).fetchall()
+    if not rows:
+        return {"checked": False, "reason": "no history"}
+    sessions = anomaly._sessions_for(rows)
+    result = anomaly.check_session(agent_id, sessions[-1], con)
+    return {"checked": True, "anomaly": result}
+
+
+@mcp.tool()
+def chronos_trigger_baseline_recompute() -> dict:
+    """Test infrastructure: force an immediate baseline recompute instead of
+    waiting for the daily sweeper cycle. Not part of the F6 spec's steady
+    state -- exists so the stress test can seed history and get a baseline
+    without sleeping 24h."""
+    from . import anomaly
+    n = anomaly.compute_baselines()
+    return {"agents_updated": n}
 
 
 @mcp.tool()
@@ -125,7 +298,58 @@ def chronos_mcp_status() -> dict:
     return {"busy": True, "in_flight": calls}
 
 
+SWEEP_INTERVAL = float(os.environ.get("CHRONOS_SWEEP_INTERVAL", "60"))
+
+
+def _sweep_once():
+    """One pass: expire locks/gates, rotate the audit log, recompute stale
+    anomaly baselines. Never lets one failing step block the others."""
+    from . import db as _db, ledger
+    con = _db.get_db()
+    try:
+        n = ledger.sweep_expired(con)
+        if n:
+            ledger.log_event(con, "*", "chronos-system", "", "lock_expired", f"{n} lock(s) swept")
+    except Exception as e:  # noqa: BLE001 -- the sweeper must never crash the server
+        print(f"chronos sweeper: lock sweep failed: {e}")
+    try:
+        audit.maybe_rotate()
+    except Exception as e:  # noqa: BLE001
+        print(f"chronos sweeper: audit rotation failed: {e}")
+    try:
+        from . import gates
+        gates.expire_stale()
+    except Exception as e:  # noqa: BLE001
+        print(f"chronos sweeper: gate expiry failed: {e}")
+    try:
+        from . import anomaly
+        anomaly.maybe_recompute_baselines()
+        anomaly.check_idle_sessions()
+    except Exception as e:  # noqa: BLE001
+        print(f"chronos sweeper: anomaly pass failed: {e}")
+
+
+def _sweep_loop():
+    while True:
+        time.sleep(SWEEP_INTERVAL)
+        _sweep_once()
+
+
+def _gate_poll_loop():
+    from . import gates
+    while True:
+        time.sleep(60)
+        try:
+            gates.poll_github_approvals()
+        except Exception as e:  # noqa: BLE001 -- polling must never crash the server
+            print(f"chronos gate poll: {e}")
+
+
 def main():
+    threading.Thread(target=_sweep_loop, daemon=True, name="chronos-lock-sweeper").start()
+    if os.environ.get("GITHUB_TOKEN"):
+        threading.Thread(target=_gate_poll_loop, daemon=True, name="chronos-gate-poll").start()
+
     # Drain any test-failure traces captured since the last run. Backgrounded:
     # the server must start whether or not there are traces, and dispatch may
     # make LLM calls (trace_processor swallows its own failures).

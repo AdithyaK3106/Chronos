@@ -19,6 +19,8 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from . import audit
+
 DEFAULT_TTL = 300
 
 SCHEMA = """
@@ -74,9 +76,16 @@ def sweep_expired(con: sqlite3.Connection) -> int:
     return cur.rowcount or 0
 
 
+PRIORITIES = ("normal", "elevated", "emergency")
+PREEMPTION_GRACE_SECONDS = 60
+
+
 def _lock_row(r: sqlite3.Row) -> dict:
+    keys = r.keys()
     return {"node_id": r["node_id"], "agent_id": r["agent_id"], "session_id": r["session_id"],
-            "intent": r["intent"], "acquired_at": r["acquired_at"], "expires_at": r["expires_at"]}
+            "intent": r["intent"], "acquired_at": r["acquired_at"], "expires_at": r["expires_at"],
+            "priority": r["priority"] if "priority" in keys else "normal",
+            "status": r["status"] if "status" in keys else "held"}
 
 
 def _conflict_hint(node_id, agent_id, held_by, intent):
@@ -90,15 +99,23 @@ def _conflict_hint(node_id, agent_id, held_by, intent):
 
 
 def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
-            ttl_seconds: int = DEFAULT_TTL) -> dict:
+            ttl_seconds: int = DEFAULT_TTL, priority: str = "normal") -> dict:
     """Take an intent lock on one node.
 
     Re-acquiring a lock you already hold extends it (agents retry; that should not
     be an error). Any other holder is a conflict, reported with who holds it and
     why so the caller can coordinate instead of guessing.
+
+    priority='emergency' against a 'normal' holder does not reject outright: it
+    posts a preemption notice and gives the holder PREEMPTION_GRACE_SECONDS
+    before the next sweep evicts it (F3). A held lock in 'pending_release'
+    (F3's disconnect grace period) is reclaimed by the same agent instead of
+    reported as a conflict.
     """
     if not node_id or not agent_id:
         raise ValueError("node_id and agent_id are required")
+    if priority not in PRIORITIES:
+        priority = "normal"
     ttl = max(1, int(ttl_seconds))
     now = _now()
     expires = now + timedelta(seconds=ttl)
@@ -109,20 +126,49 @@ def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
         row = con.execute("SELECT * FROM intent_locks WHERE node_id = ?", (node_id,)).fetchone()
         if row is not None:
             if row["agent_id"] != agent_id:
+                if priority == "emergency" and row["priority"] == "normal":
+                    con.execute(
+                        "UPDATE intent_locks SET expires_at=? WHERE node_id=?",
+                        (_iso(now + timedelta(seconds=PREEMPTION_GRACE_SECONDS)), node_id))
+                    con.execute("COMMIT")
+                    log_event(con, node_id, row["agent_id"], row["session_id"],
+                             "preemption_notice",
+                             f"{agent_id} requested emergency priority; grace "
+                             f"{PREEMPTION_GRACE_SECONDS}s")
+                    return {"acquired": False, "reason": "preemption_pending",
+                            "grace_seconds": PREEMPTION_GRACE_SECONDS,
+                            "preempting_agent": agent_id}
                 con.execute("ROLLBACK")
                 _conflict_hint(node_id, agent_id, row["agent_id"], intent)
                 return {"acquired": False, "reason": "conflict", "conflict": _lock_row(row)}
-            # same agent -> extend
-            con.execute("UPDATE intent_locks SET session_id=?, intent=?, expires_at=? WHERE node_id=?",
-                        (session_id, intent, _iso(expires), node_id))
+            # same agent -> extend (also reclaims a pending_release lock)
+            con.execute(
+                "UPDATE intent_locks SET session_id=?, intent=?, expires_at=?, "
+                "priority=?, status='held' WHERE node_id=?",
+                (session_id, intent, _iso(expires), priority, node_id))
             con.execute("COMMIT")
+            audit.append({"event_type": "lock_acquired", "renewed": True, "node_id": node_id,
+                          "agent_id": agent_id, "session_id": session_id, "intent": intent,
+                          "priority": priority})
             return {"acquired": True, "renewed": True, "node_id": node_id,
                     "expires_at": _iso(expires)}
+        from . import gates
+        gate_module = gates.is_protected(node_id.split("::", 1)[0])
+        lock_status = "pending_approval" if gate_module else "held"
         con.execute(
-            "INSERT INTO intent_locks (node_id, agent_id, session_id, intent, acquired_at, expires_at)"
-            " VALUES (?,?,?,?,?,?)",
-            (node_id, agent_id, session_id, intent, _iso(now), _iso(expires)))
+            "INSERT INTO intent_locks (node_id, agent_id, session_id, intent, acquired_at, "
+            "expires_at, priority, status) VALUES (?,?,?,?,?,?,?,?)",
+            (node_id, agent_id, session_id, intent, _iso(now), _iso(expires), priority, lock_status))
         con.execute("COMMIT")
+        if gate_module:
+            gate = gates.request_gate(node_id, agent_id, session_id, gate_module)
+            audit.append({"event_type": "lock_acquired", "renewed": False, "node_id": node_id,
+                          "agent_id": agent_id, "session_id": session_id, "intent": intent,
+                          "priority": priority, "gate_id": gate["gate_id"]})
+            return {"acquired": False, "reason": "gate_pending", "gate_id": gate["gate_id"],
+                    "module": gate_module["label"],
+                    "message": "Human approval required. Poll chronos_check_gate_status "
+                              "with the gate_id."}
     except sqlite3.IntegrityError:
         # Lost a race between the SELECT and the INSERT; the other agent won.
         con.execute("ROLLBACK")
@@ -134,6 +180,9 @@ def acquire(con, node_id: str, agent_id: str, session_id: str, intent: str,
     except Exception:
         con.execute("ROLLBACK")
         raise
+    audit.append({"event_type": "lock_acquired", "renewed": False, "node_id": node_id,
+                  "agent_id": agent_id, "session_id": session_id, "intent": intent,
+                  "priority": priority})
     return {"acquired": True, "renewed": False, "node_id": node_id, "expires_at": _iso(expires)}
 
 
@@ -150,7 +199,46 @@ def release(con, node_id: str, agent_id: str, session_id: str | None = None) -> 
         return {"released": False, "reason": "not_owner", "held_by": _lock_row(row)}
     intent = row["intent"]
     con.execute("DELETE FROM intent_locks WHERE node_id = ?", (node_id,))
+    audit.append({"event_type": "lock_released", "node_id": node_id,
+                  "agent_id": agent_id, "session_id": session_id or "", "intent": intent})
     return {"released": True, "node_id": node_id, "intent": intent}
+
+
+def mark_pending_release(con, agent_id: str, grace_seconds: int = 300) -> int:
+    """On client disconnect: move this agent's held locks to pending_release
+    with a fresh grace-period expiry. sweep_expired() treats pending_release
+    the same as held for expiry. Reconnecting with acquire() reclaims them."""
+    grace_until = _iso(_now() + timedelta(seconds=grace_seconds))
+    cur = con.execute(
+        "UPDATE intent_locks SET status='pending_release', expires_at=? "
+        "WHERE agent_id=? AND status='held'", (grace_until, agent_id))
+    return cur.rowcount or 0
+
+
+def list_locks(con) -> list[dict]:
+    sweep_expired(con)
+    rows = con.execute("SELECT * FROM intent_locks ORDER BY acquired_at").fetchall()
+    return [_lock_row(r) for r in rows]
+
+
+def force_release(con, node_id: str) -> dict:
+    """Platform-engineer override: release regardless of holder."""
+    row = con.execute("SELECT * FROM intent_locks WHERE node_id=?", (node_id,)).fetchone()
+    if row is None:
+        return {"released": False, "reason": "not_locked", "node_id": node_id}
+    con.execute("DELETE FROM intent_locks WHERE node_id=?", (node_id,))
+    log_event(con, node_id, "chronos-system", "", "force_released",
+             f"was held by {row['agent_id']}")
+    return {"released": True, "node_id": node_id, "was_held_by": row["agent_id"]}
+
+
+def release_all(con, agent_id: str) -> int:
+    rows = con.execute("SELECT node_id FROM intent_locks WHERE agent_id=?", (agent_id,)).fetchall()
+    con.execute("DELETE FROM intent_locks WHERE agent_id=?", (agent_id,))
+    for r in rows:
+        log_event(con, r["node_id"], "chronos-system", "", "force_released",
+                 f"release-all for {agent_id}")
+    return len(rows)
 
 
 def check_conflicts(con, node_ids: list[str]) -> dict:
@@ -178,6 +266,9 @@ def log_event(con, node_id: str, agent_id: str, session_id: str, action: str,
         "INSERT INTO provenance_events (node_id, agent_id, session_id, action, reason, timestamp)"
         " VALUES (?,?,?,?,?,?)",
         (node_id, agent_id, session_id, action, reason or "", ts))
+    audit.append({"event_type": "provenance", "node_id": node_id, "agent_id": agent_id,
+                  "session_id": session_id, "action": action, "reason": reason or "",
+                  "timestamp": ts})
     return {"logged": True, "id": cur.lastrowid, "node_id": node_id, "timestamp": ts}
 
 

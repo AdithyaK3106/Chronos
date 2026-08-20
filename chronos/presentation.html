@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chronos — Presentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0d12; --bg-lift:#15161e;
+  --card:#181a23; --card-hi:#1c1f2a;
+  --border:#262834; --border-hi:#33384a;
+  --ink:#f0f1f5; --ink-dim:#a8adbd; --muted:#71768a;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#9085e9;
+  --r:14px; --r-sm:8px;
+  --t-fast:130ms; --t:220ms; --t-slow:560ms;
+  --ease-out:cubic-bezier(.22,.85,.3,1);
+  --spring:cubic-bezier(.34,1.4,.5,1);
+  --sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Fira Code",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow:hidden;height:100vh;width:100vw;
+}
+h1,h2,h3{text-wrap:balance;margin:0}
+svg{display:block}
+
+/* ─── ambient background: slow-drifting radial field + particle canvas ─── */
+#field{position:fixed;inset:0;z-index:0;overflow:hidden;background:var(--bg)}
+#field::before{
+  content:"";position:absolute;inset:-20%;
+  background:radial-gradient(closest-side, var(--slide-accent, var(--cat-1)) 0%, transparent 68%);
+  opacity:.12;filter:blur(60px);
+  animation:drift 26s ease-in-out infinite alternate;
+  transition:background var(--t-slow) var(--ease-out);
+}
+@keyframes drift{
+  0%{transform:translate(-6%,-4%) scale(1)}
+  100%{transform:translate(6%,5%) scale(1.15)}
+}
+#particles{position:fixed;inset:0;z-index:0;opacity:.5}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ─── deck shell ─── */
+#deck{position:relative;z-index:2;height:100vh;width:100vw}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:56px 76px;
+  opacity:0;pointer-events:none;
+  transform:translateY(18px) scale(.98);
+  transition:opacity var(--t-slow) var(--ease-out),transform var(--t-slow) var(--ease-out);
+}
+.slide.on{opacity:1;pointer-events:auto;transform:none}
+.slide.leaving{opacity:0;transform:translateY(-18px) scale(.98);transition-duration:260ms}
+.slide-inner{max-width:1120px;width:100%}
+.slide-inner.wide{max-width:1280px}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;font:600 12.5px/1 var(--mono);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--slide-accent,var(--cat-1));
+  margin-bottom:18px;opacity:0;transform:translateY(10px);
+}
+.eyebrow .n{color:var(--muted);font-weight:500}
+.eyebrow .bar{width:26px;height:1px;background:var(--slide-accent,var(--cat-1))}
+.slide.on .eyebrow{animation:up 620ms var(--ease-out) 80ms forwards}
+
+h2.headline{
+  font-size:clamp(34px,4.6vw,58px);font-weight:700;letter-spacing:-.025em;
+  color:#fff;line-height:1.06;margin-bottom:16px;
+  opacity:0;transform:translateY(16px);
+}
+.slide.on h2.headline{animation:up 620ms var(--ease-out) 160ms forwards}
+
+.dek{
+  font-size:clamp(14.5px,1.3vw,17px);line-height:1.58;color:var(--ink-dim);
+  max-width:600px;margin-bottom:26px;
+  opacity:0;transform:translateY(12px);
+}
+.slide.on .dek{animation:up 620ms var(--ease-out) 240ms forwards}
+
+@keyframes up{to{opacity:1;transform:none}}
+@keyframes fadeIn{to{opacity:1}}
+@keyframes popIn{to{opacity:1;transform:none}}
+@keyframes drawLine{to{stroke-dashoffset:0}}
+@keyframes glowPulse{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes countTick{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ringPulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+
+/* ─── proof chip ─── */
+.proof{
+  display:inline-flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--border-hi);border-radius:99px;
+  padding:9px 18px 9px 9px;
+  opacity:0;transform:translateY(10px) scale(.96);
+  box-shadow:0 20px 50px -22px rgba(0,0,0,.7);
+}
+.slide.on .proof{animation:popIn 560ms var(--spring) 420ms forwards}
+.proof .dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none;
+  box-shadow:0 0 0 0 rgba(12,163,12,.5);animation:pulse 2.4s var(--ease-out) infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(12,163,12,.45)}70%{box-shadow:0 0 0 6px rgba(12,163,12,0)}100%{box-shadow:0 0 0 0 rgba(12,163,12,0)}}
+.proof .v{font:700 19px/1 var(--sans);color:#fff;font-variant-numeric:tabular-nums}
+.proof .l{font-size:12px;color:var(--muted)}
+.proof.stale .dot{background:var(--muted);animation:none}
+
+/* ─── visual slot ─── */
+.visual{margin-top:4px;opacity:0;transform:translateY(14px);width:100%}
+.slide.on .visual{animation:up 640ms var(--ease-out) 300ms forwards}
+.viz-frame{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:26px 30px;position:relative;overflow:hidden}
+.viz-frame::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
+  background:linear-gradient(135deg,var(--slide-accent,var(--cat-1)),transparent 40%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;pointer-events:none}
+
+.mono{font-family:var(--mono)}
+.chip-label{font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* ─── two-column layout for slides with diagram + side notes ─── */
+.split-viz{display:grid;grid-template-columns:1.3fr .95fr;gap:22px;align-items:stretch}
+@media(max-width:980px){.split-viz{grid-template-columns:1fr}}
+.side-notes{display:flex;flex-direction:column;gap:10px;justify-content:center}
+.note-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink-dim);
+  opacity:0;transform:translateX(8px)}
+.slide.on .note-row{animation:noteIn 480ms var(--ease-out) forwards}
+@keyframes noteIn{to{opacity:1;transform:none}}
+.note-row .idx{width:20px;height:20px;border-radius:50%;background:var(--card-hi);
+  border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;
+  font:600 10px var(--mono);color:var(--slide-accent,var(--cat-1));flex:none;margin-top:1px}
+
+/* ─── SVG diagram helpers ─── */
+.diagram{width:100%;height:auto;overflow:visible}
+.diagram .lbl{font:500 12px var(--sans);fill:var(--ink-dim)}
+.diagram .lbl-mono{font:500 10.5px var(--mono);fill:var(--muted)}
+.diagram .lbl-strong{font:600 13px var(--sans);fill:#fff}
+.diagram .node-circle{fill:var(--card-hi);stroke:var(--border-hi);stroke-width:1.5}
+.diagram .node-circle.hit{fill:color-mix(in srgb, var(--slide-accent,var(--cat-1)) 22%, var(--card-hi));
+  stroke:var(--slide-accent,var(--cat-1))}
+.diagram .edge{stroke:var(--border-hi);stroke-width:1.5;fill:none}
+.diagram .edge.active{stroke:var(--slide-accent,var(--cat-1))}
+.diagram .pulse-ring{fill:none;stroke:var(--slide-accent,var(--cat-1));stroke-width:2;
+  transform-origin:center;transform-box:fill-box;animation:ringPulse 2.2s ease-out infinite}
+
+/* lock TTL bar */
+.ttl-bar{height:8px;border-radius:99px;background:var(--bg-lift);overflow:hidden;position:relative}
+.ttl-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--good),var(--slide-accent,var(--cat-1)));
+  transform-origin:left;animation:countTick 4.5s linear infinite}
+
+/* hash chain */
+.chain{display:flex;align-items:center;flex-wrap:wrap;gap:0;justify-content:center}
+.chain .link{
+  background:var(--card-hi);border:1px solid var(--border-hi);border-radius:var(--r-sm);
+  padding:12px 15px;font:500 11.5px var(--mono);color:var(--ink-dim);position:relative;
+  opacity:0;transform:translateY(6px) scale(.94);
+}
+.slide.on .chain .link{animation:linkIn 420ms var(--spring) forwards}
+@keyframes linkIn{to{opacity:1;transform:none}}
+.chain .link b{color:#fff;display:block;font-size:12.5px;margin-bottom:2px}
+.chain .link.verified{border-color:var(--good);color:#8ce68c}
+.chain .connector{width:22px;height:2px;background:var(--border-hi);position:relative;flex:none;
+  opacity:0;animation:fadeIn 300ms ease-out forwards}
+.chain .connector::after{content:"";position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border:4px solid transparent;border-left-color:var(--border-hi)}
+
+/* bar chart (F6 session volume) */
+.barchart{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:10px}
+.barchart .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.barchart .bar{width:100%;border-radius:4px 4px 2px 2px;background:var(--slide-accent,var(--cat-1));
+  opacity:.55;transform:scaleY(0);transform-origin:bottom}
+.slide.on .barchart .bar{animation:barGrow 620ms var(--spring) forwards}
+@keyframes barGrow{to{transform:scaleY(1)}}
+.barchart .bar.outlier{background:var(--critical);opacity:.9}
+.barchart .bar-n{font:600 11px var(--mono);color:var(--ink-dim)}
+.barchart .bar-l{font:500 9.5px var(--mono);color:var(--muted)}
+
+/* permission matrix (F2) */
+.matrix{display:grid;gap:8px}
+.matrix .mrow{display:grid;grid-template-columns:120px repeat(3,1fr);gap:8px;align-items:center}
+.matrix .mhead{font:600 10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.matrix .agent-name{font:600 12.5px var(--sans);color:#fff}
+.matrix .cell{height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font:600 10px var(--mono);border:1px solid var(--border);opacity:0;transform:scale(.85)}
+.slide.on .matrix .cell{animation:cellIn 380ms var(--spring) forwards}
+@keyframes cellIn{to{opacity:1;transform:none}}
+.matrix .cell.allow{background:rgba(12,163,12,.14);border-color:rgba(12,163,12,.4);color:#8ce68c}
+.matrix .cell.deny{background:rgba(208,59,59,.14);border-color:rgba(208,59,59,.4);color:#ffb3ab}
+.matrix .cell.ro{background:rgba(250,178,25,.14);border-color:rgba(250,178,25,.4);color:#ffd48a}
+
+/* sequence diagram (block -> approve -> retry, F5) */
+.seq{display:flex;flex-direction:column;gap:0}
+.seq .step{display:flex;align-items:center;gap:14px;padding:11px 0;opacity:0;transform:translateX(-10px)}
+.slide.on .seq .step{animation:stepIn 480ms var(--ease-out) forwards}
+@keyframes stepIn{to{opacity:1;transform:none}}
+.seq .step .ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex:none;border:1.5px solid var(--border-hi);background:var(--card-hi)}
+.seq .step.block .ic{border-color:var(--critical);color:var(--critical)}
+.seq .step.wait .ic{border-color:var(--warning);color:var(--warning)}
+.seq .step.ok .ic{border-color:var(--good);color:var(--good)}
+.seq .step .txt b{display:block;color:#fff;font-size:13.5px}
+.seq .step .txt span{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.seq .connector-v{width:1.5px;height:16px;background:var(--border-hi);margin-left:17px}
+
+/* severity chips */
+.sev-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.sev-chip{display:flex;align-items:center;gap:6px;font:600 11.5px var(--mono);color:var(--ink-dim);
+  background:var(--card-hi);border:1px solid var(--border-hi);border-radius:99px;padding:6px 13px;
+  opacity:0;transform:translateY(6px)}
+.slide.on .sev-chip{animation:up 420ms var(--ease-out) forwards}
+.sev-chip .d{width:7px;height:7px;border-radius:50%}
+
+/* redaction bar (F7) */
+.redact{display:inline-block;background:repeating-linear-gradient(135deg,var(--card-hi),var(--card-hi) 4px,var(--border-hi) 4px,var(--border-hi) 8px);
+  border-radius:3px;color:transparent;padding:1px 3px}
+
+/* ─── title slide ─── */
+#s-0 .brand{font:800 clamp(52px,8.4vw,102px)/1 var(--sans);letter-spacing:-.03em;color:#fff;
+  opacity:0;transform:translateY(20px)}
+#s-0.on .brand{animation:up 680ms var(--ease-out) 100ms forwards}
+#s-0 .tagline{font-size:clamp(15px,1.9vw,19px);color:var(--ink-dim);margin-top:16px;
+  max-width:600px;text-align:center;opacity:0;transform:translateY(12px)}
+#s-0.on .tagline{animation:up 620ms var(--ease-out) 300ms forwards}
+#s-0 .hint{margin-top:46px;font:500 12px var(--mono);color:var(--muted);
+  display:flex;align-items:center;gap:8px;opacity:0}
+#s-0.on .hint{animation:up 620ms var(--ease-out) 520ms forwards}
+#s-0 .hint kbd{background:var(--card);border:1px solid var(--border-hi);border-radius:5px;
+  padding:2px 8px;color:var(--ink-dim);font-family:var(--mono)}
+#s-0{align-items:center}
+#s-0 .slide-inner{text-align:center;display:flex;flex-direction:column;align-items:center}
+
+/* ─── closing slide ─── */
+#s-12 .grid-recap{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;max-width:840px}
+@media(max-width:900px){#s-12 .grid-recap{grid-template-columns:repeat(2,1fr)}}
+.recap-chip{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:11px 13px;font:500 12px var(--sans);color:var(--ink-dim);text-align:left;
+  opacity:0;transform:translateY(8px)}
+.slide.on .recap-chip{animation:up 480ms var(--ease-out) forwards}
+.recap-chip b{display:block;color:#fff;font-size:12.5px;margin-bottom:2px}
+
+/* ─── nav chrome ─── */
+#progress{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  display:flex;gap:7px;pointer-events:auto;z-index:10}
+.pdot{width:7px;height:7px;border-radius:50%;background:var(--border-hi);cursor:pointer;
+  transition:all var(--t-fast) var(--ease-out);flex:none}
+.pdot:hover{background:var(--muted)}
+.pdot.on{width:22px;border-radius:99px;background:var(--slide-accent,var(--cat-1))}
+
+#navbtn{position:fixed;top:24px;right:28px;display:flex;gap:8px;pointer-events:auto;z-index:11}
+.nbtn{width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border-hi);
+  color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all var(--t-fast) var(--ease-out)}
+.nbtn:hover{color:#fff;border-color:var(--slide-accent,var(--cat-1));background:var(--card-hi)}
+.nbtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+#exit{position:fixed;top:26px;left:28px;pointer-events:auto;z-index:11;
+  font:500 12px var(--mono);color:var(--muted);text-decoration:none;
+  display:flex;align-items:center;gap:7px;transition:color var(--t-fast)}
+#exit:hover{color:var(--ink-dim)}
+
+#counter{position:fixed;bottom:28px;right:28px;font:500 11.5px var(--mono);color:var(--muted);
+  pointer-events:none;font-variant-numeric:tabular-nums;z-index:10}
+
+.arrow-edge{position:fixed;top:0;bottom:0;width:13%;z-index:9;cursor:pointer;pointer-events:auto}
+.arrow-edge.left{left:0}
+.arrow-edge.right{right:0}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-key"><circle cx="7.5" cy="14.5" r="4"/><path d="M10.3 11.7 19 3l2 2-1.7 1.7L21 8.4l-2.6 2.6-1.7-1.7-1.9 1.9"/></g>
+  <g id="i-ban"><circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2l11.6 11.6"/></g>
+  <g id="i-hand"><path d="M8 13.5V6a1.5 1.5 0 0 1 3 0v6M11 12.2V4.5a1.5 1.5 0 0 1 3 0V12M14 12.5V6a1.5 1.5 0 0 1 3 0v8"/><path d="M17 11v2.5a6.5 6.5 0 0 1-13 0V13l-1.6-2.7A1.4 1.4 0 0 1 4.7 8.3L6 10"/></g>
+  <g id="i-check"><path d="M20 6.5 9.5 17 4 11.6"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="8.8"/><path d="M12 7v5.3l3.3 2"/></g>
+  <g id="i-eye"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></g>
+  <g id="i-arrow-r"><path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5"/></g>
+  <g id="i-arrow-l"><path d="M19.5 12h-14M11 17.5 5.5 12l5.5-5.5"/></g>
+</defs></svg>
+
+<div id="field"><canvas id="particles"></canvas></div>
+<div class="grain"></div>
+
+<a id="exit" href="/"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px"><use href="#i-arrow-l"/></svg> exit to dashboard</a>
+<div id="navbtn">
+  <button class="nbtn" id="btn-prev" aria-label="Previous slide"><svg viewBox="0 0 24 24"><use href="#i-arrow-l"/></svg></button>
+  <button class="nbtn" id="btn-next" aria-label="Next slide"><svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></button>
+</div>
+<div class="arrow-edge left" id="edge-left"></div>
+<div class="arrow-edge right" id="edge-right"></div>
+<div id="counter"></div>
+<div id="progress"></div>
+
+<div id="deck"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const API = location.protocol === "file:" ? "http://127.0.0.1:8080" : "";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ── ambient particle field: small nodes drifting + occasional connecting
+   lines, evokes "graph" without literally being one -- runs behind every
+   slide at low opacity, independent of slide content ── */
+(function particles(){
+  const cvs = $("#particles");
+  const ctx = cvs.getContext("2d");
+  let w, h, pts;
+  function resize(){
+    w = cvs.width = innerWidth; h = cvs.height = innerHeight;
+    const n = Math.round((w*h) / 42000);
+    pts = Array.from({length: n}, () => ({
+      x: Math.random()*w, y: Math.random()*h,
+      vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18, r: 1 + Math.random()*1.4,
+    }));
+  }
+  function accent(){
+    return getComputedStyle(document.documentElement).getPropertyValue("--slide-accent-rgb").trim() || "57,135,229";
+  }
+  function step(){
+    if(!RM){
+      ctx.clearRect(0,0,w,h);
+      const col = accent();
+      for(const p of pts){
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < 0 || p.x > w) p.vx *= -1;
+        if(p.y < 0 || p.y > h) p.vy *= -1;
+      }
+      for(let i=0;i<pts.length;i++){
+        for(let j=i+1;j<pts.length;j++){
+          const a = pts[i], b = pts[j];
+          const d = Math.hypot(a.x-b.x, a.y-b.y);
+          if(d < 130){
+            ctx.strokeStyle = `rgba(${col},${(1-d/130)*.14})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+          }
+        }
+        ctx.fillStyle = `rgba(${col},.4)`;
+        ctx.beginPath(); ctx.arc(pts[i].x, pts[i].y, pts[i].r, 0, 7); ctx.fill();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  addEventListener("resize", resize);
+  resize(); step();
+})();
+
+/* ── accent color plumbing: slides set --slide-accent as a CSS color (var()
+   reference), but the particle canvas needs an actual "r,g,b" string, so we
+   also set --slide-accent-rgb alongside it from a lookup table ── */
+const ACCENT_RGB = {
+  "var(--cat-1)": "57,135,229", "var(--cat-2)": "217,89,38", "var(--cat-3)": "25,158,112",
+  "var(--cat-4)": "144,133,233", "var(--serious)": "236,131,90", "var(--warning)": "250,178,25",
+};
+function setAccent(v){
+  document.documentElement.style.setProperty("--slide-accent", v);
+  document.documentElement.style.setProperty("--slide-accent-rgb", ACCENT_RGB[v] || "57,135,229");
+}
+
+/* ── live data cache ── */
+const D = {};
+
+/* ═══════════════════════════ SLIDE DIAGRAMS ═══════════════════════════ */
+
+function diagWedge1(){
+  // mini call-graph: process_payment <- charge_card <- verify_signature,
+  // nodes light up left-to-right to suggest a traversal, with a time axis
+  // underneath showing "before refactor" vs "now" states.
+  return `<div class="viz-frame"><svg class="diagram" viewBox="0 0 640 200">
+    <g class="edge-group">
+      <path class="edge active" d="M120,100 L280,100" stroke-dasharray="160" stroke-dashoffset="160" style="animation:drawLine 900ms 300ms ease-out forwards"/>
+      <path class="edge active" d="M320,100 L480,100" stroke-dasharray="160" stroke-dashoffset="160" style="animation:drawLine 900ms 700ms ease-out forwards"/>
+    </g>
+    <g style="opacity:0;animation:fadeIn 400ms 150ms forwards">
+      <circle class="node-circle hit" cx="80" cy="100" r="34"/>
+      <text class="lbl-strong" x="80" y="96" text-anchor="middle">verify_</text>
+      <text class="lbl-strong" x="80" y="110" text-anchor="middle">signature</text>
+    </g>
+    <g style="opacity:0;animation:fadeIn 400ms 550ms forwards">
+      <circle class="node-circle hit" cx="300" cy="100" r="34"/>
+      <text class="lbl-strong" x="300" y="96" text-anchor="middle">charge_</text>
+      <text class="lbl-strong" x="300" y="110" text-anchor="middle">card</text>
+    </g>
+    <g style="opacity:0;animation:fadeIn 400ms 950ms forwards">
+      <circle class="node-circle hit" cx="530" cy="100" r="38"/>
+      <text class="lbl-strong" x="530" y="96" text-anchor="middle">process_</text>
+      <text class="lbl-strong" x="530" y="110" text-anchor="middle">payment</text>
+      <circle class="pulse-ring" cx="530" cy="100" r="38" style="animation-delay:1.1s"/>
+    </g>
+    <line x1="40" y1="168" x2="600" y2="168" stroke="var(--border)" stroke-width="1"/>
+    <text class="lbl-mono" x="40" y="188">2026-06-12 · requests-based</text>
+    <text class="lbl-mono" x="480" y="188" text-anchor="end">now · httpx-based</text>
+    <circle cx="180" cy="168" r="3.5" fill="var(--muted)"/>
+    <circle cx="600" cy="168" r="4" fill="var(--slide-accent,var(--cat-1))"/>
+  </svg></div>`;
+}
+
+function diagWedge2(){
+  return `<div class="viz-frame"><div class="seq">
+    <div class="step block"><div class="ic">${icon("i-ban",16)}</div>
+      <div class="txt"><b>Agent used requests.post()</b><span>flagged in code review — src/payments/client.py</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step wait" style="animation-delay:260ms"><div class="ic">${icon("i-clock",16)}</div>
+      <div class="txt"><b>Rule proposed: no-requests</b><span>"Don't use requests — use httpx (async)"</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step ok" style="animation-delay:520ms"><div class="ic">${icon("i-check",16)}</div>
+      <div class="txt"><b>Promoted to blocking, by a human</b><span>now enforced on every future diff</span></div></div>
+  </div></div>`;
+}
+
+function diagWedge3(){
+  return `<div class="viz-frame"><svg class="diagram" viewBox="0 0 640 170">
+    <g style="opacity:0;animation:fadeIn 400ms 150ms forwards">
+      <rect x="30" y="55" width="220" height="60" rx="10" class="node-circle hit"/>
+      <text class="lbl-strong" x="140" y="80" text-anchor="middle">claude-code</text>
+      <text class="lbl-mono" x="140" y="98" text-anchor="middle">locks charge_card()</text>
+    </g>
+    <path class="edge active" d="M250,85 L370,85" stroke-dasharray="120" stroke-dashoffset="120" style="animation:drawLine 700ms 500ms ease-out forwards"/>
+    <g style="opacity:0;animation:fadeIn 400ms 900ms forwards">
+      <rect x="380" y="55" width="230" height="60" rx="10" fill="rgba(208,59,59,.12)" stroke="var(--critical)" stroke-width="1.5"/>
+      <text x="495" y="80" text-anchor="middle" font="600 13px var(--sans)" fill="#ffb3ab">cursor — conflict</text>
+      <text class="lbl-mono" x="495" y="98" text-anchor="middle" fill="#ffb3ab">told exactly who holds it</text>
+    </g>
+  </svg></div>`;
+}
+
+function diagWedge4(){
+  return `<div class="viz-frame"><div style="font-family:var(--mono);font-size:13px;line-height:1.9">
+    <div style="color:var(--critical);font-weight:700;display:flex;align-items:center;gap:8px;
+      opacity:0;animation:up 420ms var(--ease-out) 150ms forwards">${icon("i-ban",15)} BLOCKED &nbsp;chronos-enforce</div>
+    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 340ms forwards">Rule: <b style="color:#fff">no-requests</b> (promoted, blocking)</div>
+    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 480ms forwards">Match: <span style="color:#fff">src/payments/client.py:47</span></div>
+    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 620ms forwards">Fix: use httpx.AsyncClient instead of requests</div>
+  </div></div>`;
+}
+
+function diagF1(){
+  return `<div class="viz-frame"><div class="seq">
+    <div class="step" style="border:none"><div class="ic">${icon("i-key",16)}</div>
+      <div class="txt"><b>chron_•••••••• presented</b><span>on every MCP tool call</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step" style="animation-delay:220ms"><div class="ic">${icon("i-arrow-r",16)}</div>
+      <div class="txt"><b>resolve_key() looks up the hash</b><span>raw key is never stored, only its SHA-256</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step ok" style="animation-delay:440ms"><div class="ic">${icon("i-check",16)}</div>
+      <div class="txt"><b>agent_id confirmed: cursor</b><span>every action from here is attributed</span></div></div>
+  </div></div>`;
+}
+
+function diagF2(){
+  const rows = [
+    {name:"claude-code", cells:["allow","allow","allow"]},
+    {name:"cursor", cells:["allow","allow","allow"]},
+    {name:"intern-bot", cells:["allow","deny","ro"]},
+  ];
+  const cols = ["src/payments/**","src/auth/**","write access"];
+  return `<div class="viz-frame"><div class="matrix">
+    <div class="mrow"><div></div>${cols.map(c=>`<div class="mhead">${esc(c)}</div>`).join("")}</div>
+    ${rows.map((r,ri) => `<div class="mrow">
+      <div class="agent-name">${esc(r.name)}</div>
+      ${r.cells.map((c,ci) => `<div class="cell ${c}" style="animation-delay:${150+ri*90+ci*60}ms">${
+        c==="allow"?"ALLOW":c==="deny"?"DENY":"READ-ONLY"}</div>`).join("")}
+    </div>`).join("")}
+  </div></div>`;
+}
+
+function diagF3(){
+  return `<div class="viz-frame"><div style="display:flex;flex-direction:column;gap:16px">
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+        <span class="chip-label">src/payments/webhooks.py::verify_signature</span>
+        <span class="lbl-mono" style="fill:var(--muted)">TTL 300s</span>
+      </div>
+      <div class="ttl-bar"><div class="ttl-fill"></div></div>
+    </div>
+    <div class="seq" style="margin-top:4px">
+      <div class="step wait"><div class="ic">${icon("i-clock",16)}</div>
+        <div class="txt"><b>Emergency request arrives mid-hold</b><span>doesn't fail outright — posts a preemption notice</span></div></div>
+      <div class="connector-v"></div>
+      <div class="step ok" style="animation-delay:240ms"><div class="ic">${icon("i-check",16)}</div>
+        <div class="txt"><b>60s grace, then reclaimed</b><span>or the original holder finishes first — no data loss either way</span></div></div>
+    </div>
+  </div></div>`;
+}
+
+function diagF4(){
+  return `<div class="viz-frame"><div class="chain">
+    <div class="link" style="animation-delay:100ms"><b>seq 117</b>lock_acquired</div>
+    <div class="connector" style="animation-delay:260ms"></div>
+    <div class="link" style="animation-delay:340ms"><b>seq 118</b>permission_denied</div>
+    <div class="connector" style="animation-delay:500ms"></div>
+    <div class="link" style="animation-delay:580ms"><b>seq 119</b>gate_requested</div>
+    <div class="connector" style="animation-delay:740ms"></div>
+    <div class="link verified" style="animation-delay:820ms">${icon("i-check",13)}<b style="color:#8ce68c">verified</b>chain intact</div>
+  </div>
+  <div style="margin-top:16px;font-size:11.5px;color:var(--muted);text-align:center;
+    opacity:0;animation:fadeIn 400ms 1000ms forwards">
+    edit one byte anywhere in the log → every entry after it fails to verify
+  </div></div>`;
+}
+
+function diagF5(){
+  return `<div class="viz-frame"><div class="seq">
+    <div class="step block"><div class="ic">${icon("i-hand",16)}</div>
+      <div class="txt"><b>cursor → rotate_key() on provider_keys.py</b><span>BLOCKED — Payment provider credentials is gated</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step wait" style="animation-delay:240ms"><div class="ic">${icon("i-clock",16)}</div>
+      <div class="txt"><b>$ chronos gates approve &lt;gate_id&gt;</b><span>run by a human with repo access</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step ok" style="animation-delay:480ms"><div class="ic">${icon("i-check",16)}</div>
+      <div class="txt"><b>Retry → acquired: true, renewed: true</b><span>same lock request, now let through</span></div></div>
+  </div></div>`;
+}
+
+function diagF6(sessions){
+  const data = sessions && sessions.length ? sessions : Array.from({length:9},(_,i)=>({calls: i===8?40:4}));
+  const max = Math.max(...data.map(d=>d.calls));
+  return `<div class="viz-frame"><div class="chip-label" style="margin-bottom:10px">intern-bot · calls per session, last 9 sessions</div>
+  <div class="barchart">${data.map((d,i) => {
+    const isOutlier = d.calls > (data[0]?.calls || 4) * 3;
+    const h = Math.max(6, (d.calls/max)*100);
+    return `<div class="bar-col">
+      <div class="bar-n">${d.calls}</div>
+      <div class="bar ${isOutlier?"outlier":""}" style="height:${h}%;animation-delay:${i*55}ms"></div>
+      <div class="bar-l">${isOutlier?"OUTLIER":"day "+(i+1)}</div>
+    </div>`;
+  }).join("")}</div>
+  <div class="sev-row" style="margin-top:16px">
+    <div class="sev-chip" style="animation-delay:600ms"><span class="d" style="background:var(--warning)"></span>HIGH_VOLUME flagged</div>
+  </div></div>`;
+}
+
+function diagF7(){
+  return `<div class="viz-frame"><div class="seq">
+    <div class="step" style="border:none"><div class="ic">${icon("i-eye",16)}</div>
+      <div class="txt"><b>cursor reads src/payments/secrets/.env</b><span>PROVIDER_API_KEY</span></div></div>
+    <div class="connector-v"></div>
+    <div class="step ok" style="animation-delay:240ms"><div class="ic">${icon("i-check",16)}</div>
+      <div class="txt"><b>Logged: label=secrets, severity=high</b>
+      <span>value = <span class="redact">[REDACTED]&nbsp;never&nbsp;stored]</span></span></div></div>
+  </div></div>`;
+}
+
+function icon(id, size){
+  return `<svg viewBox="0 0 24 24" style="width:${size}px;height:${size}px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><use href="#${id}"/></svg>`;
+}
+
+/* ═══════════════════════════ SLIDE DATA ═══════════════════════════ */
+
+const SLIDES = [
+  { id:"title", accent:"var(--cat-1)", noProof:true,
+    render: () => `
+      <div class="brand">Chronos</div>
+      <div class="tagline">Version control tells you <i>what</i> changed. Chronos tells your agents
+        <i>what was true, who's touching it right now, and who's allowed to.</i></div>
+      <div class="hint">${icon("i-arrow-r",13)} press <kbd>&rarr;</kbd> or click to begin</div>`,
+  },
+  { id:"wedge1", accent:"var(--cat-1)", eyebrow:"The core product · 01",
+    headline:"A codebase that remembers every version of itself.",
+    dek:"Chronos indexes your repo's full git history into a bi-temporal graph. Agents can ask “who called this function <i>before</i> the refactor?” and get a real, timestamped answer — not a guess from the current file.",
+    visual: diagWedge1,
+    proof: () => D.stats ? {label:"nodes indexed right now", value: D.stats.total_nodes?.toLocaleString?.() ?? "—"} : null,
+  },
+  { id:"wedge2", accent:"var(--cat-4)", eyebrow:"The core product · 02",
+    headline:"Rules the codebase teaches itself.",
+    dek:"When an agent's action fails review, Chronos captures the lesson and proposes a rule. A human approves it once; after that it's enforced automatically.",
+    visual: diagWedge2,
+    proof: () => D.stats ? {label:"rules live right now", value: D.stats.rules_blocking + D.stats.rules_warn_only} : null,
+  },
+  { id:"wedge3", accent:"var(--cat-3)", eyebrow:"The core product · 03",
+    headline:"Agents that don't collide with each other.",
+    dek:"Before an agent touches a function, it takes an intent lock on that exact node — not the whole file. Every read and write is logged to a provenance ledger.",
+    visual: diagWedge3,
+    proof: () => D.stats ? {label:"locks held right now", value: D.stats.active_locks} : null,
+  },
+  { id:"wedge4", accent:"var(--cat-2)", eyebrow:"The core product · 04",
+    headline:"Enforcement that actually blocks the merge.",
+    dek:"Playbook rules aren't suggestions — chronos-enforce runs them against every diff. A blocking rule fails CI with the exact match, the file, and the fix.",
+    visual: diagWedge4,
+    proof: () => D.stats ? {label:"enforced this week", value: D.stats.enforced_this_week} : null,
+  },
+  { id:"f1", accent:"var(--cat-1)", eyebrow:"Governance · F1",
+    headline:"Every agent has a real identity.",
+    dek:"Agents authenticate with an API key, same as any service account. Turn on strict mode and an unrecognized caller is rejected outright.",
+    visual: diagF1,
+    proof: () => D.stats ? {label:"active agents registered", value: D.stats.active_agents} : null,
+  },
+  { id:"f2", accent:"var(--cat-4)", eyebrow:"Governance · F2",
+    headline:"What an agent can touch is a policy, not a hope.",
+    dek:"Every agent can carry a manifest: read-only, scoped to specific paths, denied specific paths. intern-bot literally cannot write outside src/payments/**.",
+    visual: diagF2,
+    proof: () => (D.agents && D.agents.length) ? {label:"agents with a permission manifest", value: D.agents.filter(a=>a.permissions).length} : null,
+  },
+  { id:"f3", accent:"var(--cat-3)", eyebrow:"Governance · F3",
+    headline:"Locks that expire, and priorities that mean something.",
+    dek:"Every lock carries a TTL, so a crashed agent can't wedge a node forever. An emergency request posts a preemption notice instead of failing silently.",
+    visual: diagF3,
+    proof: () => D.stats ? {label:"locks currently held", value: D.stats.active_locks} : null,
+  },
+  { id:"f4", accent:"var(--cat-2)", eyebrow:"Governance · F4",
+    headline:"An audit log you can hand to a regulator.",
+    dek:"Every governed action is hash-chained into an append-only log. Edit one byte anywhere in the history and verification fails at that exact line.",
+    visual: diagF4,
+    proof: () => D.audit ? {label: D.audit.valid ? "chain verified — entries" : "CHAIN BROKEN", value: D.audit.valid ? (D.audit.total_entries ?? D.audit.checked ?? 0) : "!", bad: !D.audit.valid} : null,
+  },
+  { id:"f5", accent:"var(--serious)", eyebrow:"Governance · F5",
+    headline:"Some code needs a human in the loop.",
+    dek:"Mark a path as protected and any lock request against it parks for approval instead of going straight through. One CLI command unblocks the retry.",
+    visual: diagF5,
+    proof: () => D.stats ? {label:"gates awaiting approval", value: D.stats.pending_gates, warn: D.stats.pending_gates > 0} : null,
+  },
+  { id:"f6", accent:"var(--warning)", eyebrow:"Governance · F6",
+    headline:"It notices when an agent stops acting like itself.",
+    dek:"Chronos learns each agent's normal session shape after 7+ days of history. A session 3x louder than normal gets flagged automatically.",
+    visual: () => diagF6(D.f6sessions),
+    proof: () => D.anomalies ? {label:"anomalies flagged (7d)", value: D.anomalies.anomalies?.length ?? 0} : null,
+  },
+  { id:"f7", accent:"var(--cat-1)", eyebrow:"Governance · F7",
+    headline:"Every read of a sensitive file, tracked — never the content.",
+    dek:".env files, credentials, private keys — any path matching your sensitive patterns gets its access logged. The file's actual contents never touch this pipeline.",
+    visual: diagF7,
+    proof: () => (D.sensitive) ? {label:"sensitive reads tracked (7d)", value: D.sensitive.length} : null,
+  },
+  { id:"closing", accent:"var(--cat-1)", noProof:true,
+    render: () => `
+      <div class="eyebrow"><span class="bar"></span>Recap<span class="n">13 / 13</span></div>
+      <h2 class="headline">Eleven features. One running system.</h2>
+      <div class="dek">Everything on this deck is live — pulled from the same chronos.db the dashboard reads. Nothing here was staged for the pitch.</div>
+      <div class="grid-recap" id="recap-grid"></div>
+      <div class="proof" style="margin-top:26px"><span class="dot"></span>
+        <span class="v"><a href="/" style="color:#fff;text-decoration:none">Open the live dashboard →</a></span></div>`,
+  },
+];
+
+const RECAP = [
+  ["Bi-temporal graph","ask what was true, when"], ["Self-improving playbook","rules learned from failures"],
+  ["Intent ledger","agents don't collide"], ["CI enforcement","rules that block the merge"],
+  ["Agent identity","every caller is known"], ["Permission scoping","access is policy, not hope"],
+  ["Lock TTL + recovery","crashes don't wedge a node"], ["Tamper-evident audit","hash-chained, exportable"],
+  ["Human-in-the-loop gates","sensitive paths need a person"], ["Anomaly detection","notices off-pattern behavior"],
+  ["Sensitive read tracking","paper trail, never content"],
+];
+
+let cur = -1;
+const deck = $("#deck");
+const progress = $("#progress");
+
+function buildSlide(s, i){
+  const el = document.createElement("div");
+  el.className = "slide"; el.id = "s-" + i;
+  if(s.render){
+    el.innerHTML = `<div class="slide-inner">${s.render()}</div>`;
+  } else {
+    el.innerHTML = `<div class="slide-inner wide">
+      <div class="eyebrow"><span class="bar"></span>${esc(s.eyebrow||"")}<span class="n">${String(i+1).padStart(2,"0")} / ${String(SLIDES.length).padStart(2,"0")}</span></div>
+      <div class="split-viz">
+        <div>
+          <h2 class="headline">${s.headline||""}</h2>
+          <div class="dek">${s.dek||""}</div>
+          ${s.noProof ? "" : `<div class="proof" id="proof-${i}"><span class="dot"></span><span class="v">—</span><span class="l">loading…</span></div>`}
+        </div>
+        <div class="visual">${s.visual ? s.visual() : ""}</div>
+      </div>
+    </div>`;
+  }
+  return el;
+}
+
+function fillRecap(){
+  const grid = $("#recap-grid");
+  if(!grid) return;
+  grid.innerHTML = RECAP.map((r,i) => `
+    <div class="recap-chip" style="animation-delay:${i*45}ms"><b>${esc(r[0])}</b>${esc(r[1])}</div>`).join("");
+}
+
+function updateProof(i){
+  const s = SLIDES[i];
+  if(!s || s.noProof || !s.proof) return;
+  const box = document.querySelector(`#proof-${i}`);
+  if(!box) return;
+  const p = s.proof();
+  if(!p){
+    box.classList.add("stale");
+    box.querySelector(".v").textContent = "—";
+    box.querySelector(".l").textContent = "waiting for live data…";
+    return;
+  }
+  box.classList.remove("stale");
+  box.querySelector(".v").textContent = p.value;
+  box.querySelector(".v").style.color = p.bad ? "var(--critical)" : (p.warn ? "var(--warning)" : "#fff");
+  box.querySelector(".dot").style.background = p.bad ? "var(--critical)" : (p.warn ? "var(--warning)" : "var(--good)");
+  box.querySelector(".l").textContent = p.label;
+}
+
+function goTo(i){
+  i = Math.max(0, Math.min(SLIDES.length - 1, i));
+  if(i === cur) return;
+  const prevEl = deck.children[0];
+  const nextEl = buildSlide(SLIDES[i], i);
+  deck.appendChild(nextEl);
+  // Force a style flush BEFORE toggling .on, so the browser has committed the
+  // "opacity:0" starting state to a real paint before the transition target
+  // changes -- without this, insert+class-add can coalesce into one frame
+  // and the transition/animation never visibly runs (the classic
+  // insert-then-immediately-animate bug).
+  void nextEl.offsetHeight;
+  nextEl.classList.add("on");
+  if(prevEl){ prevEl.classList.add("leaving"); prevEl.classList.remove("on"); }
+  setTimeout(() => { if(prevEl) prevEl.remove(); }, RM ? 0 : 300);
+  cur = i;
+  setAccent(SLIDES[i].accent);
+  $$dots();
+  $("#counter").textContent = `${String(i+1).padStart(2,"0")} / ${String(SLIDES.length).padStart(2,"0")}`;
+  updateProof(i);
+  if(SLIDES[i].id === "closing") fillRecap();
+}
+
+function $$dots(){
+  progress.querySelectorAll(".pdot").forEach((d,idx) => d.classList.toggle("on", idx === cur));
+}
+function buildProgress(){
+  progress.innerHTML = SLIDES.map((_,i) => `<div class="pdot" data-i="${i}"></div>`).join("");
+  progress.querySelectorAll(".pdot").forEach(d => d.onclick = () => goTo(+d.dataset.i));
+}
+function next(){ goTo(cur + 1); }
+function prev(){ goTo(cur - 1); }
+
+$("#btn-next").onclick = next;
+$("#btn-prev").onclick = prev;
+$("#edge-right").onclick = next;
+$("#edge-left").onclick = prev;
+document.addEventListener("keydown", e => {
+  if(["ArrowRight"," ","PageDown"].includes(e.key)){ e.preventDefault(); next(); }
+  if(["ArrowLeft","PageUp"].includes(e.key)){ e.preventDefault(); prev(); }
+  if(e.key === "Home") goTo(0);
+  if(e.key === "End") goTo(SLIDES.length - 1);
+});
+let touchX = null;
+document.addEventListener("touchstart", e => touchX = e.touches[0].clientX);
+document.addEventListener("touchend", e => {
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if(Math.abs(dx) > 60) dx < 0 ? next() : prev();
+  touchX = null;
+});
+
+async function loadData(){
+  const paths = {stats:"/api/stats", agents:"/api/agents", audit:"/api/audit",
+                 anomalies:"/api/anomalies", sensitive:"/api/sensitive-reads"};
+  await Promise.all(Object.entries(paths).map(async ([k,p]) => {
+    try{ D[k] = await (await fetch(API+p,{cache:"no-store"})).json(); }
+    catch(e){ /* leave undefined -- slides render the "waiting for live data" state */ }
+  }));
+  if(D.anomalies?.anomalies?.length){
+    const agentId = D.anomalies.anomalies[0].agent_id;
+    try{ D.f6sessions = await (await fetch(API+`/api/anomalies/${encodeURIComponent(agentId)}/sessions`,{cache:"no-store"})).json(); }
+    catch(e){}
+  }
+  SLIDES.forEach((_,i) => updateProof(i));
+  if(cur >= 0 && SLIDES[cur].id === "f6"){
+    // f6's chart needs the live session data that may have just arrived --
+    // rebuild only if we're currently sitting on that slide.
+    const vizBox = document.querySelector(`#s-${cur} .visual`);
+    if(vizBox) vizBox.innerHTML = diagF6(D.f6sessions);
+  }
+}
+
+setAccent(SLIDES[0].accent);
+buildProgress();
+goTo(0);
+loadData();
+setInterval(loadData, 15000);
+</script>
+</body>
+</html>

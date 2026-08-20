@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chronos — AST Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0d12; --bg-lift:#15161e;
+  --card:#181a23; --card-hi:#1c1f2a;
+  --border:#262834; --border-hi:#33384a;
+  --ink:#f0f1f5; --ink-dim:#a8adbd; --muted:#71768a;
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  --cat-1:#3987e5;
+  --r:12px; --r-sm:8px;
+  --t-fast:130ms; --t:200ms;
+  --ease-out:cubic-bezier(.22,.85,.3,1);
+  --sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Fira Code",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 13px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  height:100vh;width:100vw;overflow:hidden;
+}
+.mono{font-family:var(--mono)}
+.dim{color:var(--muted)}
+
+/* ─── layout: full-bleed canvas, floating chrome on top ─── */
+#stage{position:fixed;inset:0}
+#gcanvas{width:100%;height:100%;display:block;cursor:grab;background:var(--bg)}
+#gcanvas.grabbing{cursor:grabbing}
+
+/* ─── top bar ─── */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;
+  gap:14px;padding:14px 20px;background:linear-gradient(180deg,rgba(12,13,18,.92),transparent);
+  pointer-events:none}
+#topbar > *{pointer-events:auto}
+.brand-mini{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;color:#fff;
+  text-decoration:none;flex:none}
+.brand-mini .dot{width:7px;height:7px;border-radius:50%;background:var(--cat-1)}
+#search-wrap{position:relative;flex:none;width:260px}
+#search{width:100%;font:400 12.5px var(--sans);background:var(--card);color:var(--ink);
+  border:1px solid var(--border-hi);border-radius:99px;padding:8px 14px 8px 34px;
+  transition:border-color var(--t-fast) var(--ease-out)}
+#search:focus{outline:none;border-color:var(--cat-1)}
+#search::placeholder{color:var(--muted)}
+#search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2}
+#stat-chip{font:500 11.5px var(--mono);color:var(--muted);background:var(--card);
+  border:1px solid var(--border);border-radius:99px;padding:7px 14px;white-space:nowrap}
+#toolbar-right{margin-left:auto;display:flex;gap:8px}
+.tbtn{display:inline-flex;align-items:center;gap:7px;font:500 12px var(--sans);
+  cursor:pointer;border-radius:99px;padding:8px 15px;color:var(--ink-dim);
+  background:var(--card);border:1px solid var(--border-hi);white-space:nowrap;
+  transition:all var(--t-fast) var(--ease-out)}
+.tbtn:hover{background:var(--card-hi);color:#fff;border-color:var(--cat-1)}
+.tbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ─── legend, left side ─── */
+#legend{position:fixed;top:76px;left:20px;z-index:9;display:flex;flex-direction:column;gap:6px;
+  max-width:210px;max-height:calc(100vh - 220px);overflow-y:auto;padding-right:4px}
+#legend::-webkit-scrollbar{width:5px}
+#legend::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:99px}
+.legend-row{display:flex;align-items:center;gap:9px;font:500 12px var(--sans);color:var(--ink-dim);
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:8px 11px;cursor:pointer;transition:all var(--t-fast) var(--ease-out);user-select:none}
+.legend-row:hover{border-color:var(--border-hi);background:var(--card-hi)}
+.legend-row.off{opacity:.32}
+.legend-row .sw{width:9px;height:9px;border-radius:50%;flex:none}
+.legend-row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legend-row .n{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+
+/* ─── node detail panel, right side ─── */
+#detail{position:fixed;top:76px;right:20px;z-index:9;width:300px;
+  background:var(--card);border:1px solid var(--border-hi);border-radius:var(--r);
+  padding:18px;opacity:0;transform:translateX(16px);pointer-events:none;
+  transition:opacity var(--t) var(--ease-out),transform var(--t) var(--ease-out);
+  box-shadow:0 24px 60px -24px rgba(0,0,0,.8)}
+#detail.on{opacity:1;transform:none;pointer-events:auto}
+#detail .kind{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--cat-1);margin-bottom:8px}
+#detail .name{font:600 15px var(--sans);color:#fff;word-break:break-word;margin-bottom:4px}
+#detail .path{font:400 11.5px var(--mono);color:var(--muted);word-break:break-all;margin-bottom:14px}
+#detail .row{display:flex;justify-content:space-between;padding:8px 0;
+  border-top:1px solid var(--border);font-size:12px}
+#detail .row .l{color:var(--muted)}
+#detail .row .v{color:var(--ink-dim);font-family:var(--mono);font-size:11.5px}
+#detail-close{position:absolute;top:14px;right:14px;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);
+  transition:all var(--t-fast) var(--ease-out)}
+#detail-close:hover{background:var(--card-hi);color:#fff}
+#detail-close svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ─── tooltip on hover ─── */
+#gtooltip{position:fixed;pointer-events:none;z-index:8;background:#11141d;
+  border:1px solid var(--border-hi);border-radius:8px;padding:10px 13px;
+  font-size:11.5px;color:var(--ink-dim);opacity:0;transition:opacity 100ms ease-out;
+  min-width:180px;max-width:300px;transform:translate(-50%,calc(-100% - 14px));
+  box-shadow:0 16px 40px -16px rgba(0,0,0,.8)}
+#gtooltip.on{opacity:1}
+#gtooltip .tt-cluster{font:600 9.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;
+  margin-bottom:5px}
+#gtooltip b{color:#fff;display:block;font-family:var(--mono);font-size:12.5px;
+  margin-bottom:3px;word-break:break-all;line-height:1.35}
+#gtooltip .tt-path{color:var(--muted);font-family:var(--mono);font-size:10.5px;
+  word-break:break-all;margin-bottom:7px}
+#gtooltip .tt-stats{display:flex;gap:12px;padding-top:7px;border-top:1px solid var(--border)}
+#gtooltip .tt-stat{font-size:10.5px}
+#gtooltip .tt-stat b{display:inline;font-size:11.5px;color:#fff;margin:0 3px 0 0}
+#gtooltip .tt-stat span{color:var(--muted)}
+
+/* ─── time scrubber, bottom ─── */
+#scrubber-dock{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:20px 24px 22px;background:linear-gradient(0deg,rgba(12,13,18,.94),transparent)}
+#scrubber-card{max-width:900px;margin:0 auto;background:var(--card);
+  border:1px solid var(--border-hi);border-radius:var(--r);padding:14px 20px;
+  box-shadow:0 24px 60px -24px rgba(0,0,0,.8)}
+#scrubber-top{display:flex;align-items:center;gap:14px;margin-bottom:2px}
+#play-btn{flex:none;width:32px;height:32px;border-radius:50%;background:var(--cat-1);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;
+  transition:transform var(--t-fast) var(--ease-out)}
+#play-btn:hover{transform:scale(1.08)}
+#play-btn svg{width:13px;height:13px;stroke:currentColor;fill:currentColor}
+#time-label{font:600 12px var(--mono);color:#fff;min-width:150px}
+#scrubber-track-wrap{position:relative;flex:1;height:20px;display:flex;align-items:center}
+#scrubber-track-wrap input[type=range]{
+  position:absolute;left:0;right:0;margin:0;accent-color:var(--cat-1);
+  cursor:pointer;height:4px;background:transparent;-webkit-appearance:none;appearance:none;
+  pointer-events:none; /* only the thumb is interactive -- lets two sliders share one track */
+}
+#scrubber-track-wrap input[type=range]::-webkit-slider-thumb{pointer-events:auto}
+#scrubber-track-wrap input[type=range]::-moz-range-thumb{pointer-events:auto}
+#scrubber-track-wrap input[type=range]::-webkit-slider-runnable-track{background:transparent}
+#scrubber#scrubber{position:relative;z-index:2}
+#scrubber-since{z-index:3}
+#scrubber-since::-webkit-slider-thumb{background:#fff;border:2px solid var(--warning)}
+#range-fill{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  height:4px;background:var(--bg-lift);border-radius:99px;pointer-events:none;display:none}
+#range-fill-bar{position:absolute;top:0;bottom:0;background:rgba(250,178,25,.32);
+  border-radius:99px;pointer-events:none}
+#btn-range-mode.on{background:var(--warning);color:#1a1206;border-color:var(--warning)}
+#scrubber-axis{display:flex;justify-content:space-between;margin-top:4px;
+  font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+/* ─── empty / loading state ─── */
+/* ─── changes panel (range-mode) ─── */
+#changes-panel{position:fixed;bottom:150px;right:20px;z-index:9;width:320px;
+  max-height:calc(100vh - 250px);background:var(--card);border:1px solid var(--border-hi);
+  border-radius:var(--r);box-shadow:0 24px 60px -24px rgba(0,0,0,.8);
+  display:none;flex-direction:column;overflow:hidden;
+  opacity:0;transform:translateY(10px);transition:opacity var(--t) var(--ease-out),transform var(--t) var(--ease-out)}
+#changes-panel.on{display:flex;opacity:1;transform:none}
+#changes-head{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border);flex:none}
+#changes-title{font:600 12px var(--sans);color:#fff}
+#changes-list{overflow-y:auto;padding:8px}
+#changes-list::-webkit-scrollbar{width:5px}
+#changes-list::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:99px}
+.change-row{padding:9px 10px;border-radius:var(--r-sm);cursor:pointer;
+  transition:background var(--t-fast) var(--ease-out)}
+.change-row:hover{background:var(--card-hi)}
+.change-row+.change-row{margin-top:1px}
+.change-row .cr-top{display:flex;align-items:center;gap:8px}
+.change-status{flex:none;font:700 9px var(--mono);letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 7px;border-radius:99px}
+.change-status.added{color:#8ce68c;background:rgba(12,163,12,.16)}
+.change-status.removed{color:#ffb3ab;background:rgba(208,59,59,.18)}
+.change-status.modified{color:#ffd48a;background:rgba(250,178,25,.18)}
+.change-row .cr-file{font-family:var(--mono);font-size:11px;color:var(--ink-dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.change-row .cr-counts{font-family:var(--mono);font-size:10px;color:var(--muted);flex:none}
+#changes-list .empty{padding:24px 12px;text-align:center;color:var(--muted);font-size:12px}
+
+#empty-state{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;z-index:5;text-align:center;padding:24px}
+#empty-state.on{display:flex}
+#empty-state svg{width:34px;height:34px;stroke:var(--muted);fill:none;stroke-width:1.4;opacity:.5}
+#empty-state b{color:var(--ink-dim);font-size:15px;font-weight:600}
+#empty-state span{color:var(--muted);font-size:12.5px;max-width:340px}
+#empty-state code{font-family:var(--mono);background:var(--card);padding:2px 7px;
+  border-radius:4px;color:var(--ink-dim);border:1px solid var(--border)}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-arrow-l"><path d="M19.5 12h-14M11 17.5 5.5 12l5.5-5.5"/></g>
+  <g id="i-search"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-5-5"/></g>
+  <g id="i-refresh"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></g>
+  <g id="i-play"><path d="M6 4l14 8-14 8z"/></g>
+  <g id="i-pause"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor" stroke="none"/></g>
+  <g id="i-inbox"><path d="M3.5 13.5h4l1.6 2.6h5.8l1.6-2.6h4"/><path d="M6.2 4.5h11.6l3 9v5a2 2 0 0 1-2 2H5.2a2 2 0 0 1-2-2v-5z"/></g>
+  <g id="i-x"><path d="M6 6l12 12M18 6L6 18"/></g>
+</defs></svg>
+
+<div id="stage"><canvas id="gcanvas"></canvas></div>
+
+<div id="empty-state">
+  <svg viewBox="0 0 24 24"><use href="#i-inbox"/></svg>
+  <b>No graph indexed yet</b>
+  <span>Run <code>chronos index --repo .</code> against a repo to populate this view, or check that <code>CHRONOS_DB</code> points at an existing graph.</span>
+</div>
+
+<div id="topbar">
+  <a class="brand-mini" href="/"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><use href="#i-arrow-l"/></svg><span class="dot"></span>Chronos</a>
+  <div id="search-wrap">
+    <svg viewBox="0 0 24 24"><use href="#i-search"/></svg>
+    <input id="search" type="text" placeholder="search a symbol…" autocomplete="off">
+  </div>
+  <span id="stat-chip">loading…</span>
+  <div id="toolbar-right">
+    <button class="tbtn" id="btn-reset"><svg viewBox="0 0 24 24"><use href="#i-refresh"/></svg>Reset view</button>
+  </div>
+</div>
+
+<div id="legend"></div>
+
+<div id="detail">
+  <div id="detail-close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></div>
+  <div class="kind" id="detail-cluster"></div>
+  <div class="name" id="detail-name"></div>
+  <div class="path" id="detail-path"></div>
+  <div class="row"><span class="l">Calls / imports out</span><span class="v" id="detail-out">—</span></div>
+  <div class="row"><span class="l">Called / imported by</span><span class="v" id="detail-in">—</span></div>
+</div>
+
+<div id="gtooltip"></div>
+
+<div id="scrubber-dock">
+  <div id="scrubber-card">
+    <div id="scrubber-top">
+      <div id="play-btn"><svg viewBox="0 0 24 24" id="play-icon"><use href="#i-play"/></svg></div>
+      <span id="time-label">now — current graph state</span>
+      <div id="scrubber-track-wrap">
+        <div id="range-fill"><div id="range-fill-bar"></div></div>
+        <input id="scrubber" type="range" min="0" max="1000" value="1000">
+        <input id="scrubber-since" type="range" min="0" max="1000" value="0" hidden>
+      </div>
+      <button class="tbtn" id="btn-range-mode" style="flex:none">Show changes in a range</button>
+    </div>
+    <div id="scrubber-axis"><span id="axis-start">—</span><span>now</span></div>
+  </div>
+</div>
+
+<div id="changes-panel">
+  <div id="changes-head">
+    <span id="changes-title">Changes</span>
+    <span id="changes-count" class="mono dim"></span>
+  </div>
+  <div id="changes-list"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const API = location.protocol === "file:" ? "http://127.0.0.1:8080" : "";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const CLUSTER_PALETTE = ["#3987e5","#d95926","#199e70","#9085e9","#e5b23f",
+  "#4fb8c4","#c760a8","#7fbf5a","#e26b6b","#6e83e0","#c9954a","#5aa8d9"];
+const clusterColor = (() => {
+  const cache = new Map();
+  return name => {
+    if(cache.has(name)) return cache.get(name);
+    let h = 0; for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+    const c = CLUSTER_PALETTE[h % CLUSTER_PALETTE.length];
+    cache.set(name, c); return c;
+  };
+})();
+
+const cvs = $("#gcanvas"), ctx = cvs.getContext("2d");
+let nodes = [], edges = [], clusters = [];
+const nodeIndex = new Map();
+const nodeById = id => nodeIndex.get(id);
+let hiddenClusters = new Set();
+let view = {x:0, y:0, scale:1};
+let dragNode = null, panning = false, panStart = null, moved = false;
+let hoverNode = null, focusNode = null, searchTerm = "";
+let timeMin = null, timeMax = null, scrubT = null; // null = "now"
+let alpha = 1, raf = null;
+
+function resize(){
+  const dpr = devicePixelRatio || 1;
+  cvs.width = innerWidth * dpr; cvs.height = innerHeight * dpr;
+  cvs.style.width = innerWidth+"px"; cvs.style.height = innerHeight+"px";
+}
+addEventListener("resize", resize);
+resize();
+
+function edgeVisibleAt(e, t){
+  if(t === null) return true;
+  const va = e.valid_at ? Date.parse(e.valid_at) : -Infinity;
+  const ia = e.invalid_at ? Date.parse(e.invalid_at) : Infinity;
+  return t >= va && t < ia;
+}
+function edgeTouchedInRange(e, since, until){
+  // In range mode the graph shows every edge whose valid window OVERLAPS
+  // [since, until] at all -- not just edges alive at one instant -- so a
+  // dragged range visibly includes both edges added and edges removed
+  // during it, matching what the changes panel lists.
+  const va = e.valid_at ? Date.parse(e.valid_at) : -Infinity;
+  const ia = e.invalid_at ? Date.parse(e.invalid_at) : Infinity;
+  return va < until && ia > since;
+}
+function activeEdges(){
+  let pred;
+  if(rangeMode && timeMin !== null){
+    const sinceF = Math.min(+$("#scrubber-since").value, +$("#scrubber").value)/1000;
+    const untilF = Math.max(+$("#scrubber-since").value, +$("#scrubber").value)/1000;
+    const since = fracToT(sinceF), until = fracToT(untilF);
+    pred = e => edgeTouchedInRange(e, since, until);
+  } else {
+    pred = e => edgeVisibleAt(e, scrubT);
+  }
+  return edges.filter(e => pred(e) &&
+    !hiddenClusters.has(nodeById(e.source)?.cluster) &&
+    !hiddenClusters.has(nodeById(e.target)?.cluster));
+}
+
+function worldToScreen(x,y){
+  const dpr = devicePixelRatio || 1;
+  const W = cvs.width/dpr, H = cvs.height/dpr;
+  return {x: (x - view.x) * view.scale + W/2, y: (y - view.y) * view.scale + H/2};
+}
+function screenToWorld(sx,sy){
+  const dpr = devicePixelRatio || 1;
+  const W = cvs.width/dpr, H = cvs.height/dpr;
+  return {x: (sx - W/2)/view.scale + view.x, y: (sy - H/2)/view.scale + view.y};
+}
+
+/* ── force simulation ──
+   Fixes vs. the first attempt: (1) cluster centroids are seeded in WORLD
+   space around the origin (a ring at radius proportional to cluster count),
+   never in screen-pixel coordinates -- mixing the two spaces is what pulled
+   the whole graph off past the visible canvas before. (2) alpha decays every
+   tick like a real force layout (d3-force's cooldown): forces are scaled by
+   alpha, so motion shrinks smoothly to zero instead of oscillating forever
+   at full strength. A node under the pointer (dragged) always resets alpha
+   so releasing it re-settles the graph instead of freezing mid-motion. */
+const centroids = {};
+function seedCentroids(){
+  const R = 260 + clusters.length * 14;
+  clusters.forEach((c,i) => {
+    const a = (i/clusters.length) * Math.PI*2;
+    centroids[c] = {x: Math.cos(a)*R, y: Math.sin(a)*R};
+  });
+}
+
+function tick(){
+  const active = activeEdges();
+  const activeIds = new Set(); active.forEach(e => { activeIds.add(e.source); activeIds.add(e.target); });
+  const anyFilter = active.length !== edges.length;
+  const visible = anyFilter ? nodes.filter(n => activeIds.has(n.id)) : nodes;
+
+  const REPEL = 1400, SPRING = 0.018, SPRING_LEN = 64, CLUSTER_PULL = 0.010, CENTER_PULL = 0.0006;
+
+  if(alpha > 0.001){
+    for(const n of visible){
+      if(n === dragNode) continue;
+      let fx = -n.x*CENTER_PULL, fy = -n.y*CENTER_PULL; // gentle overall recentring, keeps drift near origin
+      for(const m of visible){
+        if(m === n) continue;
+        const dx = n.x - m.x, dy = n.y - m.y;
+        const d2 = dx*dx + dy*dy || 0.01;
+        if(d2 > 50000) continue;
+        const f = REPEL / d2;
+        fx += dx*f; fy += dy*f;
+      }
+      const c = centroids[n.cluster];
+      if(c){ fx += (c.x - n.x) * CLUSTER_PULL; fy += (c.y - n.y) * CLUSTER_PULL; }
+      n.vx = (n.vx + fx*alpha) * 0.72;
+      n.vy = (n.vy + fy*alpha) * 0.72;
+    }
+    for(const e of active){
+      const a = nodeById(e.source), b = nodeById(e.target);
+      if(!a || !b) continue;
+      const dx = b.x-a.x, dy = b.y-a.y;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 0.01;
+      const f = (dist - SPRING_LEN) * SPRING * alpha;
+      const ux = dx/dist, uy = dy/dist;
+      if(a !== dragNode){ a.vx += ux*f; a.vy += uy*f; }
+      if(b !== dragNode){ b.vx -= ux*f; b.vy -= uy*f; }
+    }
+    for(const n of visible){
+      if(n === dragNode) continue;
+      n.x += n.vx; n.y += n.vy;
+    }
+    alpha *= 0.985; // cooldown -- settles in a few seconds instead of jittering indefinitely
+  }
+  draw();
+  raf = requestAnimationFrame(tick);
+}
+
+function draw(){
+  const dpr = devicePixelRatio || 1;
+  ctx.save();
+  ctx.scale(dpr,dpr);
+  const W = cvs.width/dpr, H = cvs.height/dpr;
+  ctx.clearRect(0,0,W,H);
+
+  const active = activeEdges();
+  const activeIds = new Set(); active.forEach(e => { activeIds.add(e.source); activeIds.add(e.target); });
+  const anyFilter = active.length !== edges.length;
+
+  const neighborIds = focusNode ? new Set([focusNode.id, ...active
+    .filter(e => e.source===focusNode.id || e.target===focusNode.id)
+    .flatMap(e => [e.source, e.target])]) : null;
+
+  for(const e of active){
+    const a = nodeById(e.source), b = nodeById(e.target);
+    if(!a || !b) continue;
+    const pa = worldToScreen(a.x,a.y), pb = worldToScreen(b.x,b.y);
+    // An edge touching the focused node is drawn in a second, later pass
+    // (below) so it always sits on top of the quiet ones -- drawing it once
+    // here at "not dimmed" strength was never actually a highlight, just an
+    // absence of dimming, which reads the same as every ordinary edge.
+    const touchesFocus = focusNode && (a.id===focusNode.id || b.id===focusNode.id);
+    if(touchesFocus) continue;
+    const dim = neighborIds && !(neighborIds.has(a.id) && neighborIds.has(b.id));
+    ctx.strokeStyle = dim ? "rgba(180,186,205,.10)" : "rgba(200,206,225,.45)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pb.x,pb.y); ctx.stroke();
+  }
+  if(focusNode){
+    const fp = worldToScreen(focusNode.x, focusNode.y);
+    const focusColor = clusterColor(focusNode.cluster);
+    for(const e of active){
+      const a = nodeById(e.source), b = nodeById(e.target);
+      if(!a || !b) continue;
+      if(a.id!==focusNode.id && b.id!==focusNode.id) continue;
+      const pa = worldToScreen(a.x,a.y), pb = worldToScreen(b.x,b.y);
+      ctx.strokeStyle = focusColor;
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pb.x,pb.y); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  // Labels: drawing a name beside all ~40+ nodes at once is the "cluttered"
+  // failure mode. Instead a node earns a label by being either genuinely
+  // important (highest-degree nodes -- the hubs worth knowing by name at a
+  // glance) or contextually relevant right now (hovered, focused/clicked,
+  // or search-matched) -- and importance-based labels only start appearing
+  // once zoomed in enough (view.scale) that there's screen room for them,
+  // fading in with zoom rather than popping. A max-label-count budget caps
+  // the always-on hub labels so a big graph never re-clutters itself.
+  const degrees = nodes.map(n => n.degree || 0).sort((a,b) => b-a);
+  const hubCutoff = degrees[Math.min(11, degrees.length-1)] ?? 0;
+  const labelZoomIn = Math.max(0, Math.min(1, (view.scale - 0.55) / 0.65));
+
+  const toLabel = [];
+  for(const n of nodes){
+    if(hiddenClusters.has(n.cluster)) continue;
+    if(anyFilter && !activeIds.has(n.id)) continue;
+    const p = worldToScreen(n.x,n.y);
+    if(p.x < -24 || p.x > W+24 || p.y < -24 || p.y > H+24) continue;
+    const dim = neighborIds && !neighborIds.has(n.id);
+    const matched = searchTerm && n.label.toLowerCase().includes(searchTerm);
+    const isHub = (n.degree||0) >= hubCutoff && hubCutoff > 0;
+    const baseR = 4.6 + Math.min(5, Math.sqrt(n.degree||0) * 1.6); // bigger + degree-scaled
+    const r = (n===focusNode ? baseR+3.5 : n===hoverNode ? baseR+2.5 : baseR) * (matched ? 1.3 : 1);
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,7);
+    ctx.fillStyle = dim ? "rgba(150,155,175,.16)" : clusterColor(n.cluster);
+    ctx.globalAlpha = dim ? 1 : (searchTerm && !matched ? 0.22 : 1);
+    ctx.fill();
+    if(matched || n===focusNode || n===hoverNode){ ctx.lineWidth = 1.6; ctx.strokeStyle = "#fff"; ctx.stroke(); }
+    ctx.globalAlpha = 1;
+
+    if(!dim){
+      // A focused node's neighbors are the whole point of clicking it, so
+      // they always get a label -- not gated on zoom/hub-degree the way
+      // ambient hub labels are, since "highlighted but nameless" defeats
+      // the highlight.
+      const isNeighborOfFocus = neighborIds && neighborIds.has(n.id) && n!==focusNode;
+      const forced = n===hoverNode || n===focusNode || matched || isNeighborOfFocus;
+      const byZoom = isHub && labelZoomIn > 0.02;
+      if(forced || byZoom) toLabel.push({n, p, r, opacity: forced ? 1 : labelZoomIn});
+    }
+  }
+
+  // Labels drawn in a second pass, on top of every node/edge, so they never
+  // sit under a neighboring node -- and skipped if they'd overlap a label
+  // already placed this frame (cheap bbox check, good enough at this density).
+  ctx.font = "500 11px Fira Sans, sans-serif";
+  ctx.textBaseline = "middle";
+  const placed = [];
+  for(const {n, p, r, opacity} of toLabel){
+    const text = n.label.length > 28 ? n.label.slice(0,27)+"…" : n.label;
+    const tw = ctx.measureText(text).width;
+    const lx = p.x + r + 6, ly = p.y;
+    const box = {x1: lx-2, y1: ly-8, x2: lx+tw+4, y2: ly+8};
+    if(placed.some(b => box.x1 < b.x2 && box.x2 > b.x1 && box.y1 < b.y2 && box.y2 > b.y1)) continue;
+    placed.push(box);
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = "rgba(8,9,13,.72)";
+    ctx.fillRect(box.x1, box.y1, box.x2-box.x1, box.y2-box.y1);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(text, lx, ly);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function wake(){ alpha = Math.max(alpha, 0.35); if(!raf) tick(); }
+
+/* ── legend ── */
+function buildLegend(){
+  const el = $("#legend");
+  const counts = {};
+  nodes.forEach(n => counts[n.cluster] = (counts[n.cluster]||0)+1);
+  el.innerHTML = clusters.map(c => `<div class="legend-row${hiddenClusters.has(c)?" off":""}" data-c="${esc(c)}">
+    <span class="sw" style="background:${clusterColor(c)}"></span>
+    <span class="name">${esc(c)}</span><span class="n">${counts[c]||0}</span></div>`).join("");
+  el.querySelectorAll(".legend-row").forEach(row => {
+    row.onclick = () => {
+      const c = row.dataset.c;
+      hiddenClusters.has(c) ? hiddenClusters.delete(c) : hiddenClusters.add(c);
+      row.classList.toggle("off", hiddenClusters.has(c));
+      wake();
+    };
+  });
+}
+
+/* ── node detail panel ── */
+function showDetail(n){
+  $("#detail-cluster").textContent = n.cluster;
+  $("#detail-cluster").style.color = clusterColor(n.cluster);
+  $("#detail-name").textContent = n.label;
+  $("#detail-path").textContent = n.path || "(no path recorded)";
+  $("#detail-out").textContent = n.outDeg || 0;
+  $("#detail-in").textContent = n.inDeg || 0;
+  $("#detail").classList.add("on");
+}
+function hideDetail(){ $("#detail").classList.remove("on"); }
+$("#detail-close").onclick = () => { focusNode = null; hideDetail(); };
+
+/* ── scrubber ── */
+let rangeMode = false;
+
+function tToFrac(t){ return (t - timeMin) / (timeMax - timeMin); }
+function fracToT(f){ return timeMin + f*(timeMax - timeMin); }
+
+function buildScrubber(){
+  const times = edges.flatMap(e => [e.valid_at, e.invalid_at]).filter(Boolean).map(Date.parse);
+  if(!times.length){ $("#scrubber-dock").style.display = "none"; return; }
+  $("#scrubber-dock").style.display = "";
+  timeMin = Math.min(...times); timeMax = Math.max(...times, Date.now());
+  const sc = $("#scrubber");
+  sc.value = 1000; scrubT = null;
+  $("#time-label").textContent = "now — current graph state";
+  $("#axis-start").textContent = new Date(timeMin).toLocaleDateString();
+  sc.oninput = () => {
+    const frac = +sc.value/1000;
+    if(frac >= 0.999){ scrubT = null; $("#time-label").textContent = "now — current graph state"; }
+    else{
+      scrubT = timeMin + frac*(timeMax-timeMin);
+      $("#time-label").textContent = new Date(scrubT).toLocaleString([], {
+        year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+    }
+    wake();
+  };
+  if(rangeMode) syncRangeFill();
+}
+let playTimer = null;
+$("#play-btn").onclick = () => {
+  const icon = $("#play-icon");
+  if(playTimer){
+    clearInterval(playTimer); playTimer = null;
+    icon.innerHTML = `<use href="#i-play"/>`;
+    return;
+  }
+  const sc = $("#scrubber");
+  sc.value = 0; sc.dispatchEvent(new Event("input"));
+  icon.innerHTML = `<use href="#i-pause"/>`;
+  playTimer = setInterval(() => {
+    const v = +sc.value + 6;
+    if(v >= 1000){
+      sc.value = 1000; clearInterval(playTimer); playTimer = null;
+      icon.innerHTML = `<use href="#i-play"/>`;
+    } else sc.value = v;
+    sc.dispatchEvent(new Event("input"));
+  }, 50);
+};
+
+/* ── range mode: a second thumb (native <input type=range>, stacked via CSS
+   so only its thumb is clickable) turns the single scrub point into a
+   [since, until] window, driving both the graph's edge filter (edges whose
+   valid window overlaps the range are shown) and a live changes-by-file
+   panel from /api/graph/changes. ── */
+function syncRangeFill(){
+  const since = +$("#scrubber-since").value, until = +$("#scrubber").value;
+  const bar = $("#range-fill-bar");
+  bar.style.left = Math.min(since,until)/10 + "%";
+  bar.style.width = Math.abs(until-since)/10 + "%";
+}
+
+$("#btn-range-mode").onclick = () => {
+  rangeMode = !rangeMode;
+  $("#btn-range-mode").classList.toggle("on", rangeMode);
+  $("#btn-range-mode").textContent = rangeMode ? "Exit range mode" : "Show changes in a range";
+  $("#scrubber-since").hidden = !rangeMode;
+  $("#range-fill").style.display = rangeMode ? "" : "none";
+  $("#changes-panel").classList.toggle("on", rangeMode);
+  if(playTimer){ clearInterval(playTimer); playTimer = null; $("#play-icon").innerHTML = `<use href="#i-play"/>`; }
+  if(rangeMode){
+    if(+$("#scrubber-since").value === 0 && timeMin !== null){
+      $("#scrubber-since").value = 0;
+    }
+    syncRangeFill();
+    fetchChanges();
+  } else {
+    scrubT = null; // range mode off -> back to single-point "now" semantics
+    wake();
+  }
+};
+
+$("#scrubber-since").oninput = () => {
+  syncRangeFill();
+  fetchChanges();
+};
+// the primary #scrubber's existing oninput also needs to refresh the panel
+// while in range mode -- wrap it rather than duplicate the time-label logic.
+$("#scrubber").addEventListener("input", () => { if(rangeMode){ syncRangeFill(); fetchChanges(); } });
+
+let changesReqSeq = 0;
+async function fetchChanges(){
+  if(timeMin === null) return;
+  const sinceF = Math.min(+$("#scrubber-since").value, +$("#scrubber").value)/1000;
+  const untilF = Math.max(+$("#scrubber-since").value, +$("#scrubber").value)/1000;
+  const since = new Date(fracToT(sinceF)).toISOString();
+  const until = new Date(fracToT(untilF)).toISOString();
+  $("#changes-title").textContent = `${new Date(since).toLocaleDateString()} → ${new Date(until).toLocaleDateString()}`;
+  const seq = ++changesReqSeq;
+  let data;
+  try{
+    const r = await fetch(`${API}/api/graph/changes?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`, {cache:"no-store"});
+    data = await r.json();
+  } catch(e){ return; }
+  if(seq !== changesReqSeq) return; // a newer drag superseded this request
+  renderChanges(data.files || []);
+}
+
+function renderChanges(files){
+  $("#changes-count").textContent = files.length ? `${files.length} file${files.length===1?"":"s"}` : "";
+  const box = $("#changes-list");
+  if(!files.length){
+    box.innerHTML = `<div class="empty">No structural changes in this window.</div>`;
+    return;
+  }
+  box.innerHTML = files.map(f => `<div class="change-row" data-file="${esc(f.file)}">
+    <div class="cr-top">
+      <span class="change-status ${f.status}">${f.status}</span>
+      <span class="cr-file" title="${esc(f.file)}">${esc(f.file)}</span>
+      <span class="cr-counts">+${f.added_edges}/-${f.removed_edges}</span>
+    </div>
+  </div>`).join("");
+  box.querySelectorAll(".change-row").forEach(row => {
+    row.onclick = () => {
+      // Jump the camera/focus to a node in this file, if one is currently
+      // loaded in the graph -- ties the change list back to the visual.
+      const n = nodes.find(n => n.path === row.dataset.file || n.label === row.dataset.file);
+      if(n){ focusNode = n; showDetail(n); wake(); }
+    };
+  });
+}
+
+$("#search").oninput = e => { searchTerm = e.target.value.trim().toLowerCase(); wake(); };
+$("#btn-reset").onclick = () => { view = {x:0,y:0,scale:1}; focusNode = null; hideDetail(); wake(); };
+
+function hitTest(px, py){
+  let hit = null, best = 14;
+  for(const n of nodes){
+    if(hiddenClusters.has(n.cluster)) continue;
+    const p = worldToScreen(n.x,n.y);
+    const d = Math.hypot(px-p.x, py-p.y);
+    if(d < best){ best = d; hit = n; }
+  }
+  return hit;
+}
+
+cvs.addEventListener("mousedown", e => {
+  const hit = hitTest(e.clientX, e.clientY);
+  moved = false;
+  if(hit){ dragNode = hit; cvs.classList.add("grabbing"); }
+  else{ panning = true; panStart = {x:e.clientX, y:e.clientY, vx:view.x, vy:view.y}; cvs.classList.add("grabbing"); }
+});
+cvs.addEventListener("mousemove", e => {
+  if(dragNode){
+    moved = true;
+    const w = screenToWorld(e.clientX, e.clientY);
+    dragNode.x = w.x; dragNode.y = w.y; dragNode.vx = 0; dragNode.vy = 0;
+    wake();
+    return;
+  }
+  if(panning){
+    if(Math.abs(e.clientX-panStart.x) + Math.abs(e.clientY-panStart.y) > 3) moved = true;
+    view.x = panStart.vx - (e.clientX-panStart.x)/view.scale;
+    view.y = panStart.vy - (e.clientY-panStart.y)/view.scale;
+    return;
+  }
+  const hit = hitTest(e.clientX, e.clientY);
+  hoverNode = hit;
+  const tip = $("#gtooltip");
+  if(hit){
+    tip.style.left = e.clientX+"px"; tip.style.top = e.clientY-16+"px";
+    tip.innerHTML = `<div class="tt-cluster" style="color:${clusterColor(hit.cluster)}">${esc(hit.cluster)}</div>
+      <b>${esc(hit.label)}</b>
+      ${hit.path ? `<div class="tt-path">${esc(hit.path)}</div>` : ""}
+      <div class="tt-stats">
+        <div class="tt-stat"><b>${hit.outDeg||0}</b><span>calls out</span></div>
+        <div class="tt-stat"><b>${hit.inDeg||0}</b><span>called by</span></div>
+      </div>`;
+    tip.classList.add("on");
+  } else tip.classList.remove("on");
+});
+addEventListener("mouseup", () => {
+  if(dragNode && !moved){
+    focusNode = focusNode === dragNode ? null : dragNode;
+    if(focusNode) showDetail(focusNode); else hideDetail();
+  }
+  dragNode = null; panning = false; cvs.classList.remove("grabbing");
+});
+cvs.addEventListener("wheel", e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.09 : 1/1.09;
+  view.scale = Math.min(5, Math.max(0.15, view.scale*factor));
+}, {passive:false});
+
+async function load(){
+  let data;
+  try{
+    const r = await fetch(API+"/api/graph", {cache:"no-store"});
+    data = await r.json();
+  } catch(e){
+    $("#stat-chip").textContent = "offline";
+    return;
+  }
+  if(!data.nodes || !data.nodes.length){
+    $("#empty-state").classList.add("on");
+    $("#stat-chip").textContent = "0 nodes";
+    $("#scrubber-dock").style.display = "none";
+    return;
+  }
+  $("#empty-state").classList.remove("on");
+  const prevPos = new Map(nodes.map(n => [n.id, {x:n.x, y:n.y}]));
+  nodes = data.nodes.map(n => {
+    const prev = prevPos.get(n.id);
+    return {...n, x: prev ? prev.x : (Math.random()-.5)*400,
+            y: prev ? prev.y : (Math.random()-.5)*400, vx:0, vy:0};
+  });
+  edges = data.edges;
+  nodeIndex.clear(); nodes.forEach(n => { n.degree = 0; n.outDeg = 0; n.inDeg = 0; nodeIndex.set(n.id, n); });
+  for(const e of edges){
+    const a = nodeById(e.source), b = nodeById(e.target);
+    if(a){ a.degree++; a.outDeg++; } if(b){ b.degree++; b.inDeg++; }
+  }
+  clusters = [...new Set(nodes.map(n => n.cluster))].sort();
+  seedCentroids();
+  $("#stat-chip").textContent = data.truncated
+    ? `${data.nodes.length} of ${data.total_nodes} nodes (capped)`
+    : `${data.nodes.length} nodes · ${data.edges.length} edges`;
+  buildLegend();
+  buildScrubber();
+  alpha = 1;
+  if(!raf) tick();
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

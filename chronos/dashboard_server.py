@@ -23,6 +23,7 @@ every deviation below was checked against chronos/db.py rather than guessed:
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,10 +35,19 @@ from fastapi.responses import FileResponse, JSONResponse
 from . import db, rule_store
 
 HTML = Path(__file__).parent / "dashboard.html"
+PRESENT_HTML = Path(__file__).parent / "presentation.html"
+GRAPH_HTML = Path(__file__).parent / "graph.html"
 TRACE = Path(__file__).resolve().parent.parent / "demo" / "trace.json"
 
 BLOCK_ACTIONS = ("blocked_by_ci", "blocked")   # [S2]
 WARN_ACTIONS = ("warned", "warn")
+
+# A force-directed layout in a browser tab stops being legible well before
+# it stops being technically renderable. These caps keep /api/graph honest
+# about a large repo instead of either refusing to render or silently
+# picking a different arbitrary subset on every request.
+MAX_GRAPH_NODES = int(os.environ.get("CHRONOS_GRAPH_MAX_NODES", "400"))
+MAX_GRAPH_EDGES = int(os.environ.get("CHRONOS_GRAPH_MAX_EDGES", "1200"))
 
 app = FastAPI(title="Chronos Dashboard", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -69,6 +79,27 @@ def index():
     if not HTML.exists():
         return JSONResponse({"error": f"dashboard.html not found at {HTML}"}, 404)
     return FileResponse(HTML, media_type="text/html")
+
+
+@app.get("/present")
+def present():
+    """The pitch-deck view: one slide per Chronos feature (wedges 1-4, then
+    F1-F7), each pulling one live number off the same APIs as the dashboard.
+    Separate page, not a dashboard mode -- built for presentation distance
+    (big type, one idea per screen), not for operating the system."""
+    if not PRESENT_HTML.exists():
+        return JSONResponse({"error": f"presentation.html not found at {PRESENT_HTML}"}, 404)
+    return FileResponse(PRESENT_HTML, media_type="text/html")
+
+
+@app.get("/graph")
+def graph_page():
+    """Full-screen AST graph explorer -- its own page (not a dashboard card)
+    because a force-directed layout needs real screen real estate to stay
+    legible; a ~460px card was cramped for anything past a handful of nodes."""
+    if not GRAPH_HTML.exists():
+        return JSONResponse({"error": f"graph.html not found at {GRAPH_HTML}"}, 404)
+    return FileResponse(GRAPH_HTML, media_type="text/html")
 
 
 @app.get("/api/stats")
@@ -141,6 +172,38 @@ def graph_node_count() -> int:
         return int(asyncio.run(count()))
     except Exception:
         return 0
+
+
+def _cluster_of(path: str | None, name: str) -> str:
+    # ponytail: top-level (or top-two, for a deep tree) path directory as
+    # the cluster key -- good enough to turn "24k nodes" into "a dozen
+    # labeled blobs" without a real community-detection pass. Upgrade to
+    # Louvain/label-propagation if path-based clustering stops matching
+    # real module boundaries.
+    #
+    # n.summary is sometimes a bare filename ("main.py"), sometimes a
+    # full repo-relative path ("src/main.py"), and sometimes "{}" for
+    # synthetic nodes (the repo root, a detached-HEAD marker) -- so a
+    # *file* (no "/") is grouped by directory, and only a directory
+    # component itself becomes its own cluster key.
+    p = (path or "").replace("\\", "/").strip("/")
+    if not p or p == "{}":
+        return "(root)"
+    parts = p.split("/")
+    dirs = parts[:-1] if "." in parts[-1] else parts  # drop a trailing filename
+    if not dirs:
+        return "(root)"
+    return dirs[0] if len(dirs) == 1 else "/".join(dirs[:2])
+
+
+def _file_of(path: str | None, name: str) -> str:
+    """The file a node belongs to, for grouping changes by file rather than
+    by individual symbol. Falls back to the node's own name when summary
+    carries no real path (a module/package node, or a synthetic root)."""
+    p = (path or "").replace("\\", "/").strip("/")
+    if not p or p == "{}":
+        return name
+    return p
 
 
 @app.get("/api/rules")
@@ -370,6 +433,21 @@ def api_anomalies():
     return _anomaly.report(since_hours=24 * 7)
 
 
+@app.get("/api/anomalies/{agent_id}/sessions")
+def api_anomaly_sessions(agent_id: str):
+    """F6 detail: per-session call counts for one agent, oldest first -- the
+    actual numbers behind a HIGH_VOLUME flag (baseline sessions vs. the
+    outlier), for the presentation's session-volume chart. Same session
+    reconstruction anomaly.py itself uses (30-min idle gap), just returning
+    the counts instead of running the rules."""
+    from . import anomaly as _anomaly
+    rows_ = rows("SELECT node_id, agent_id, session_id, action, timestamp "
+                "FROM provenance_events WHERE agent_id=? ORDER BY timestamp", (agent_id,))
+    sessions = _anomaly._sessions_for(rows_)
+    return [{"session_id": s[0]["session_id"], "calls": len(s),
+             "started_at": s[0]["timestamp"]} for s in sessions]
+
+
 @app.get("/api/sensitive-reads")
 def api_sensitive_reads():
     """F7: recent reads/writes against sensitive-tagged paths. Content is
@@ -384,6 +462,154 @@ def api_sensitive_reads():
         r["label"] = hit.get("label")
         r["severity"] = hit.get("severity")
     return out
+
+
+@app.get("/api/graph")
+def api_graph():
+    """The bi-temporal AST graph, structured for rendering: nodes clustered by
+    top-level path segment (so a large repo groups into modules instead of a
+    hairball), edges carrying their real valid_at/invalid_at window so a
+    client can scrub through time and watch supersessions happen.
+
+    Capped at MAX_GRAPH_NODES/MAX_GRAPH_EDGES -- a 24k-node global graph
+    cannot be force-directed-laid-out in a browser tab, and a partial-but-
+    real graph is more honest than either refusing to render or silently
+    picking an arbitrary 500 that changes every request. The cap keeps the
+    highest-degree nodes (the ones actually worth seeing) via the query's
+    own ORDER BY, not a random LIMIT.
+    """
+    try:
+        import asyncio
+
+        from .store import open_driver
+        from . import groups as _groups
+
+        async def fetch():
+            drv = open_driver()
+            try:
+                group_id = _groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                                           os.environ.get("CHRONOS_REPO_PATH"))
+                edge_recs, _, _ = await drv.execute_query(
+                    """
+                    MATCH (n:Entity)-[:RELATES_TO]->(e:RelatesToNode_)-[:RELATES_TO]->(m:Entity)
+                    WHERE e.group_id = $g
+                    RETURN n.uuid AS su, n.name AS sn, n.summary AS sp,
+                           m.uuid AS tu, m.name AS tn, m.summary AS tp,
+                           e.name AS rel, e.valid_at AS va, e.invalid_at AS ia
+                    ORDER BY e.valid_at
+                    LIMIT $lim
+                    """, g=group_id, lim=MAX_GRAPH_EDGES)
+                return [dict(r) for r in edge_recs]
+            finally:
+                await drv.close()
+
+        edges_raw = asyncio.run(fetch())
+    except Exception:  # noqa: BLE001 -- graph absent/locked must not 500 the dashboard
+        return {"nodes": [], "edges": [], "truncated": False, "total_nodes": 0}
+
+    nodes = {}
+    edges = []
+    for r in edges_raw:
+        for uid, name, path in ((r["su"], r["sn"], r["sp"]), (r["tu"], r["tn"], r["tp"])):
+            if uid not in nodes:
+                nodes[uid] = {"id": uid, "label": name, "path": path or "",
+                             "cluster": _cluster_of(path, name)}
+        edges.append({
+            "source": r["su"], "target": r["tu"], "rel": r["rel"],
+            "valid_at": r["va"].isoformat() if r["va"] else None,
+            "invalid_at": r["ia"].isoformat() if r["ia"] else None,
+        })
+        if len(nodes) >= MAX_GRAPH_NODES:
+            break
+
+    node_list = list(nodes.values())[:MAX_GRAPH_NODES]
+    kept_ids = {n["id"] for n in node_list}
+    edges = [e for e in edges if e["source"] in kept_ids and e["target"] in kept_ids]
+    return {
+        "nodes": node_list, "edges": edges,
+        "truncated": len(edges_raw) >= MAX_GRAPH_EDGES or len(nodes) > MAX_GRAPH_NODES,
+        "total_nodes": graph_node_count(),
+    }
+
+
+@app.get("/api/graph/changes")
+def api_graph_changes(since: str, until: str):
+    """Structural edges added/superseded in [since, until], grouped by the
+    file each edge's endpoints belong to -- the "what files changed in this
+    window" view the graph actually supports. There is no file-level
+    added/modified/deleted status in the graph itself, only edges appearing
+    and disappearing between two timestamps (query.py's changes()); a file
+    is classified here from that: touched-by-an-added-edge-only -> added,
+    touched-by-a-removed-edge-only -> removed, touched by both -> modified.
+    since/until are ISO-8601 timestamps (the graph.html scrubber range).
+    """
+    try:
+        s = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        u = datetime.fromisoformat(until.replace("Z", "+00:00"))
+    except ValueError:
+        return JSONResponse({"error": "since/until must be ISO-8601 timestamps"}, 400)
+
+    try:
+        import asyncio
+
+        from .store import open_driver
+        from . import groups as _groups
+
+        async def fetch():
+            drv = open_driver()
+            try:
+                group_id = _groups.resolve(os.environ.get("CHRONOS_GROUP_ID"),
+                                           os.environ.get("CHRONOS_REPO_PATH"))
+                added_recs, _, _ = await drv.execute_query(
+                    """
+                    MATCH (n:Entity)-[:RELATES_TO]->(e:RelatesToNode_)-[:RELATES_TO]->(m:Entity)
+                    WHERE e.group_id = $g AND e.valid_at > $s AND e.valid_at <= $u
+                    RETURN n.name AS sn, n.summary AS sp, m.name AS tn, m.summary AS tp,
+                           e.name AS rel, e.valid_at AS va
+                    LIMIT $lim
+                    """, g=group_id, s=s, u=u, lim=MAX_GRAPH_EDGES)
+                removed_recs, _, _ = await drv.execute_query(
+                    """
+                    MATCH (n:Entity)-[:RELATES_TO]->(e:RelatesToNode_)-[:RELATES_TO]->(m:Entity)
+                    WHERE e.group_id = $g AND e.invalid_at > $s AND e.invalid_at <= $u
+                    RETURN n.name AS sn, n.summary AS sp, m.name AS tn, m.summary AS tp,
+                           e.name AS rel, e.invalid_at AS ia
+                    LIMIT $lim
+                    """, g=group_id, s=s, u=u, lim=MAX_GRAPH_EDGES)
+                return [dict(r) for r in added_recs], [dict(r) for r in removed_recs]
+            finally:
+                await drv.close()
+
+        added_raw, removed_raw = asyncio.run(fetch())
+    except Exception:  # noqa: BLE001 -- graph absent/locked must not 500 the dashboard
+        return {"files": [], "since": since, "until": until, "truncated": False}
+
+    files = {}  # file -> {"added": int, "removed": int, "edges": [...]}
+
+    def touch(r, ts_field, bucket):
+        for name, path in ((r["sn"], r["sp"]), (r["tn"], r["tp"])):
+            f = _file_of(path, name)
+            entry = files.setdefault(f, {"added": 0, "removed": 0, "edges": []})
+            entry[bucket] += 1
+            entry["edges"].append({"src": r["sn"], "rel": r["rel"], "dst": r["tn"],
+                                   "at": r[ts_field].isoformat() if r[ts_field] else None,
+                                   "kind": bucket})
+
+    for r in added_raw:
+        touch(r, "va", "added")
+    for r in removed_raw:
+        touch(r, "ia", "removed")
+
+    out = []
+    for f, d in files.items():
+        status = "modified" if d["added"] and d["removed"] else ("added" if d["added"] else "removed")
+        out.append({"file": f, "status": status, "added_edges": d["added"],
+                    "removed_edges": d["removed"], "edges": d["edges"][:20]})
+    out.sort(key=lambda x: -(x["added_edges"] + x["removed_edges"]))
+    return {
+        "files": out, "since": since, "until": until,
+        "truncated": len(added_raw) >= MAX_GRAPH_EDGES or len(removed_raw) >= MAX_GRAPH_EDGES,
+    }
 
 
 def serve(host="127.0.0.1", port=8080):

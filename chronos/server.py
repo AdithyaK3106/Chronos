@@ -59,6 +59,12 @@ TOOLS = [as_of_callers, as_of_callees, as_of_impact, as_of_diff, what_changed, i
          # Wedge 4 — CI enforcement: what does not get to merge.
          chronos_generate_rule, chronos_enforce, chronos_promote_rule,
          chronos_list_rules, chronos_rule_report]
+# chronos_sensitive_reads, chronos_check_gate_status, chronos_anomaly_report,
+# chronos_trigger_anomaly_check, chronos_trigger_baseline_recompute are added
+# to TOOLS below, after they're defined -- they need _authenticate/_check_
+# permissions/_tag_sensitive from this same module, so they can't be imported
+# from elsewhere the way the wedge tools are. Do not add a bare @mcp.tool()
+# for any of them; add the function to TOOLS instead so _track() wraps it.
 
 # In-flight call tracker, for chronos_mcp_status. All tools serialize behind
 # the single Kuzu driver's asyncio.Lock (wedge1_mcp.driver()), so when several
@@ -197,11 +203,6 @@ def _track(tool):
     return wrapped
 
 
-for _tool in TOOLS:
-    mcp.tool()(_track(_tool))
-
-
-@mcp.tool()
 def chronos_sensitive_reads(agent_id: str = None, since_hours: int = 168) -> dict:
     """Recent reads/writes against paths classified as sensitive (F7).
 
@@ -229,19 +230,24 @@ def chronos_sensitive_reads(agent_id: str = None, since_hours: int = 168) -> dic
     return {"reads": reads, "total": len(reads), "high_severity_count": high}
 
 
-@mcp.tool()
 def chronos_check_gate_status(gate_id: str) -> dict:
     """Poll a sensitive-module gate request (F5): pending, approved, denied, or expired."""
     from . import gates
     gate = gates.get_gate(gate_id)
     if gate is None:
         return {"error": "no such gate", "gate_id": gate_id}
-    return {"gate_id": gate_id, "status": gate["status"], "module": gate["protected_module_label"],
-            "requested_at": gate["requested_at"], "resolved_at": gate["resolved_at"],
-            "resolved_by": gate["resolved_by"]}
+    out = {"gate_id": gate_id, "status": gate["status"], "module": gate["protected_module_label"],
+           "requested_at": gate["requested_at"], "resolved_at": gate["resolved_at"],
+           "resolved_by": gate["resolved_by"]}
+    # No GITHUB_TOKEN means the poll thread never started (server.main()) and
+    # this gate will never resolve on its own -- a human has to run the CLI.
+    # Make that actionable instead of a silent "pending" forever.
+    if gate["status"] == "pending" and not os.environ.get("GITHUB_TOKEN"):
+        out["manual_approval_required"] = True
+        out["cli_command"] = f"chronos gates approve {gate_id}"
+    return out
 
 
-@mcp.tool()
 def chronos_anomaly_report(agent_id: str = None, since_hours: int = 24) -> dict:
     """Recent behavioural anomalies (F6): unusually high volume, off-hours
     activity, path deviation, or a write-lock spike vs. an agent's baseline."""
@@ -249,7 +255,6 @@ def chronos_anomaly_report(agent_id: str = None, since_hours: int = 24) -> dict:
     return anomaly.report(agent_id, since_hours)
 
 
-@mcp.tool()
 def chronos_trigger_anomaly_check(agent_id: str) -> dict:
     """Test infrastructure: run the anomaly check on an agent's most recent
     session right now, instead of waiting for it to go idle for 30 minutes
@@ -266,7 +271,6 @@ def chronos_trigger_anomaly_check(agent_id: str) -> dict:
     return {"checked": True, "anomaly": result}
 
 
-@mcp.tool()
 def chronos_trigger_baseline_recompute() -> dict:
     """Test infrastructure: force an immediate baseline recompute instead of
     waiting for the daily sweeper cycle. Not part of the F6 spec's steady
@@ -277,6 +281,18 @@ def chronos_trigger_baseline_recompute() -> dict:
     return {"agents_updated": n}
 
 
+TOOLS += [chronos_sensitive_reads, chronos_check_gate_status, chronos_anomaly_report,
+          chronos_trigger_anomaly_check, chronos_trigger_baseline_recompute]
+for _tool in TOOLS:
+    mcp.tool()(_track(_tool))
+
+
+# ponytail: chronos_mcp_status is deliberately left outside TOOLS/_track() --
+# it has no write path and reveals no secrets (just tool names + durations of
+# in-flight calls), and it must stay reachable with no key even when a hung
+# call is why a real key can't get a response. Guarding it would make the one
+# tool meant to diagnose a stuck server also block on that same stuck server's
+# auth path.
 @mcp.tool()
 def chronos_mcp_status() -> dict:
     """What's currently running on this server, and who's waiting behind it.
@@ -345,8 +361,35 @@ def _gate_poll_loop():
             print(f"chronos gate poll: {e}")
 
 
+def _graph_warmup():
+    """Pre-claims the Kuzu driver in the background so the first real graph
+    tool call doesn't pay the cold-open cost (up to CHRONOS_DRIVER_TIMEOUT,
+    nondeterministically -- see wedge1_mcp.driver()'s docstring). If open
+    hangs, it hangs in this thread instead of on a client's call; the
+    transport comes up regardless (this thread never touches it) and tool
+    calls queue normally once the driver resolves.
+
+    ponytail: calls store.open_driver() directly and writes wedge1_mcp's
+    module globals instead of awaiting wedge1_mcp.driver() -- that coroutine
+    takes an asyncio.Lock which is not safe to await from two different event
+    loops (this thread's vs. mcp.run()'s), and this thread starts before
+    mcp.run() so there's no concurrent access to race against yet. If a
+    client call still beats this thread to it, driver()'s own asyncio.Lock
+    handles that -- this is strictly an optimization, not the only path.
+    """
+    try:
+        from . import wedge1_mcp
+        from .store import ensure_schema, open_driver
+        wedge1_mcp._driver = open_driver()
+        asyncio.run(ensure_schema(wedge1_mcp._driver))
+        wedge1_mcp._schema_ready = True
+    except Exception as e:  # noqa: BLE001 -- warmup must never crash the server
+        print(f"chronos graph warmup: {type(e).__name__}: {e}")
+
+
 def main():
     threading.Thread(target=_sweep_loop, daemon=True, name="chronos-lock-sweeper").start()
+    threading.Thread(target=_graph_warmup, daemon=True, name="chronos-graph-warmup").start()
     if os.environ.get("GITHUB_TOKEN"):
         threading.Thread(target=_gate_poll_loop, daemon=True, name="chronos-gate-poll").start()
 

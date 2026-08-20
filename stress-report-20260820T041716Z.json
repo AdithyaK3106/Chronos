@@ -1,0 +1,102 @@
+{
+  "run_at": "2026-08-20T04:17:16.728145+00:00",
+  "chronos_version": "0.1.0",
+  "db_path": "C:\\Users\\urbra\\AppData\\Local\\Temp\\chronos-stress-ib719w4f\\chronos.db",
+  "features_tested": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F7"
+  ],
+  "scenarios": {
+    "authentication": {
+      "status": "pass",
+      "sub_tests": [
+        {
+          "name": "no_key_rejected_in_strict",
+          "pass": true
+        },
+        {
+          "name": "invalid_key_rejected",
+          "pass": true
+        },
+        {
+          "name": "valid_key_accepted",
+          "pass": true
+        },
+        {
+          "name": "suspended_key_rejected",
+          "pass": true
+        }
+      ]
+    },
+    "permissions": {
+      "status": "pass",
+      "sub_tests": [
+        {
+          "name": "readonly_write_denied",
+          "pass": true
+        },
+        {
+          "name": "restricted_allowed_path_ok",
+          "pass": true
+        },
+        {
+          "name": "restricted_denied_path_blocked",
+          "pass": true
+        },
+        {
+          "name": "unrestricted_agent_ok",
+          "pass": true
+        }
+      ]
+    },
+    "lock_storm": {
+      "status": "pass",
+      "concurrency_correct": true,
+      "expiry_accurate": true,
+      "preemption_correct": true
+    },
+    "audit_integrity": {
+      "status": "pass",
+      "entries_written": 50,
+      "verify_exit_code": 0,
+      "verify_output": "VALID -- 131 entries verified"
+    },
+    "gate_flow": {
+      "status": "pass",
+      "pending_ok": true,
+      "manual_fallback_ok": true,
+      "cli_command_ok": true,
+      "cli_approve_ok": true,
+      "approved_ok": true,
+      "reacquire_ok": true,
+      "round_trip_seconds": 4.05
+    },
+    "anomaly_detection": {
+      "status": "pass",
+      "anomaly_detected": true,
+      "type": "HIGH_VOLUME"
+    },
+    "sensitive_tracking": {
+      "status": "pass",
+      "detections": 3,
+      "false_positives": 0
+    },
+    "concurrent_load": {
+      "status": "pass",
+      "total_calls": 15,
+      "wall_clock_seconds": 0.92,
+      "calls_per_second": 16.27,
+      "p50_ms": 187.0,
+      "p95_ms": 312.0,
+      "error_count": 0,
+      "lock_correctness": true
+    }
+  },
+  "overall": "pass",
+  "failures": []
+}

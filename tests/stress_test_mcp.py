@@ -272,18 +272,21 @@ class StressRunner:
             "entries_written": 50, "verify_exit_code": r.returncode, "verify_output": r.stdout.strip()}
 
     async def scenario_gate_flow(self):
+        """CLI-only gate flow: request -> pending (with manual_approval_required
+        since no GITHUB_TOKEN is set for this test run) -> `chronos gates
+        approve` -> status flips -> re-acquire returns acquired:True. No
+        GitHub token needed -- request_gate() only attempts a PR comment when
+        approval_channel is pr_comment AND GITHUB_TOKEN is set; otherwise it
+        just parks the gate row, which the CLI can always resolve."""
         if "F5" not in self.features:
             self.scenarios["gate_flow"] = {"status": "skip", "notes": "F5 not selected"}
-            return
-        if not os.environ.get("GITHUB_TOKEN"):
-            self.scenarios["gate_flow"] = {"status": "skip", "notes": "skipped: no GITHUB_TOKEN"}
             return
 
         dot = self.tmp_dir / ".chronos"
         dot.mkdir(exist_ok=True)
         (dot / "protected.yml").write_text(
             "protected_modules:\n  - label: Test\n    paths: [\"gated/**\"]\n"
-            "    approval_timeout_hours: 1\n    approval_channel: pr_comment\n",
+            "    approval_timeout_hours: 1\n",
             encoding="utf-8")
 
         t0 = time.monotonic()
@@ -293,18 +296,27 @@ class StressRunner:
         gate_id = data.get("gate_id")
         status_data, _ = await self._call(session, "chronos_check_gate_status", gate_id=gate_id)
         pending_ok = status_data.get("status") == "pending"
+        no_token_env = "GITHUB_TOKEN" not in self.env
+        manual_fallback_ok = (not no_token_env) or status_data.get("manual_approval_required") is True
+        cli_command_ok = (not no_token_env) or status_data.get("cli_command") == f"chronos gates approve {gate_id}"
 
         r = subprocess.run([sys.executable, "-m", "chronos", "gates", "approve", gate_id],
                            env=self.env, capture_output=True, text=True, cwd=str(REPO_ROOT))
+        cli_approve_ok = r.returncode == 0
 
         status_data, _ = await self._call(session, "chronos_check_gate_status", gate_id=gate_id)
         approved_ok = status_data.get("status") == "approved"
         data, _ = await self._call(session, "chronos_acquire_lock",
                                    node_id="gated/secret.py::f::Function", agent_id="gate-agent")
-        reacquire_ok = bool(data.get("acquired"))
+        reacquire_ok = data.get("acquired") is True and data.get("renewed") is True
 
+        all_ok = (pending_ok and manual_fallback_ok and cli_command_ok
+                  and cli_approve_ok and approved_ok and reacquire_ok)
         self.scenarios["gate_flow"] = {
-            "status": "pass" if pending_ok and approved_ok and reacquire_ok else "fail",
+            "status": "pass" if all_ok else "fail",
+            "pending_ok": pending_ok, "manual_fallback_ok": manual_fallback_ok,
+            "cli_command_ok": cli_command_ok, "cli_approve_ok": cli_approve_ok,
+            "approved_ok": approved_ok, "reacquire_ok": reacquire_ok,
             "round_trip_seconds": round(time.monotonic() - t0, 2)}
 
     async def scenario_anomaly_detection(self):
@@ -459,7 +471,7 @@ def _write_reports(scenarios: dict, tmp_dir: Path, features: list) -> tuple[Path
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--features", default=",".join(f for f in ALL_FEATURES if f != "F5"))
+    ap.add_argument("--features", default=",".join(ALL_FEATURES))
     ap.add_argument("--load-agents", type=int, default=5)
     ap.add_argument("--load-calls", type=int, default=20)
     args = ap.parse_args()

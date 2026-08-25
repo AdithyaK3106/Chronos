@@ -249,10 +249,42 @@ def claude_desktop_config() -> Path | None:
 # and `enforce` each define their own --repo; the global one must precede the
 # subcommand. `index` did not have one, so this post-merge hook exited 2 on
 # every merge until it was added.
+#
+# pre-commit runs two checks: `enforce` (Wedge 4 rule verdicts) and
+# `precommit run` (F3 lock conflicts + F5 gate status). Both must pass. The
+# sentinel markers let `chronos init` upgrade this block in place on re-run
+# without touching a hook a user has since hand-edited outside the markers.
+PRECOMMIT_SENTINEL_START = "# chronos-managed: begin"
+PRECOMMIT_SENTINEL_END = "# chronos-managed: end"
+PRECOMMIT_BLOCK = (
+    f'{PRECOMMIT_SENTINEL_START}\n'
+    'python -m chronos enforce --repo "$(git rev-parse --show-toplevel)" --fail-on-block || exit 1\n'
+    'python -m chronos precommit run --repo "$(git rev-parse --show-toplevel)" || exit 1\n'
+    f'{PRECOMMIT_SENTINEL_END}\n'
+)
 HOOKS = {
-    "pre-commit": '#!/bin/sh\npython -m chronos enforce --repo "$(git rev-parse --show-toplevel)" --fail-on-block\n',
+    "pre-commit": "#!/bin/sh\n" + PRECOMMIT_BLOCK,
     "post-merge": '#!/bin/sh\npython -m chronos index --repo "$(git rev-parse --show-toplevel)"\n',
 }
+
+
+def _install_precommit_hook(p: Path) -> str:
+    """Write or in-place-upgrade the pre-commit hook's chronos-managed block.
+
+    Returns "written" (new/no sentinel found among ours -- pristine write),
+    "upgraded" (sentinel found, block replaced), or "left" (hook exists with
+    no sentinel -- a user-authored hook we must not clobber)."""
+    if not p.exists():
+        p.write_text(HOOKS["pre-commit"], encoding="utf-8", newline="\n")
+        return "written"
+    existing = p.read_text(encoding="utf-8")
+    if PRECOMMIT_SENTINEL_START not in existing:
+        return "left"
+    pre, rest = existing.split(PRECOMMIT_SENTINEL_START, 1)
+    _, post = rest.split(PRECOMMIT_SENTINEL_END, 1)
+    post = post[1:] if post.startswith("\n") else post
+    p.write_text(pre + PRECOMMIT_BLOCK + post, encoding="utf-8", newline="\n")
+    return "upgraded"
 
 
 async def do_init(args):
@@ -322,12 +354,21 @@ async def do_init(args):
         hooks_ok = False
     else:
         hooks_dir.mkdir(parents=True, exist_ok=True)
-        for name, body in HOOKS.items():
-            p = hooks_dir / name
-            p.write_text(body, encoding="utf-8", newline="\n")  # sh needs LF
-            p.chmod(p.stat().st_mode | 0o755)
-        print(f"[5/6] installed {', '.join(HOOKS)} in {hooks_dir}")
-        hooks_ok = True
+        pre_commit_path = hooks_dir / "pre-commit"
+        outcome = _install_precommit_hook(pre_commit_path)
+        pre_commit_path.chmod(pre_commit_path.stat().st_mode | 0o755)
+        if outcome == "left":
+            print(f"[5/6] {pre_commit_path} already exists with no chronos-managed "
+                  "block - leaving it untouched.")
+            print("      Add this to it by hand: python -m chronos precommit run --repo "
+                  '"$(git rev-parse --show-toplevel)"')
+        else:
+            verb = "installed" if outcome == "written" else "upgraded"
+            print(f"[5/6] {verb} pre-commit hook (enforce + precommit run) at {pre_commit_path}")
+        post_merge_path = hooks_dir / "post-merge"
+        post_merge_path.write_text(HOOKS["post-merge"], encoding="utf-8", newline="\n")
+        post_merge_path.chmod(post_merge_path.stat().st_mode | 0o755)
+        hooks_ok = outcome != "left"
 
     # 6. doctor
     print("[6/6] chronos doctor:")
@@ -747,6 +788,18 @@ def do_gates(args):
         return
 
 
+def do_precommit(args):
+    from . import precommit
+    if args.precommit_verb == "run":
+        code = precommit.run(args.repo_sub)
+        raise SystemExit(code)
+    if args.precommit_verb == "status":
+        s = precommit.status(args.repo_sub)
+        for k, v in s.items():
+            print(f"{k}: {v}")
+        return
+
+
 def do_audit(args):
     from . import audit
     verb = args.audit_verb
@@ -884,6 +937,10 @@ def _fake_packmind_roundtrip():
 async def do_doctor(args):
     if getattr(args, "fake_packmind", False):
         raise SystemExit(_fake_packmind_roundtrip())
+    load_repo_config(args.repo or ".")
+    if getattr(args, "json", False):
+        from . import doctor_report
+        raise SystemExit(doctor_report.run(as_json=True))
     from .indexer import toolchain_report
     t = toolchain_report()
     print(f"vendored src: {'present' if t['vendored'] else 'MISSING -- git submodule update --init --depth 1'}")
@@ -1030,6 +1087,16 @@ async def do_doctor(args):
     except Exception as e:
         print(f"enforce     : ERROR {e}")
 
+    # Structured health checks: fixed labels, a status symbol per line, and a
+    # real exit code -- the CI-gateable summary on top of the prose above.
+    from . import doctor_report
+    print()
+    rows = doctor_report.run_checks()
+    print(doctor_report.render(rows))
+    code = doctor_report.exit_code(rows)
+    if code:
+        raise SystemExit(code)
+
 
 def main():
     ap = argparse.ArgumentParser(prog="chronos", description="bi-temporal AST knowledge graph")
@@ -1055,6 +1122,9 @@ def main():
     doc.add_argument("--fake-packmind", action="store_true",
                      help="verify the Packmind HTTP layer against a local fake "
                           "(no credentials, no Docker); exit 1 on failure")
+    doc.add_argument("--json", action="store_true",
+                     help="structured health checks only (skip the prose diagnostics), "
+                          "as a JSON array; exit 1 if any check is an error")
     rg = sub.add_parser("release-group",
                         help="release a group claim so another repo can use it")
     rg.add_argument("group_id", help="group id to release")
@@ -1145,6 +1215,14 @@ def main():
     en.add_argument("--session-id")
     dmn = sub.add_parser("daemon", help="resident process that keeps the graph warm")
     dmn.add_argument("verb", choices=["start", "stop", "status"])
+
+    pc = sub.add_parser("precommit", help="lock/gate checks against the staged diff (F3/F5)")
+    pc_sub = pc.add_subparsers(dest="precommit_verb", required=True)
+    pcr = pc_sub.add_parser("run", help="run lock/gate checks against the staged diff now")
+    pcr.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+    pcs = pc_sub.add_parser("status", help="hook install state, protected.yml, chronos.db")
+    pcs.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+
     args = ap.parse_args()
     # subcommand --repo wins over the global one when both are given
     if getattr(args, "repo_sub", None):
@@ -1155,12 +1233,13 @@ def main():
           "approve-rule": do_approve_rule, "promote-rule": do_promote_rule,
           "dashboard": do_dashboard, "daemon": do_daemon,
           "release-group": do_release_group, "index-log": do_index_log,
-          "audit": do_audit, "agent": do_agent, "locks": do_locks, "gates": do_gates}[args.cmd]
+          "audit": do_audit, "agent": do_agent, "locks": do_locks, "gates": do_gates,
+          "precommit": do_precommit}[args.cmd]
     try:
         # dashboard and daemon are sync (uvicorn owns its loop; daemon control
         # is plain socket I/O); everything else is a coroutine
         if args.cmd in ("dashboard", "daemon", "release-group", "index-log", "audit",
-                        "agent", "locks", "gates"):
+                        "agent", "locks", "gates", "precommit"):
             fn(args)
         else:
             asyncio.run(fn(args))

@@ -72,6 +72,9 @@ async def main():
         "chronos_playbook_health",
         "chronos_generate_rule", "chronos_enforce", "chronos_promote_rule",
         "chronos_list_rules", "chronos_rule_report",
+        # F1-F7 Governance tools
+        "chronos_check_gate_status", "chronos_trigger_baseline_recompute",
+        "chronos_trigger_anomaly_check", "chronos_anomaly_report", "chronos_sensitive_reads",
         # server.py-only: reports in-flight calls, not owned by any one wedge.
         "chronos_mcp_status",
     }
@@ -80,9 +83,9 @@ async def main():
     for m in (wedge1_mcp, wedge2_mcp, wedge3_mcp, wedge4_mcp):
         per_wedge += len(await m.mcp.list_tools())
     server_only = len(tools) - per_wedge
-    assert server_only == 1, f"unified={len(tools)} but wedges total {per_wedge} (expected exactly 1 server-only tool: chronos_mcp_status)"
+    assert server_only == 6, f"unified={len(tools)} but wedges total {per_wedge} (expected exactly 6 server/governance tools)"
     assert server.mcp.name == "chronos"
-    ok(f"unified server exposes all {len(tools)} tools: {per_wedge} from 4 wedges + {server_only} server-only")
+    ok(f"unified server exposes all {len(tools)} tools: {per_wedge} from 4 wedges + {server_only} server/governance tools")
 
     # --- 2. CHRONOS_AUTO_TRIGGERS=false disables every trigger -------------
     os.environ["CHRONOS_AUTO_TRIGGERS"] = "false"

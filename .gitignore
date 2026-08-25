@@ -1,10 +1,44 @@
+# Byte-compiled / optimized / test caches
 __pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
 *.egg-info/
+dist/
 build/
+
+# Local databases, storage & graph
 .chronos/
+*.kz/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Ortho state (preserve decisions log)
 .ortho/*
 **/.ortho/*
 !.ortho/decisions.jsonl
 !**/.ortho/decisions.jsonl
-*.kz/
+
+# Demo ephemeral fixtures & novapay
 demo/novapay/
+
+# Presentations, pitch decks, screenshots & Office files
+*.pptx
+*.ppt
+~$*.pptx
+~$*.ppt
+slides_screenshots/
+demo/build_presentation_deck.py
+demo/generate_native_deck.py
+
+# Sales outreach, pilot research & scratch documentation
+sales/
+ai-governance-research.md
+demo-spec.md
+FINDINGS.md
+stress-report*

@@ -1,0 +1,4 @@
+# Chronos proposed rule — no ast-grep pattern yet.
+# Run chronos generate-rule to make it executable.
+id: chronos-3523d036
+# rule: Always mock LLMs in isolated tests

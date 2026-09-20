@@ -27,7 +27,7 @@ class GraphLocked(RuntimeError):
     """
 
 
-def open_driver():
+def open_driver(timeout: float = 10.0):
     uri = os.environ.get("CHRONOS_DB_URI")
     if uri:  # e.g. bolt://... for Neo4j, when a partner outgrows the embedded store
         from graphiti_core.driver.neo4j_driver import Neo4jDriver

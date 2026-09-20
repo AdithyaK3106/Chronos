@@ -6,9 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .agents/verify_lock.py"
+            "command": "python verify_lock.py"
           }
         ]
+      }
+    ]
+  },
+  "chronos-context-reminder": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python inject_chronos_reminder.py"
       }
     ]
   }

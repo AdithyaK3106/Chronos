@@ -1,0 +1,2242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronos — AI Agent Governance & Control Plane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       1. CORE DESIGN SYSTEM & VARIABLES
+       ========================================================================== */
+    :root {
+      --bg-dark: #08090d;
+      --bg-surface: #0f1118;
+      --bg-card: #151822;
+      --bg-card-hover: #1c202d;
+      --border-subtle: #202433;
+      --border-bright: #30374e;
+      --border-accent: rgba(0, 242, 255, 0.2);
+      
+      --text-main: #f3f4f6;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --accent-cyan: #00f2ff;
+      --accent-cyan-glow: rgba(0, 242, 255, 0.15);
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.15);
+      --accent-purple: #a855f7;
+      --accent-purple-glow: rgba(168, 85, 247, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', ui-monospace, monospace;
+      
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+      background-color: var(--bg-dark);
+      font-family: var(--font-sans);
+      color: var(--text-main);
+    }
+
+    body {
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient Background Mesh */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .bg-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-cyan-glow) 0%, transparent 70%);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+    }
+
+    /* Layout Containers */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 100px 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 850px;
+      margin: 0 auto 60px auto;
+    }
+
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(0, 242, 255, 0.06);
+      border: 1px solid var(--border-accent);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* Typography Utilities */
+    .highlight-cyan { color: var(--accent-cyan); }
+    .highlight-emerald { color: var(--accent-emerald); }
+    .highlight-purple { color: var(--accent-purple); }
+    .gradient-text {
+      background: linear-gradient(135deg, #fff 0%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Buttons & Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .badge-cyan { background: rgba(0, 242, 255, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 255, 0.2); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-amber { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge-red { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: #000;
+      box-shadow: 0 0 20px var(--accent-cyan-glow);
+    }
+    .btn-primary:hover {
+      background: #33f5ff;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-bright);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-cyan);
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      transition: var(--transition-smooth);
+    }
+    .glass-card:hover {
+      border-color: var(--border-bright);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ==========================================================================
+       2. STICKY HEADER & PROGRESS BAR
+       ========================================================================== */
+    #progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(to right, var(--accent-cyan), var(--accent-emerald));
+      width: 0%;
+      z-index: 1000;
+      transition: width 50ms ease-out;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      background: rgba(8, 9, 13, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .nav-container {
+      max-width: 1380px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.03em;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #000;
+      font-size: 0.9rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 14px;
+    }
+
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: var(--transition-fast);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    nav a:hover, nav a.active {
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.05);
+    }
+
+    /* ==========================================================================
+       3. HERO SECTION
+       ========================================================================== */
+    .hero-section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding-top: 120px;
+      text-align: center;
+    }
+
+    .hero-badge-container {
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-size: clamp(2.5rem, 5.5vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      max-width: 950px;
+      margin: 0 auto 24px auto;
+      color: #fff;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.1rem, 2vw, 1.35rem);
+      color: var(--text-dim);
+      max-width: 850px;
+      margin: 0 auto 40px auto;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    /* Architecture Visual Flow */
+    .arch-flow-container {
+      width: 100%;
+      max-width: 900px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .arch-node-main {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+    }
+    .arch-agents { background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple); color: #e9d5ff; }
+    .arch-codebase { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: #a7f3d0; }
+
+    .arch-chronos-box {
+      background: rgba(0, 242, 255, 0.05);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      margin: 20px 0;
+      box-shadow: 0 0 30px var(--accent-cyan-glow);
+    }
+
+    .arch-chronos-header {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--accent-cyan);
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    .arch-wedge-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .arch-wedge-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-main);
+      text-align: center;
+      transition: var(--transition-fast);
+    }
+    .arch-wedge-pill:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+    }
+
+    /* Flow SVG Connector Lines */
+    .flow-connector {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 30px;
+    }
+    .flow-pulse {
+      stroke-dasharray: 6 6;
+      animation: pulse-flow 1.5s linear infinite;
+    }
+    @keyframes pulse-flow {
+      to { stroke-dashoffset: -24; }
+    }
+
+    /* ==========================================================================
+       4. THE MARKET PROBLEM
+       ========================================================================== */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .problem-card {
+      position: relative;
+      cursor: pointer;
+      height: 100%;
+    }
+
+    .problem-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .problem-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .problem-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .problem-desc {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .problem-example {
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 3px solid var(--accent-amber);
+      padding: 12px 14px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      display: none;
+    }
+    .problem-card:hover .problem-example {
+      display: block;
+    }
+
+    .card-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ==========================================================================
+       4.5 QUANTIFYING THE PROBLEM (REAL ONLINE DATA & SOURCES)
+       ========================================================================== */
+    .scale-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .scale-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 14px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scale-card-accent {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .scale-stat {
+      font-family: var(--font-mono);
+      font-size: clamp(2rem, 3.5vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin: 12px 0 6px 0;
+      line-height: 1;
+    }
+
+    .scale-label {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .scale-desc {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    .source-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.78rem;
+    }
+
+    .source-link {
+      color: var(--accent-cyan);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .source-link:hover { text-decoration: underline; }
+
+    .data-table-wrapper {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-top: 30px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 900px;
+    }
+
+    .data-table th, .data-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+
+    .data-table th {
+      background: var(--bg-card);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       5. COMPETITIVE LANDSCAPE MAP
+       ========================================================================== */
+    .landscape-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 40px 24px;
+      position: relative;
+    }
+
+    .landscape-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      position: relative;
+    }
+
+    .landscape-category {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .category-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .competitor-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .competitor-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .competitor-chip:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .chronos-center-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-dark);
+      border: 2px solid var(--accent-cyan);
+      box-shadow: 0 0 40px var(--accent-cyan-glow);
+      border-radius: 16px;
+      padding: 24px 32px;
+      text-align: center;
+      z-index: 5;
+    }
+    .hub-title {
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 1.4rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.05em;
+    }
+    .hub-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* Slide Panel Drawer for Competitors */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1001;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-smooth);
+    }
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-bright);
+      z-index: 1002;
+      transform: translateX(100%);
+      transition: transform var(--transition-smooth);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+    }
+    .drawer-overlay.open .drawer-panel {
+      transform: translateX(0);
+    }
+
+    .drawer-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    /* ==========================================================================
+       6. GITNEXUS VS CHRONOS HEAD-TO-HEAD MATRIX
+       ========================================================================== */
+    .matrix-wrapper {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+      min-width: 800px;
+    }
+
+    .matrix-table th, .matrix-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .matrix-table th {
+      background: var(--bg-card);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      position: sticky;
+      top: 0;
+    }
+
+    .matrix-table th.col-chronos, .matrix-table td.col-chronos {
+      background: rgba(0, 242, 255, 0.05);
+      border-left: 2px solid rgba(0, 242, 255, 0.3);
+      border-right: 2px solid rgba(0, 242, 255, 0.3);
+    }
+
+    .matrix-table th.col-chronos {
+      color: var(--accent-cyan);
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+    }
+
+    .matrix-table tr.row-feature {
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+
+    .matrix-table tr.row-feature:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .matrix-table tr.row-purpose {
+      background: rgba(0, 242, 255, 0.08);
+      font-weight: 800;
+    }
+
+    .matrix-val {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .val-yes { color: var(--accent-emerald); }
+    .val-no { color: var(--text-muted); opacity: 0.6; }
+    .val-custom { color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.85rem; }
+
+    .matrix-explanation {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 14px 20px;
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      border-left: 3px solid var(--accent-cyan);
+      display: none;
+    }
+
+    /* ==========================================================================
+       7. DIFFERENTIATION: UNIT OF COORDINATION
+       ========================================================================== */
+    .diff-demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .diff-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .diff-card.chronos-card {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 30px var(--accent-cyan-glow);
+    }
+
+    .code-node-block {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: var(--bg-dark);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .node-item {
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .node-locked-red { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-red); color: #fca5a5; }
+    .node-locked-cyan { background: rgba(0, 242, 255, 0.15); border: 1px solid var(--accent-cyan); color: #c7d2fe; }
+    .node-locked-purple { background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple); color: #e9d5ff; }
+    .node-avail { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: #a7f3d0; }
+
+    .diff-metrics {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 30px;
+      padding: 16px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    .metric-item {
+      text-align: center;
+    }
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+    }
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* ==========================================================================
+       8. COMPARISONS (GitNexus, Graphify, Runtime)
+       ========================================================================== */
+    .flow-compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .flow-chain {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .flow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    .flow-step:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card-hover);
+    }
+    .flow-step.highlight {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.05);
+    }
+
+    .taxonomy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    /* ==========================================================================
+       9. THE FIVE WEDGES
+       ========================================================================== */
+    .wedge-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 30px;
+      overflow-x: auto;
+    }
+
+    .wedge-btn {
+      flex: 1;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition-fast);
+      min-width: 160px;
+    }
+    .wedge-btn:hover {
+      border-color: var(--border-bright);
+    }
+    .wedge-btn.active {
+      background: rgba(0, 242, 255, 0.08);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px var(--accent-cyan-glow);
+    }
+
+    .wedge-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+    .wedge-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .wedge-content-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    /* ==========================================================================
+       10. MERGE GATE INTERACTIVE DEMO
+       ========================================================================== */
+    .demo-window {
+      background: #090a0f;
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .window-header {
+      background: #12141d;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .window-body {
+      padding: 24px;
+    }
+
+    .code-diff {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      background: #050608;
+      border-radius: 8px;
+      padding: 16px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+    .diff-add { color: #4ade80; background: rgba(74, 222, 128, 0.1); display: block; padding: 0 4px; }
+    .diff-rem { color: #f87171; background: rgba(248, 113, 113, 0.1); display: block; padding: 0 4px; }
+
+    .policy-verdict-box {
+      border-radius: 8px;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      transition: var(--transition-smooth);
+    }
+    .verdict-blocked {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    .verdict-passed {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    /* ==========================================================================
+       11. BEFORE / AFTER SLIDER
+       ========================================================================== */
+    .slider-container {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border-bright);
+      background: var(--bg-surface);
+    }
+
+    .slider-pane {
+      position: absolute;
+      inset: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .pane-before {
+      background: #110d13;
+      color: #f87171;
+    }
+
+    .pane-after {
+      background: #0d1418;
+      color: var(--accent-cyan);
+      clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+    }
+
+    .slider-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 4px;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 15px var(--accent-cyan);
+      cursor: ew-resize;
+      z-index: 10;
+    }
+
+    .handle-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1rem;
+    }
+
+    /* ==========================================================================
+       12. WHY CHRONOS WINS & FINAL POSITIONING
+       ========================================================================== */
+    .reasons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .reason-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      transition: var(--transition-smooth);
+    }
+    .reason-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-4px);
+    }
+
+    .reason-word {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .reason-statement {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .finale-section {
+      text-align: center;
+      padding: 120px 24px;
+      background: radial-gradient(circle at center, rgba(0, 242, 255, 0.08) 0%, transparent 70%);
+    }
+
+    .finale-headline {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 24px;
+    }
+
+    .finale-subtitle {
+      font-size: 1.3rem;
+      color: var(--text-dim);
+      max-width: 800px;
+      margin: 0 auto 40px auto;
+    }
+
+    .finale-punchline {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-top: 40px;
+    }
+
+    /* Responsive Breakdown */
+    @media (max-width: 768px) {
+      .diff-demo-container, .flow-compare-grid, .taxonomy-grid, .wedge-content-card {
+        grid-template-columns: 1fr;
+      }
+      .landscape-grid { grid-template-columns: 1fr; }
+      .chronos-center-hub { position: relative; top: auto; left: auto; transform: none; margin: 20px 0; }
+      nav { display: none; } /* Simplified mobile header */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Mesh Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Top Scroll Progress Bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Sticky Header -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">C</div>
+        Chronos
+      </a>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#problem">Problem</a>
+        <a href="#scale">Data & Scale</a>
+        <a href="#landscape">Landscape</a>
+        <a href="#matrix">Comparison Matrix</a>
+        <a href="#coordination">Coordination</a>
+        <a href="#wedges">5 Wedges</a>
+        <a href="#gate-demo">Live Demo</a>
+        <a href="#why-wins">Why Wins</a>
+      </nav>
+      <div class="badge badge-cyan">LOCAL-FIRST CORE</div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+     SECTION 2: HERO SECTION
+     ========================================================================== -->
+  <section id="overview" class="hero-section">
+    <div class="hero-badge-container">
+      <span class="badge badge-cyan">LOCAL-FIRST • ZERO-EGRESS CORE • DETERMINISTIC</span>
+    </div>
+    
+    <h1 class="hero-title">
+      AI agents can write code.<br>
+      <span class="gradient-text">Who governs what they do with it?</span>
+    </h1>
+
+    <p class="hero-subtitle">
+      Chronos is a local-first, bi-temporal AST governance layer for AI engineering agents — giving them persistent codebase knowledge, fine-grained coordination, deterministic policy enforcement, and cryptographic accountability.
+    </p>
+
+    <!-- Architecture Visual Flow -->
+    <div class="arch-flow-container">
+      <div class="arch-layer">
+        <div class="arch-node-main arch-agents">🤖 AI AGENTS (Claude Code, Cursor, Devin)</div>
+      </div>
+
+      <div class="flow-connector">
+        <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+          <path d="M20 0 V24 M12 16 L20 24 L28 16" stroke="var(--accent-purple)" stroke-width="2" class="flow-pulse"/>
+        </svg>
+      </div>
+
+      <div class="arch-chronos-box">
+        <div class="arch-chronos-header">CHRONOS CONTROL PLANE</div>
+        <div class="arch-wedge-grid">
+          <div class="arch-wedge-pill">UNDERSTAND</div>
+          <div class="arch-wedge-pill">REMEMBER</div>
+          <div class="arch-wedge-pill">COORDINATE</div>
+          <div class="arch-wedge-pill">GOVERN</div>
+          <div class="arch-wedge-pill">AUDIT</div>
+        </div>
+      </div>
+
+      <div class="flow-connector">
+        <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+          <path d="M20 0 V24 M12 16 L20 24 L28 16" stroke="var(--accent-cyan)" stroke-width="2" class="flow-pulse"/>
+        </svg>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-node-main arch-codebase">⚡ EVOLVING CODEBASE</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 3: THE MARKET PROBLEM
+     ========================================================================== -->
+  <section id="problem">
+    <div class="section-header">
+      <div class="section-tag">Market Reality</div>
+      <h2 class="section-title">The agent is getting autonomous.<br>The infrastructure isn't.</h2>
+      <p class="section-subtitle">As agents evolve from auto-complete helpers to autonomous team members, traditional dev infrastructure breaks down in 4 key areas.</p>
+    </div>
+
+    <div class="problem-grid">
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🔍</div>
+          <div class="problem-title">Understand</div>
+        </div>
+        <p class="problem-desc">Agents repeatedly reconstruct context from files and tools on every prompt.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> An agent reads 40 files to understand a function signature, wasting 80% of tokens, and still misses past caller dependencies.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🧠</div>
+          <div class="problem-title">Remember</div>
+        </div>
+        <p class="problem-desc">Important decisions, incidents, and previous failures disappear across sessions.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> Agent A fixes a security bug. 3 days later, Agent B re-introduces the exact same vulnerable code because post-mortem lessons vanish.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">⚔️</div>
+          <div class="problem-title">Coordinate</div>
+        </div>
+        <p class="problem-desc">Multiple agents collide when attempting to modify the same codebase.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> Agent A refactors `auth.py` while Agent B updates session handling. File locks block Agent B, or uncoordinated edits produce broken git merges.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🛡️</div>
+          <div class="problem-title">Govern</div>
+        </div>
+        <p class="problem-desc">Prompt instructions are soft recommendations, not deterministic enforcement.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> "Never write raw SQL queries" in system prompts is probabilistic. Under complex multi-step reasoning, agents hallucinate around prompt rules.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 3.5: QUANTIFYING THE GOVERNANCE GAP (REAL DATA & SOURCES)
+     ========================================================================== -->
+  <section id="scale">
+    <div class="section-header">
+      <div class="section-tag">Empirical Industry Data</div>
+      <h2 class="section-title">How Big is the Problem Chronos Solves?</h2>
+      <p class="section-subtitle">Real-world research shows that ungoverned AI velocity rapidly inflates code churn, introduces critical security flaws, and creates trillions in technical debt.</p>
+    </div>
+
+    <div class="scale-grid">
+      <!-- Metric 1: Code Churn & Duplication -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-amber);"></div>
+        <div>
+          <span class="badge badge-amber">CODE QUALITY CRISIS</span>
+          <div class="scale-stat highlight-amber" style="color: var(--accent-amber);">7.1% Churn</div>
+          <div class="scale-label">+115% Code Churn & +81% Duplication</div>
+          <div class="scale-desc">
+            Analyzing <strong>150M+ lines of code</strong> revealed that AI code assistants double short-term code churn (reverted or deleted code) and surge code duplication by 81%. Copy-pasted lines exceeded moved lines for the first time in software history, while refactoring collapsed.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Study:</span>
+          <a href="https://www.gitclear.com" target="_blank" rel="noopener" class="source-link">GitClear GenAI Study ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 2: Security Vulnerability Rate -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-red);"></div>
+        <div>
+          <span class="badge badge-red">SECURITY RISK</span>
+          <div class="scale-stat" style="color: var(--accent-red);">45% Flawed</div>
+          <div class="scale-label">2.74x Security Vulnerabilities</div>
+          <div class="scale-desc">
+            Empirical security scans show <strong>45% of AI-generated code contains critical OWASP security vulnerabilities</strong> (SQL Injection, XSS, Cryptographic failures). AI code exhibits 2.74x more vulnerabilities than human code because LLMs prioritize syntax correctness (>95%) over security compliance.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Study:</span>
+          <a href="https://www.veracode.com" target="_blank" rel="noopener" class="source-link">Veracode GenAI Security Report ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 3: Cost of Tech Debt -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-purple);"></div>
+        <div>
+          <span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple);">ECONOMIC IMPACT</span>
+          <div class="scale-stat" style="color: var(--accent-purple);">$2.41 Trillion</div>
+          <div class="scale-label">Annual Software Quality Deficit</div>
+          <div class="scale-desc">
+            The Consortium for Information & Software Quality estimates the cost of bad software quality and unmanaged technical debt in the US alone at <strong>$2.41 Trillion annually</strong>. Ungoverned AI velocity compounds this debt exponentially by producing fragile "V1-only" code structures.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Report:</span>
+          <a href="https://www.it-cisq.org" target="_blank" rel="noopener" class="source-link">CISQ Poor Quality Cost Report ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 4: Multi-Agent Governance Risk -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-cyan);"></div>
+        <div>
+          <span class="badge badge-cyan">FLEET GOVERNANCE</span>
+          <div class="scale-stat highlight-cyan">80%+ CISOs</div>
+          <div class="scale-label">Flag Agent Fleet Collision Risk</div>
+          <div class="scale-desc">
+            By 2028, autonomous AI agents are projected to generate <strong>over 60% of enterprise code</strong>. However, over 80% of security & engineering leaders cite uncoordinated multi-agent repository edits and lack of deterministic CI merge gates as their single greatest operational risk.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Forecast:</span>
+          <a href="https://www.gartner.com" target="_blank" rel="noopener" class="source-link">Gartner & McKinsey AI Studies ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Summary & Citation Matrix -->
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Published Research</th>
+            <th>Empirical Sample Size</th>
+            <th>Core Finding & Metric</th>
+            <th>How Chronos Solves It</th>
+            <th>Citation Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">GitClear Longitudinal Research</td>
+            <td>150,000,000+ Lines of Code</td>
+            <td>Code churn +115% (7.1%), code duplication +81%, refactoring collapsed.</td>
+            <td><strong>Bi-Temporal AST Graph</strong> tracks caller/callee context and prevents DRY violations.</td>
+            <td><a href="https://www.gitclear.com" target="_blank" rel="noopener" class="source-link">gitclear.com ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">Veracode GenAI Security Report</td>
+            <td>Millions of SAST code scans</td>
+            <td>45% of AI code has security flaws; 2.74x more vulnerabilities than human code.</td>
+            <td><strong>Sub-Second OPA CI Merge Gate</strong> deterministically blocks CWE flaws before merge.</td>
+            <td><a href="https://www.veracode.com" target="_blank" rel="noopener" class="source-link">veracode.com ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">CISQ Software Quality Study</td>
+            <td>US Software Ecosystem</td>
+            <td>$2.41 Trillion annual US economic deficit caused by bad software & technical debt.</td>
+            <td><strong>Self-Healing Policy Playbook</strong> converts post-mortems into enforceable rules.</td>
+            <td><a href="https://www.it-cisq.org" target="_blank" rel="noopener" class="source-link">it-cisq.org ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">Gartner Agentic AI Survey</td>
+            <td>Global Enterprise Tech Leaders</td>
+            <td>80%+ view uncoordinated multi-agent edits as a critical security threat.</td>
+            <td><strong>Sub-File AST Node Locks</strong> & SHA-256 audit ledger ensure collision-free fleets.</td>
+            <td><a href="https://www.gartner.com" target="_blank" rel="noopener" class="source-link">gartner.com ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="glass-card" style="margin-top: 30px; text-align: center; border-color: var(--accent-cyan);">
+      <p style="font-size: 1.15rem; color: #fff; line-height: 1.6;">
+        💡 <strong>The Core Takeaway:</strong> Giving AI agents 10x code generation velocity without structural governance is like driving a supercar with no brakes.<br>
+        <span class="highlight-cyan">Chronos provides the control plane that transforms raw AI velocity into safe, enterprise-grade engineering.</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 4: COMPETITIVE LANDSCAPE MAP
+     ========================================================================== -->
+  <section id="landscape">
+    <div class="section-header">
+      <div class="section-tag">Ecosystem Positioning</div>
+      <h2 class="section-title">Everyone is solving a piece of the problem.</h2>
+      <p class="section-subtitle">Chronos connects the pieces into a unified control plane for agentic software engineering.</p>
+    </div>
+
+    <div class="landscape-container">
+      <div class="landscape-grid">
+        
+        <!-- Category 1 -->
+        <div class="landscape-category">
+          <div class="category-title">AI Coding Agents</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Copilot')">GitHub Copilot</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Cursor')">Cursor</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Claude Code')">Claude Code</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Devin')">Devin</div>
+          </div>
+        </div>
+
+        <!-- Category 2 -->
+        <div class="landscape-category">
+          <div class="category-title">Code Intelligence / Memory</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('GitNexus')">GitNexus / Akon</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Graphify')">Graphify</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Sourcegraph')">Sourcegraph</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Hivemind')">Hivemind / Activeloop</div>
+          </div>
+        </div>
+
+        <!-- Category 3 -->
+        <div class="landscape-category">
+          <div class="category-title">Agent Infrastructure / Governance</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Runtime')">Runtime</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Ellipsis')">Ellipsis</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Unbound')">Unbound</div>
+          </div>
+        </div>
+
+        <!-- Category 4 -->
+        <div class="landscape-category">
+          <div class="category-title">Agent Coordination / Memory</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Mosaic')">Mosaic</div>
+          </div>
+        </div>
+
+        <!-- Center Hub -->
+        <div class="chronos-center-hub">
+          <div class="hub-title">CHRONOS</div>
+          <div class="hub-subtitle">Control Plane & Governance Layer</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide Panel Drawer for Competitors -->
+  <div id="drawer-overlay" class="drawer-overlay" onclick="closeCompetitorModal()">
+    <div class="drawer-panel" onclick="event.stopPropagation()">
+      <button class="drawer-close" onclick="closeCompetitorModal()">&times;</button>
+      <div>
+        <span class="badge badge-cyan" id="drawer-badge">COMPETITOR ANALYSIS</span>
+        <h3 id="drawer-title" style="font-size: 1.8rem; margin: 12px 0; color: #fff;">Product Name</h3>
+        
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); text-transform: uppercase; margin-bottom: 8px;">Primary Focus</h4>
+          <p id="drawer-primary" style="color: var(--text-dim); font-size: 0.95rem;"></p>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-purple); text-transform: uppercase; margin-bottom: 8px;">Chronos Wedge Overlap</h4>
+          <p id="drawer-overlap" style="color: var(--text-dim); font-size: 0.95rem;"></p>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-emerald); text-transform: uppercase; margin-bottom: 8px;">Where Chronos Differs</h4>
+          <p id="drawer-differs" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.6;"></p>
+        </div>
+      </div>
+      
+      <button class="btn btn-secondary" onclick="closeCompetitorModal()" style="width: 100%; margin-top: 24px;">Close Drawer</button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+     SECTION 5: GITNEXUS VS CHRONOS CAPABILITY MATRIX
+     ========================================================================== -->
+  <section id="matrix">
+    <div class="section-header">
+      <div class="section-tag">Direct Head-to-Head</div>
+      <h2 class="section-title">GitNexus / Akon Labs vs. Chronos</h2>
+      <p class="section-subtitle">Code intelligence helps an agent understand code. Chronos governs how agents modify code safely.</p>
+    </div>
+
+    <div class="matrix-wrapper">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th style="width: 30%;">GitNexus / Akon Labs</th>
+            <th class="col-chronos" style="width: 35%;">Chronos</th>
+          </tr>
+        </thead>
+        <tbody id="matrix-body">
+          <!-- Rows injected dynamically by JS -->
+        </tbody>
+      </table>
+    </div>
+    <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">Click any feature row to inspect architectural details.</p>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 6: DIFFERENTIATION: UNIT OF COORDINATION
+     ========================================================================== -->
+  <section id="coordination">
+    <div class="section-header">
+      <div class="section-tag">Core Innovation</div>
+      <h2 class="section-title">Chronos changes the unit of coordination.</h2>
+      <p class="section-subtitle">The unit of coordination is no longer the file. It's the code structure.</p>
+    </div>
+
+    <div class="diff-demo-container">
+      <!-- Left Card: Traditional Approach -->
+      <div class="diff-card">
+        <span class="badge badge-amber">TRADITIONAL APPROACH</span>
+        <h3 style="color: #fff; margin-top: 8px;">File-Level Locking</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">Entire file is locked when an agent edits any line.</p>
+
+        <div class="code-node-block">
+          <div style="color: var(--text-muted); margin-bottom: 8px;">📄 auth.py (FULL FILE LOCKED)</div>
+          
+          <div class="node-item node-locked-red">
+            <span>Agent A → authenticate_user()</span>
+            <span class="badge badge-amber">LOCKED</span>
+          </div>
+
+          <div class="node-item node-locked-red">
+            <span>Agent B → refresh_token()</span>
+            <span class="badge badge-amber">BLOCKED</span>
+          </div>
+
+          <div class="node-item node-locked-red">
+            <span>logout()</span>
+            <span class="badge badge-amber">BLOCKED</span>
+          </div>
+        </div>
+
+        <p style="color: #f87171; font-size: 0.85rem; margin-top: 16px;">❌ Result: Agent B is completely blocked from modifying unrelated code.</p>
+      </div>
+
+      <!-- Right Card: Chronos AST Approach -->
+      <div class="diff-card chronos-card">
+        <span class="badge badge-cyan">CHRONOS APPROACH</span>
+        <h3 style="color: #fff; margin-top: 8px;">Sub-File AST Node Locking</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">Agents lock specific AST nodes (functions/classes) via intent ledger.</p>
+
+        <div class="code-node-block">
+          <div style="color: var(--text-muted); margin-bottom: 8px;">📄 auth.py (AST GRANULAR LOCKS)</div>
+          
+          <div class="node-item node-locked-cyan">
+            <span>Agent A → authenticate_user()</span>
+            <span class="badge badge-cyan">LOCKED BY A</span>
+          </div>
+
+          <div class="node-item node-locked-purple">
+            <span>Agent B → refresh_token()</span>
+            <span class="badge badge-emerald">LOCKED BY B</span>
+          </div>
+
+          <div class="node-item node-avail">
+            <span>logout()</span>
+            <span class="badge badge-emerald">AVAILABLE</span>
+          </div>
+        </div>
+
+        <p style="color: var(--accent-emerald); font-size: 0.85rem; margin-top: 16px;">✓ Result: Zero unnecessary blocking. Agents modify unrelated nodes concurrently.</p>
+      </div>
+    </div>
+
+    <!-- Impact Metrics -->
+    <div class="diff-metrics">
+      <div class="metric-item">
+        <div class="metric-val">Precision ↑</div>
+        <div class="metric-label">AST Node Level</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">Concurrency ↑</div>
+        <div class="metric-label">Multi-Agent Velocity</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">Blocking ↓</div>
+        <div class="metric-label">Zero File Deadlocks</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 7 & 8: DEEP DIVES (GitNexus & Graphify)
+     ========================================================================== -->
+  <section id="deep-dives">
+    <div class="section-header">
+      <div class="section-tag">Deep Dives</div>
+      <h2 class="section-title">Code intelligence is not governance.</h2>
+      <p class="section-subtitle">Understanding code context is step 1. Chronos uses structural understanding to control how agents modify it.</p>
+    </div>
+
+    <div class="flow-compare-grid">
+      <!-- GitNexus Comparison Flow -->
+      <div class="glass-card">
+        <h3 style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 16px;">GitNexus / Akon Labs Flow</h3>
+        <div class="flow-chain">
+          <div class="flow-step">Repository</div>
+          <div class="flow-step">Knowledge Graph</div>
+          <div class="flow-step">Relevant Context</div>
+          <div class="flow-step" style="border-color: var(--accent-amber); color: var(--accent-amber);">Smarter Agent (No Control Loop)</div>
+        </div>
+      </div>
+
+      <!-- Chronos Flow -->
+      <div class="glass-card" style="border-color: var(--accent-cyan);">
+        <h3 style="color: var(--accent-cyan); font-size: 1.1rem; margin-bottom: 16px;">Chronos Control Plane Flow</h3>
+        <div class="flow-chain">
+          <div class="flow-step highlight">Repository</div>
+          <div class="flow-step highlight">Bi-temporal AST Graph</div>
+          <div class="flow-step highlight">Intent Ledger & AST Lock</div>
+          <div class="flow-step highlight">OPA Policy Evaluation</div>
+          <div class="flow-step highlight" style="border-color: var(--accent-emerald); color: var(--accent-emerald);">Deterministic Merge Gate + Audit</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card" style="margin-top: 30px; text-align: center;">
+      <p style="font-size: 1.1rem; color: #fff;">
+        <strong class="highlight-cyan">Graphify</strong> builds excellent code knowledge graphs for context retrieval.<br>
+        <strong class="highlight-emerald">Chronos</strong> extends structural understanding directly into multi-agent coordination and CI gate enforcement.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 9: RUNTIME / ELLIPSIS / UNBOUND COMPARISON
+     ========================================================================== -->
+  <section id="taxonomy">
+    <div class="section-header">
+      <div class="section-tag">Governance Levels</div>
+      <h2 class="section-title">Where Governance Takes Place</h2>
+      <p class="section-subtitle">Chronos governs the modification itself — using the structure and semantics of the code being changed.</p>
+    </div>
+
+    <div class="taxonomy-grid">
+      <div class="glass-card">
+        <span class="badge badge-amber">ENVIRONMENT LEVEL</span>
+        <h3 style="color: #fff; margin: 12px 0 6px 0;">Runtime</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem;">Controls sandbox container execution, network egress, and OS permissions.</p>
+      </div>
+
+      <div class="glass-card">
+        <span class="badge badge-amber">AGENT / TOOL LEVEL</span>
+        <h3 style="color: #fff; margin: 12px 0 6px 0;">Ellipsis & Unbound</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem;">Governs agent fleets, API tool calls, and prompt compliance wrappers.</p>
+      </div>
+
+      <div class="glass-card" style="border-color: var(--accent-cyan); background: rgba(0, 242, 255, 0.04);">
+        <span class="badge badge-cyan">CODE STRUCTURE LEVEL</span>
+        <h3 style="color: var(--accent-cyan); margin: 12px 0 6px 0;">CHRONOS</h3>
+        <p style="color: var(--text-main); font-size: 0.9rem;">Governs exact AST node modifications, intent conflicts, and code rule semantics.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 10: THE FIVE CHRONOS WEDGES
+     ========================================================================== -->
+  <section id="wedges">
+    <div class="section-header">
+      <div class="section-tag">Architectural Core</div>
+      <h2 class="section-title">The 5 Structural Wedges of Chronos</h2>
+      <p class="section-subtitle">Click each wedge to inspect how it replaces soft prompt conventions with deterministic control.</p>
+    </div>
+
+    <div class="wedge-nav">
+      <button class="wedge-btn active" onclick="showWedge(1, this)">
+        <div class="wedge-num">WEDGE 01</div>
+        <div class="wedge-name">UNDERSTAND</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(2, this)">
+        <div class="wedge-num">WEDGE 02</div>
+        <div class="wedge-name">REMEMBER</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(3, this)">
+        <div class="wedge-num">WEDGE 03</div>
+        <div class="wedge-name">COORDINATE</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(4, this)">
+        <div class="wedge-num">WEDGE 04</div>
+        <div class="wedge-name">GOVERN</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(5, this)">
+        <div class="wedge-num">WEDGE 05</div>
+        <div class="wedge-name">AUDIT</div>
+      </button>
+    </div>
+
+    <div id="wedge-display" class="wedge-content-card">
+      <!-- Dynamic Wedge Content inserted via JS -->
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 11: THE MERGE GATE DEMO
+     ========================================================================== -->
+  <section id="gate-demo">
+    <div class="section-header">
+      <div class="section-tag">Sub-Second Enforcement</div>
+      <h2 class="section-title">Interactive Merge Gate Simulator</h2>
+      <p class="section-subtitle">AI agents can propose changes. Deterministic policy decides whether to merge them.</p>
+    </div>
+
+    <div class="demo-window">
+      <div class="window-header">
+        <div class="window-dots">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
+          chronos enforce --diff origin/main --lang python
+        </div>
+        <div class="badge badge-cyan">0.04s EXECTIME</div>
+      </div>
+
+      <div class="window-body">
+        <div style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 8px;">PROPOSED AGENT DIFF (api/users.py):</div>
+        
+        <div class="code-diff" id="demo-diff-box">
+          <span style="color: var(--text-muted);"> def create_user(username, email):</span>
+          <span class="diff-rem">-    return user_repo.create(username, email)</span>
+          <span class="diff-add" id="diff-line-add">+    db.execute("INSERT INTO users VALUES (?, ?)", (username, email))</span>
+        </div>
+
+        <div class="policy-verdict-box verdict-blocked" id="demo-verdict-box">
+          <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 8px;" id="demo-verdict-title">
+            ❌ MERGE GATE VERDICT: BLOCKED BY POLICY
+          </div>
+          <div id="demo-verdict-details">
+            <strong>Rule:</strong> POL-08 (No direct DB access in API handlers)<br>
+            <strong>Affected Symbol:</strong> <code>api/users.py └── create_user()</code><br>
+            <strong>Reason:</strong> Direct SQL execution violates the repository-layer architecture boundary.<br>
+            <strong>Required Action:</strong> Route database access through <code>UserRepository</code>.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 16px; margin-top: 24px;">
+          <button class="btn btn-primary" onclick="runSimulatedFix()">Fix Implementation Automatically</button>
+          <button class="btn btn-secondary" onclick="runSimulatedApproval()">Request Human Signoff Gate</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 12: BEFORE / AFTER SLIDER
+     ========================================================================== -->
+  <section id="before-after">
+    <div class="section-header">
+      <div class="section-tag">Transformation</div>
+      <h2 class="section-title">Before & With Chronos</h2>
+      <p class="section-subtitle">Drag the slider to see how Chronos turns chaotic multi-agent editing into governed engineering.</p>
+    </div>
+
+    <div class="slider-container" id="slider-container">
+      <!-- Left Pane: Without Chronos -->
+      <div class="slider-pane pane-before">
+        <h3 style="font-size: 2rem; color: #ef4444; margin-bottom: 16px;">Without Chronos</h3>
+        <ul style="list-style: none; font-size: 1.1rem; line-height: 2;">
+          <li>❌ Context fragmentation across files</li>
+          <li>❌ Agents colliding on the same files</li>
+          <li>❌ Re-introducing previously fixed security bugs</li>
+          <li>❌ Bypassing soft system prompt rules</li>
+          <li>❌ Zero cryptographic audit trail</li>
+        </ul>
+      </div>
+
+      <!-- Right Pane: With Chronos -->
+      <div class="slider-pane pane-after" id="pane-after">
+        <h3 style="font-size: 2rem; color: var(--accent-cyan); margin-bottom: 16px;">With Chronos</h3>
+        <ul style="list-style: none; font-size: 1.1rem; line-height: 2;">
+          <li>✓ Bi-temporal AST Knowledge Graph</li>
+          <li>✓ Sub-file AST node locking (No collision)</li>
+          <li>✓ Self-healing incident policy playbook</li>
+          <li>✓ Sub-second deterministic CI merge gates</li>
+          <li>✓ Tamper-evident SHA-256 audit ledger</li>
+        </ul>
+      </div>
+
+      <!-- Slider Handle -->
+      <div class="slider-handle" id="slider-handle">
+        <div class="handle-circle">↔</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 13: WHY CHRONOS WINS
+     ========================================================================== -->
+  <section id="why-wins">
+    <div class="section-header">
+      <div class="section-tag">Value Proposition</div>
+      <h2 class="section-title">Why Chronos Wins</h2>
+      <p class="section-subtitle">5 fundamental principles that define the control plane for autonomous software agents.</p>
+    </div>
+
+    <div class="reasons-grid">
+      <div class="reason-card">
+        <div class="reason-word">01 · UNDERSTAND</div>
+        <div class="reason-statement">Know the structure, not just the files.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">02 · REMEMBER</div>
+        <div class="reason-statement">Carry engineering knowledge forward.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">03 · COORDINATE</div>
+        <div class="reason-statement">Lock the intent, not the entire file.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">04 · GOVERN</div>
+        <div class="reason-statement">Enforce rules deterministically.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">05 · AUDIT</div>
+        <div class="reason-statement">Make agent actions accountable.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 14: FINAL POSITIONING
+     ========================================================================== -->
+  <section class="finale-section">
+    <h2 class="finale-headline">
+      The future isn't one AI engineer.<br>
+      <span class="gradient-text">It's a fleet of them.</span>
+    </h2>
+    
+    <p class="finale-subtitle">
+      Chronos is the control plane that lets that fleet operate on the same evolving codebase safely.
+    </p>
+
+    <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 40px; flex-wrap: wrap;">
+      <span class="badge badge-cyan">UNDERSTAND</span> →
+      <span class="badge badge-cyan">REMEMBER</span> →
+      <span class="badge badge-cyan">COORDINATE</span> →
+      <span class="badge badge-cyan">GOVERN</span> →
+      <span class="badge badge-cyan">AUDIT</span>
+    </div>
+
+    <div class="finale-punchline">
+      Others build better agents.<br>
+      Chronos makes an entire fleet of agents safe to operate.
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     JAVA SCRIPT LOGIC
+     ========================================================================== -->
+  <script>
+    // --------------------------------------------------------------------------
+    // 1. Scroll Progress & Sticky Nav Active Link
+    // --------------------------------------------------------------------------
+    window.addEventListener('scroll', () => {
+      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress-bar').style.width = scrolled + '%';
+
+      // Update Nav active link
+      const sections = document.querySelectorAll('section[id]');
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 150;
+        const bottom = top + sec.offsetHeight;
+        if (winScroll >= top && winScroll < bottom) {
+          document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+          const link = document.querySelector(`nav a[href="#${sec.id}"]`);
+          if (link) link.classList.add('active');
+        }
+      });
+    });
+
+    // --------------------------------------------------------------------------
+    // 2. Competitor Side Drawer Data & Modal Logic
+    // --------------------------------------------------------------------------
+    const competitorData = {
+      'Copilot': {
+        primary: 'Inline code completion and context retrieval inside IDE.',
+        overlap: 'Context retrieval & code generation assistance.',
+        differs: 'Copilot focuses on single-developer auto-complete. Chronos provides multi-agent coordination, sub-file AST locking, and deterministic OPA policy enforcement.'
+      },
+      'Cursor': {
+        primary: 'AI-first IDE with repository-wide semantic search and multi-file editing.',
+        overlap: 'Codebase context indexing.',
+        differs: 'Cursor is an editing client for a human developer. Chronos is the governance control plane that coordinates multiple autonomous agents editing the same codebase.'
+      },
+      'Claude Code': {
+        primary: 'Terminal-based agentic CLI for file edits, searches, and git operations.',
+        overlap: 'Agentic codebase modification.',
+        differs: 'Claude Code executes edits as an autonomous agent. Chronos sits beneath Claude Code to enforce AST locks, record provenance, and prevent policy violations.'
+      },
+      'Devin': {
+        primary: 'Autonomous end-to-end software engineering agent.',
+        overlap: 'Autonomous engineering execution.',
+        differs: 'Devin acts as an AI worker. Chronos acts as the enterprise control plane that governs Devin and other agents operating on shared production codebases.'
+      },
+      'GitNexus': {
+        primary: 'Code knowledge graph indexing files and relationships for agent context.',
+        overlap: 'Wedge 1 (Bi-temporal AST Graph).',
+        differs: 'GitNexus helps an agent understand code. Chronos uses structural understanding to actively govern changes (AST locking, policy gates, cryptographic audit).'
+      },
+      'Graphify': {
+        primary: 'Deterministic structural graph generator for code context verification.',
+        overlap: 'Wedge 1 Code Knowledge Graphing.',
+        differs: 'Graphify focuses on context verification. Chronos extends graph intelligence directly into sub-file node locking, policy engines, and CI merge gates.'
+      },
+      'Sourcegraph': {
+        primary: 'Enterprise code search and Cody AI assistant.',
+        overlap: 'Code search & context retrieval.',
+        differs: 'Sourcegraph provides search for humans and agents. Chronos provides multi-agent synchronization and deterministic policy governance.'
+      },
+      'Hivemind': {
+        primary: 'Unstructured data & code indexing for vector retrieval.',
+        overlap: 'Semantic memory indexing.',
+        differs: 'Hivemind offers vector index storage. Chronos uses a bi-temporal graph (KùzuDB) for exact AST symbol relationships and deterministic enforcement.'
+      },
+      'Runtime': {
+        primary: 'Sandbox environment governance, egress filtering, and OS isolation.',
+        overlap: 'Governance taxonomy.',
+        differs: 'Runtime governs OS and container environments. Chronos governs the code structure itself (AST symbols, AST node locks, and repository policy rules).'
+      },
+      'Ellipsis': {
+        primary: 'AI code review bot and fleet management.',
+        overlap: 'Code review verification.',
+        differs: 'Ellipsis runs post-hoc PR reviews. Chronos enforces sub-second local CI gates before merge and manages active sub-file intent locks.'
+      },
+      'Unbound': {
+        primary: 'Tool-level call governance and API permission wrappers.',
+        overlap: 'Permission manifests.',
+        differs: 'Unbound governs API calls. Chronos governs code structure, symbol dependencies, and bi-temporal repository history.'
+      },
+      'Mosaic': {
+        primary: 'Multi-agent conversation memory orchestration.',
+        overlap: 'Agent memory.',
+        differs: 'Mosaic manages agent conversation state. Chronos manages codebase AST state, lock leases, and deterministic OPA policies.'
+      }
+    };
+
+    function openCompetitorModal(name) {
+      const data = competitorData[name] || {
+        primary: 'Specialized developer product.',
+        overlap: 'Codebase context or execution.',
+        differs: 'Chronos provides complete bi-temporal AST governance and multi-agent coordination.'
+      };
+      document.getElementById('drawer-title').innerText = name;
+      document.getElementById('drawer-primary').innerText = data.primary;
+      document.getElementById('drawer-overlap').innerText = data.overlap;
+      document.getElementById('drawer-differs').innerText = data.differs;
+      document.getElementById('drawer-overlay').classList.add('open');
+    }
+
+    function closeCompetitorModal() {
+      document.getElementById('drawer-overlay').classList.remove('open');
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. Head-to-Head Capability Matrix: GitNexus vs Chronos
+    // --------------------------------------------------------------------------
+    const matrixData = [
+      { feat: 'Codebase knowledge graph', git: '✅', chr: '✅', exp: 'Enables symbol relationship queries, call graphs, and dependency tracking.' },
+      { feat: 'Symbol/function relationships', git: '✅', chr: '✅', exp: 'Maps caller and callee hierarchies across functions, classes, and modules.' },
+      { feat: 'Code history', git: '✅', chr: 'Bi-temporal model', exp: 'Chronos uses a bi-temporal graph tracking codebase evolution over time ("what was true at commit X?").' },
+      { feat: 'Context retrieval', git: '✅', chr: '✅', exp: 'Retrieves relevant AST nodes and code snippets for LLM prompting.' },
+      { feat: 'Coding agent built on graph', git: '✅', chr: '❌ not the goal', exp: 'GitNexus builds a smart agent. Chronos is an open governance plane for ALL agent fleets (Claude, Cursor, Devin, etc.).' },
+      { feat: 'PR review', git: '✅', chr: '✅', exp: 'Evaluates proposed code changes during pull requests.' },
+      { feat: 'Structural policy enforcement', git: '—', chr: '✅ ast-grep + OPA', exp: 'Enforces 100% deterministic AST rules via ast-grep and Open Policy Agent in under 1 second.' },
+      { feat: 'Agent intent tracking', git: '—', chr: '✅ Intent Ledger', exp: 'Logs what an agent intends to edit and why before code modifications occur.' },
+      { feat: 'Fine-grained AST locking', git: '—', chr: '✅', exp: 'Allows agents to lock specific AST nodes (functions/classes) rather than locking entire files.' },
+      { feat: 'Multi-agent conflict prevention', git: '—', chr: '✅', exp: 'Prevents race conditions and git merge collisions when multiple agents edit the same repository.' },
+      { feat: 'Agent permissions', git: '—', chr: '✅', exp: 'Least-privilege path manifests (F2) restricting agent access to authorized modules only.' },
+      { feat: 'Human approval gates', git: '—', chr: '✅', exp: 'Parks agent write requests on sensitive paths until explicit human signoff (F5).' },
+      { feat: 'Cryptographic audit trail', git: '—', chr: '✅ SHA-256', exp: 'Append-only SHA-256 hash-chained event ledger (F4) for SOC-2 and regulatory audits.' },
+      { feat: 'Sensitive-read tracking', git: '—', chr: '✅', exp: 'Audits and redacts agent access to secrets, .env files, and private credentials (F7).' },
+      { feat: 'Self-healing policy knowledge', git: '—', chr: '✅', exp: 'Automatically converts post-mortem incident reports into enforceable playbook rules (Wedge 2).' },
+      { feat: 'Deterministic merge gate', git: '—', chr: '✅', exp: 'Non-probabilistic local CI gate blocking policy violations before code touches main branch.' },
+      { feat: 'Local-first / zero-egress architecture', git: '—', chr: '✅', exp: 'Runs 100% locally with embedded databases (KùzuDB + SQLite) and zero network egress.' },
+      { feat: 'Purpose', git: 'Make agents understand code better', chr: 'Make agents operate on code safely', isPurpose: true, exp: 'GitNexus focuses on code intelligence. Chronos provides full-stack agent governance and coordination.' }
+    ];
+
+    const matrixBody = document.getElementById('matrix-body');
+    matrixData.forEach((r, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = r.isPurpose ? 'row-purpose' : 'row-feature';
+      if (!r.isPurpose) {
+        tr.onclick = () => toggleRowExp(idx);
+      }
+      
+      const formatVal = (v) => {
+        if (v === '✅') return `<span class="val-yes">✅</span>`;
+        if (v === '—') return `<span class="val-no">—</span>`;
+        if (v.startsWith('❌')) return `<span style="color: var(--accent-red); font-family: var(--font-mono); font-size: 0.85rem;">${v}</span>`;
+        return `<span class="val-custom">${v}</span>`;
+      };
+      
+      tr.innerHTML = `
+        <td style="font-weight: 700; color: #fff;">${r.feat}</td>
+        <td class="matrix-val">${formatVal(r.git)}</td>
+        <td class="matrix-val col-chronos">${formatVal(r.chr)}</td>
+      `;
+      matrixBody.appendChild(tr);
+
+      // Explanation Row
+      if (!r.isPurpose) {
+        const trExp = document.createElement('tr');
+        trExp.id = `exp-row-${idx}`;
+        trExp.style.display = 'none';
+        trExp.innerHTML = `
+          <td colspan="3" style="padding: 0;">
+            <div class="matrix-explanation" style="display: block;">
+              <strong>Architectural Context:</strong> ${r.exp}
+            </div>
+          </td>
+        `;
+        matrixBody.appendChild(trExp);
+      }
+    });
+
+    function toggleRowExp(idx) {
+      const el = document.getElementById(`exp-row-${idx}`);
+      if (el) {
+        el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. Five Wedges Dynamic Content
+    // --------------------------------------------------------------------------
+    const wedgeData = [
+      {
+        num: '01',
+        title: 'Bi-Temporal AST Knowledge Graph',
+        what: 'Embedded KùzuDB graph store tracking functions, classes, dependencies, and temporal code evolution.',
+        why: 'Allows agents to query historical state ("what was true at timestamp T?") and trace caller impact across refactors.',
+        instead: 'Conventional systems re-read raw files on every prompt or use static vector embeddings.',
+        advantage: 'Zero context loss during refactors + complete temporal audit.'
+      },
+      {
+        num: '02',
+        title: 'Self-Healing Policy Playbook',
+        what: 'SQLite rule engine that records post-mortems and converts failed reviews into enforceable rules.',
+        why: 'Prevents agents from repeatedly re-introducing bugs or architecture regressions deleted last month.',
+        instead: 'Conventional systems rely on human memory or static developer documentation.',
+        advantage: 'Codebase memory automatically strengthens after every incident.'
+      },
+      {
+        num: '03',
+        title: 'Sub-File AST Node Locking & Intent Ledger',
+        what: 'Fine-grained leases on AST nodes (functions/classes) with intent recording.',
+        why: 'Enables multiple agents to modify the same file concurrently without collisions or git merge conflicts.',
+        instead: 'Conventional systems lock entire files or allow uncoordinated edits that fail at merge.',
+        advantage: 'Maximizes multi-agent concurrency while guaranteeing zero file race conditions.'
+      },
+      {
+        num: '04',
+        title: 'Sub-Second CI Merge Gate',
+        what: 'Deterministic ast-grep + OPA rule engine verifying git diffs in under 1 second.',
+        why: 'Provides explainable, non-probabilistic rule enforcement on every proposed commit.',
+        instead: 'Conventional systems rely on LLM system prompt instructions.',
+        advantage: '100% deterministic compliance before code touches main branch.'
+      },
+      {
+        num: '05',
+        title: 'Cryptographic Audit & Human Approval Gates',
+        what: 'SHA-256 hash-chained event ledger with human-in-the-loop signoff gates.',
+        why: 'Provides SOC-2 compliant audit trails proving exactly which agent edited what symbol and why.',
+        instead: 'Conventional systems leave unstructured git commits with unknown agent attribution.',
+        advantage: 'Complete enterprise accountability for autonomous AI fleets.'
+      }
+    ];
+
+    function showWedge(num, btn) {
+      document.querySelectorAll('.wedge-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const w = wedgeData[num - 1];
+      const container = document.getElementById('wedge-display');
+      container.innerHTML = `
+        <div>
+          <span class="badge badge-cyan">WEDGE ${w.num}</span>
+          <h3 style="font-size: 1.6rem; color: #fff; margin: 12px 0;">${w.title}</h3>
+          
+          <div style="margin-top: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-cyan); text-transform: uppercase;">What It Does</h4>
+            <p style="color: var(--text-dim); font-size: 0.95rem; margin-top: 4px;">${w.what}</p>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-emerald); text-transform: uppercase;">Why It Matters</h4>
+            <p style="color: var(--text-dim); font-size: 0.95rem; margin-top: 4px;">${w.why}</p>
+          </div>
+        </div>
+
+        <div style="background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 24px; border: 1px solid var(--border-subtle);">
+          <div style="margin-bottom: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-amber); text-transform: uppercase;">What Conventional Systems Do Instead</h4>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">${w.instead}</p>
+          </div>
+
+          <div>
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-purple); text-transform: uppercase;">The Chronos Advantage</h4>
+            <p style="color: var(--text-main); font-size: 0.95rem; font-weight: 600; margin-top: 4px;">${w.advantage}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // Initialize Wedge 1
+    showWedge(1, document.querySelector('.wedge-btn'));
+
+    // --------------------------------------------------------------------------
+    // 5. Merge Gate Interactive Simulator
+    // --------------------------------------------------------------------------
+    function runSimulatedFix() {
+      const diffBox = document.getElementById('demo-diff-box');
+      const verdictBox = document.getElementById('demo-verdict-box');
+      const verdictTitle = document.getElementById('demo-verdict-title');
+      const verdictDetails = document.getElementById('demo-verdict-details');
+
+      diffBox.innerHTML = `
+        <span style="color: var(--text-muted);"> def create_user(username, email):</span>
+        <span class="diff-rem">-    db.execute("INSERT INTO users VALUES (?, ?)", (username, email))</span>
+        <span class="diff-add">+    return user_repo.create(username, email)</span>
+      `;
+
+      verdictBox.className = 'policy-verdict-box verdict-passed';
+      verdictTitle.innerHTML = '✓ MERGE GATE VERDICT: PASSED (0.04s)';
+      verdictDetails.innerHTML = `
+        <strong>Rule:</strong> POL-08 (No direct DB access in API handlers) — PASSED<br>
+        <strong>Affected Symbol:</strong> <code>api/users.py └── create_user()</code><br>
+        <strong>Status:</strong> Correctly uses <code>UserRepository</code> abstraction.<br>
+        <strong>Action:</strong> Approved for automated merge.
+      `;
+    }
+
+    function runSimulatedApproval() {
+      const verdictBox = document.getElementById('demo-verdict-box');
+      const verdictTitle = document.getElementById('demo-verdict-title');
+      const verdictDetails = document.getElementById('demo-verdict-details');
+
+      verdictBox.className = 'policy-verdict-box verdict-passed';
+      verdictTitle.innerHTML = '🛡️ HUMAN APPROVAL GATE SIGNED';
+      verdictDetails.innerHTML = `
+        <strong>Gate ID:</strong> GATE-9402<br>
+        <strong>Approved By:</strong> Lead Architect (Human Signoff)<br>
+        <strong>Hash Chain Digest:</strong> <code>sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code><br>
+        <strong>Action:</strong> Exemption logged in audit ledger. Merge unlocked.
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. Before / After Interactive Slider Drag
+    // --------------------------------------------------------------------------
+    const sliderContainer = document.getElementById('slider-container');
+    const paneAfter = document.getElementById('pane-after');
+    const sliderHandle = document.getElementById('slider-handle');
+    let isDragging = false;
+
+    sliderContainer.addEventListener('mousedown', () => isDragging = true);
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    sliderContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = sliderContainer.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      if (x < 0) x = 0;
+      if (x > rect.width) x = rect.width;
+      
+      const pct = (x / rect.width) * 100;
+      sliderHandle.style.left = pct + '%';
+      paneAfter.style.clipPath = `polygon(${pct}% 0, 100% 0, 100% 100%, ${pct}% 100%)`;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,504 @@
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Exception:
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\mcp_wrapper.py", line 9, in <module>
+  |     runpy.run_module('chronos.server', run_name='__main__')
+  |   File "<frozen runpy>", line 229, in run_module
+  |   File "<frozen runpy>", line 88, in _run_code
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 421, in <module>
+  |     main()
+  |   File "C:\Users\urbra\OneDrive\Desktop\Projects\New ortho\chronos\server.py", line 417, in main
+  |     mcp.run()
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 299, in run
+  |     anyio.run(self.run_stdio_async)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_eventloop.py", line 83, in run
+  |     return async_backend.run(func, args, {}, backend_options)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481, in run
+  |     return runner.run(wrapper())
+  |            ^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2464, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\fastmcp\server.py", line 758, in run_stdio_async
+  |     async with stdio_server() as (read_stream, write_stream):
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 217, in __aexit__
+  |     await anext(self.gen)
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 85, in stdio_server
+  |     async with anyio.create_task_group() as tg:
+  |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_tasks.py", line 275, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\mcp\server\stdio.py", line 81, in stdout_writer
+    |     await stdout.flush()
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_core\_fileio.py", line 171, in flush
+    |     return await to_thread.run_sync(self._fp.flush, limiter=self._limiter)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\urbra\AppData\Local\Programs\Python\Python312\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    | OSError: [Errno 22] Invalid argument
+    +------------------------------------
+
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...
+Starting chronos.server...

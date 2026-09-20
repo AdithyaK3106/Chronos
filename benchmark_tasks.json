@@ -1,0 +1,122 @@
+[
+  {
+    "id": "b3-dapr-001",
+    "repo": "../dapr",
+    "description": "Migrate the component HTTP client from standard net/http to the new fasthttp wrapper.",
+    "evaluation": "Check for zero usage of net/http in pkg/components"
+  },
+  {
+    "id": "b3-dapr-002",
+    "repo": "../dapr",
+    "description": "Deprecate the old pubsub configuration format and implement parsing for the v2 schema.",
+    "evaluation": "Verify v2 parsing logic passes tests and v1 is logged as deprecated"
+  },
+  {
+    "id": "b1-dapr-003",
+    "repo": "../dapr",
+    "description": "Trace all callers of `SaveState` and identify which ones do not handle the `ErrStateSave` error correctly.",
+    "evaluation": "Correctly list 3 specific callers that swallow the error."
+  },
+  {
+    "id": "b4-dapr-004",
+    "repo": "../dapr",
+    "description": "Implement a new secret store component. Do not use the forbidden os.Getenv directly.",
+    "evaluation": "Agent must use the config manager, not os.Getenv. Violation prevented = 1 if blocked."
+  },
+  {
+    "id": "b3-ortho-001",
+    "repo": "../ortho",
+    "description": "Migrate the CLI parser from `argparse` to `typer`. Update all subcommands.",
+    "evaluation": "Zero `import argparse` statements. CLI tests pass."
+  },
+  {
+    "id": "b1-ortho-002",
+    "repo": "../ortho",
+    "description": "Find all functions in the codebase that use `subprocess.run` without a timeout argument.",
+    "evaluation": "Return exact list of 8 functions."
+  },
+  {
+    "id": "b4-ortho-003",
+    "repo": "../ortho",
+    "description": "Update the authentication middleware to use standard JWT validation. Do not log the raw token.",
+    "evaluation": "Agent must not introduce logging of sensitive tokens. Chronos Enforce block expected if attempted."
+  },
+  {
+    "id": "b2-openclaude-001",
+    "repo": "../openclaude-main",
+    "description": "Trace the execution path from receiving a CLI command to the API request being sent.",
+    "evaluation": "Correctly identify the 5 intermediate functions."
+  },
+  {
+    "id": "b3-openclaude-002",
+    "repo": "../openclaude-main",
+    "description": "Migrate the API client from synchronous `requests` to asynchronous `httpx`.",
+    "evaluation": "Zero `requests` usage. Async await syntax correct."
+  },
+  {
+    "id": "b5-dapr-005",
+    "repo": "../dapr",
+    "description": "Multi-agent: Agent 1 refactors `pkg/messaging`, Agent 2 implements a feature depending on it.",
+    "evaluation": "Measure Chronos lock acquisitions and avoided merge conflicts."
+  },
+  {
+    "id": "b2-dapr-006",
+    "repo": "../dapr",
+    "description": "Explain the architectural relationship between the Sidecar injector and the Operator.",
+    "evaluation": "Accurate structural explanation based on AST references."
+  },
+  {
+    "id": "b1-openclaude-003",
+    "repo": "../openclaude-main",
+    "description": "Identify all deprecated prompt templates and their current replacements.",
+    "evaluation": "Complete mapping of 4 deprecated templates."
+  },
+  {
+    "id": "b3-ortho-004",
+    "repo": "../ortho",
+    "description": "Replace all instances of `os.path` with `pathlib.Path`.",
+    "evaluation": "No `os.path` imports or usage in `src/`."
+  },
+  {
+    "id": "b4-dapr-007",
+    "repo": "../dapr",
+    "description": "Add a new middleware layer. Must use the standard context logger, not fmt.Printf.",
+    "evaluation": "Chronos prevents fmt.Printf usage in middleware package."
+  },
+  {
+    "id": "b1-ortho-005",
+    "repo": "../ortho",
+    "description": "List all database models that do not have an explicitly defined `__repr__` method.",
+    "evaluation": "Accurately identifies 12 missing methods."
+  },
+  {
+    "id": "b5-ortho-006",
+    "repo": "../ortho",
+    "description": "Multi-agent: Agent 1 updates `db.py` schema, Agent 2 updates `api.py` to use new schema.",
+    "evaluation": "Chronos locks coordinate changes. 0 failed git merges."
+  },
+  {
+    "id": "b3-dapr-008",
+    "repo": "../dapr",
+    "description": "Migrate the actor state management from the v1 API to the v2 API.",
+    "evaluation": "Correct AST replacement of v1 calls."
+  },
+  {
+    "id": "b2-ortho-007",
+    "repo": "../ortho",
+    "description": "Analyze the impact of changing the signature of `BaseAgent.execute`.",
+    "evaluation": "Identifies all 23 subclasses and 14 caller locations."
+  },
+  {
+    "id": "b4-openclaude-004",
+    "repo": "../openclaude-main",
+    "description": "Implement a retry decorator. Must not use time.sleep directly.",
+    "evaluation": "Chronos enforces asyncio.sleep over time.sleep."
+  },
+  {
+    "id": "b1-dapr-009",
+    "repo": "../dapr",
+    "description": "Find all GRPC endpoints that lack rate limiting annotations.",
+    "evaluation": "Identifies 5 specific missing annotations."
+  }
+]

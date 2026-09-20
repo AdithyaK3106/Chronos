@@ -24,8 +24,22 @@ import functools
 import itertools
 import json
 import os
+import sys
 import threading
 import time
+
+# Patch sys.stdout.flush to ignore OSError [Errno 22] on Windows
+_original_flush = sys.stdout.flush
+def _safe_flush():
+    try:
+        _original_flush()
+    except OSError as e:
+        if e.errno == 22:
+            pass
+        else:
+            raise
+sys.stdout.flush = _safe_flush
+
 from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP

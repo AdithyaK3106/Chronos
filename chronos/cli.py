@@ -1098,6 +1098,41 @@ async def do_doctor(args):
         raise SystemExit(code)
 
 
+def do_install_agent_rules(args):
+    """Install global agent rules so agents auto-initialize Chronos in new repos."""
+    import os
+    from pathlib import Path
+    
+    # Target Antigravity's global config
+    gemini_config = Path(os.path.expanduser("~")) / ".gemini" / "config"
+    gemini_config.mkdir(parents=True, exist_ok=True)
+    agents_md = gemini_config / "AGENTS.md"
+    
+    rule_content = """# Chronos Workspace Auto-Initialization (Global Rule)
+
+You are equipped with the Chronos bi-temporal AST knowledge graph (via MCP). 
+Whenever you start working on a task in a workspace, you must ensure that Chronos is ready for use.
+
+**Trigger:** At the beginning of your task, check if the `.chronos` directory exists in the root of the workspace.
+**Action:** If the `.chronos` directory DOES NOT exist, you MUST run the following commands in the terminal to set it up before proceeding with your coding tasks:
+
+chronos init
+chronos index
+
+This ensures the graph is fully initialized and indexed for you (and future agents) to use `chronos` MCP tools. Once initialized, proceed normally.
+"""
+    
+    if agents_md.exists():
+        current = agents_md.read_text(encoding="utf-8")
+        if "Chronos Workspace Auto-Initialization" in current:
+            print(f"Rule already exists in {agents_md}")
+        else:
+            agents_md.write_text(current + "\n\n" + rule_content, encoding="utf-8")
+            print(f"Appended auto-init rule to {agents_md}")
+    else:
+        agents_md.write_text(rule_content.strip(), encoding="utf-8")
+        print(f"Created {agents_md} with auto-init rule")
+
 def main():
     ap = argparse.ArgumentParser(prog="chronos", description="bi-temporal AST knowledge graph")
     ap.add_argument("--group", default="default", help="repo/group id")
@@ -1117,6 +1152,9 @@ def main():
     w.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     he = sub.add_parser("health", help="index health (exit 1 if not fresh)")
     he.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
+    
+    iar = sub.add_parser("install-agent-rules", help="install global agent rules for auto-initialization")
+    
     doc = sub.add_parser("doctor", help="diagnose upstream + chronos wiring")
     doc.add_argument("--repo", dest="repo_sub", help="repo root (default: cwd)")
     doc.add_argument("--fake-packmind", action="store_true",
@@ -1234,12 +1272,12 @@ def main():
           "dashboard": do_dashboard, "daemon": do_daemon,
           "release-group": do_release_group, "index-log": do_index_log,
           "audit": do_audit, "agent": do_agent, "locks": do_locks, "gates": do_gates,
-          "precommit": do_precommit}[args.cmd]
+          "precommit": do_precommit, "install-agent-rules": do_install_agent_rules}[args.cmd]
     try:
         # dashboard and daemon are sync (uvicorn owns its loop; daemon control
         # is plain socket I/O); everything else is a coroutine
         if args.cmd in ("dashboard", "daemon", "release-group", "index-log", "audit",
-                        "agent", "locks", "gates", "precommit"):
+                        "agent", "locks", "gates", "precommit", "install-agent-rules"):
             fn(args)
         else:
             asyncio.run(fn(args))

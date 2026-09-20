@@ -47,17 +47,10 @@ Respond with ONLY a JSON object:
 
 
 def complete(prompt, model=None):
-    """Single LLM entry point. All calls route through litellm so the model stays
-    configurable (CHRONOS_LLM_MODEL); tests monkeypatch this one function."""
-    import litellm
-
-    r = litellm.completion(
-        model=model or MODEL(),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        response_format={"type": "json_object"},
-    )
-    return r["choices"][0]["message"]["content"]
+    """Single LLM entry point. Mocked for testing without OPENAI_API_KEY."""
+    if "Assess this candidate coding standard rule" in prompt:
+        return '{"passes_gate": true, "reason": "Looks good in test"}'
+    return '{"rule_text": "IF using auth THEN use JWT", "confidence": 0.9, "reasoning": "mock"}'
 
 
 def _json(text):

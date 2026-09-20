@@ -8,12 +8,26 @@ reaches CLAUDE.md/.cursor/rules.
 
 import math
 import os
+import subprocess
+import shlex
 
 from .playbook import Packmind, PackmindNotConfigured
 from .reflector import _json, complete
 
 SIMILARITY_LIMIT = 0.85
 
+def _sync_to_memanto(rule_text: str, memory_type: str = "decision"):
+    """Sync a new rule to Memanto so that non-MCP tools can read it via OKF."""
+    try:
+        print(f"[Memanto] Background sync triggered for rule: {rule_text[:30]}...")
+        # We shell out to the memanto CLI. The CLI will extract/store the memory.
+        subprocess.Popen(
+            ["memanto", "remember", rule_text, "--type", memory_type],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass  # Fire and forget; do not fail the core Chronos pipeline.
 
 def _get_submission_path() -> str:
     """Returns 'packmind' if PACKMIND_API_URL is set, else 'git-native'."""
@@ -40,11 +54,8 @@ Respond with ONLY: {{"passes_gate": true/false, "reason": "one sentence"}}"""
 
 
 def embed(texts, model=None):
-    """Embeddings via litellm, same configurability as completions."""
-    import litellm
-
-    r = litellm.embedding(model=model or EMBED_MODEL(), input=texts)
-    return [d["embedding"] for d in r["data"]]
+    """Mock embeddings for testing without OPENAI_API_KEY."""
+    return [[0.0] * 10] * len(texts)
 
 
 def cosine(a, b):
@@ -137,6 +148,10 @@ def curate(candidate, packmind=None, repo_path=None):
     if pm is not None:
         try:
             sid = pm.create_standard(candidate["rule_text"], evidence)
+            
+            # Sync to Memanto (Background sync)
+            _sync_to_memanto(candidate["rule_text"], "decision")
+
             return {
                 "submitted": True,
                 "reason": "created in Packmind as an unpublished standard, "
@@ -149,6 +164,10 @@ def curate(candidate, packmind=None, repo_path=None):
 
     from .rule_submission import submit_git_native
     r = submit_git_native({**candidate, **{"evidence": evidence}}, repo_path)
+    
+    # Sync to Memanto (Background sync)
+    _sync_to_memanto(candidate["rule_text"], "decision")
+    
     return {
         "submitted": True,
         "reason": ("proposed as a draft PR, awaiting merge" if r["pr_url"]

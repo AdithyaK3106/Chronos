@@ -3,6 +3,11 @@ import subprocess
 import time
 import json
 import re
+import sys
+
+# Ensure emojis print correctly in Windows terminals
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # Mock SWE-bench subset for the "Smoke Test"
 TASKS = [
@@ -95,7 +100,34 @@ def main():
     with open("reports/efficacy_results.json", "w") as f:
         json.dump(results, f, indent=2)
         
-    print("\nBenchmark complete! Results saved to reports/efficacy_results.json")
+    print("\n==================================================")
+    print(" MARKETING METRICS SUMMARY (EFFICACY)")
+    print("==================================================")
+    
+    # Calculate Reductions (Avoiding division by zero in testing)
+    for r in results:
+        base_tok = max(r['baseline'].get('tokens', 1), 1)
+        chr_tok = r['chronos'].get('tokens', 0)
+        tok_reduction = ((base_tok - chr_tok) / base_tok) * 100
+        
+        base_tools = max(r['baseline'].get('tool_calls', 1), 1)
+        chr_tools = r['chronos'].get('tool_calls', 0)
+        tool_reduction = ((base_tools - chr_tools) / base_tools) * 100
+        
+        base_time = max(r['baseline'].get('latency_seconds', 1.0), 1.0)
+        chr_time = r['chronos'].get('latency_seconds', 0)
+        time_reduction = ((base_time - chr_time) / base_time) * 100
+        
+        # Estimate Cost (assuming DeepSeek/Claude avg $3.00 per 1M tokens)
+        cost = (chr_tok / 1_000_000) * 3.00
+        
+        print(f"Task: {r['task_id']}")
+        print(f"  🧠 Context efficiency: {tok_reduction:.1f}% Token Reduction")
+        print(f"  ⚡ Agent efficiency: {tool_reduction:.1f}% Tool-Call Reduction")
+        print(f"  ⏱️ Speed: {time_reduction:.1f}% Latency Reduction")
+        print(f"  💰 Cost: ${cost:.4f} per task")
+        
+    print("\nBenchmark complete! Full logs saved to reports/efficacy_results.json")
 
 if __name__ == "__main__":
     main()

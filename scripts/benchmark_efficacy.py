@@ -53,7 +53,8 @@ def run_agent(task_prompt, use_chronos=False):
             command,
             capture_output=True,
             text=True,
-            timeout=600 # 10 minute timeout per task
+            timeout=600, # 10 minute timeout per task
+            shell=os.name == 'nt' # Ensure Windows finds .cmd/.bat wrappers
         )
         output = result.stdout + "\n" + result.stderr
     except subprocess.TimeoutExpired:

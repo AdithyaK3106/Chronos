@@ -2,6 +2,7 @@ import subprocess
 import time
 import json
 import threading
+import os
 
 ATTACKS = [
     {
@@ -29,7 +30,8 @@ def run_rogue_agent(prompt):
         command,
         capture_output=True,
         text=True,
-        timeout=300
+        timeout=300,
+        shell=os.name == 'nt'
     )
     return result.stdout + "\n" + result.stderr
 

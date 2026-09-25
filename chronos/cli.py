@@ -1091,7 +1091,7 @@ async def do_doctor(args):
     # real exit code -- the CI-gateable summary on top of the prose above.
     from . import doctor_report
     print()
-    rows = doctor_report.run_checks()
+    rows = await doctor_report.run_checks()
     print(doctor_report.render(rows))
     code = doctor_report.exit_code(rows)
     if code:

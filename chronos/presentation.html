@@ -1,788 +1,2242 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chronos — Presentation</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0c0d12; --bg-lift:#15161e;
-  --card:#181a23; --card-hi:#1c1f2a;
-  --border:#262834; --border-hi:#33384a;
-  --ink:#f0f1f5; --ink-dim:#a8adbd; --muted:#71768a;
-  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
-  --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#9085e9;
-  --r:14px; --r-sm:8px;
-  --t-fast:130ms; --t:220ms; --t-slow:560ms;
-  --ease-out:cubic-bezier(.22,.85,.3,1);
-  --spring:cubic-bezier(.34,1.4,.5,1);
-  --sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"Fira Code",ui-monospace,SFMono-Regular,Menlo,monospace;
-}
-*{box-sizing:border-box}
-html{color-scheme:dark}
-body{
-  margin:0;background:var(--bg);color:var(--ink);
-  font:400 16px/1.5 var(--sans);
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-  overflow:hidden;height:100vh;width:100vw;
-}
-h1,h2,h3{text-wrap:balance;margin:0}
-svg{display:block}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronos — AI Agent Governance & Control Plane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       1. CORE DESIGN SYSTEM & VARIABLES
+       ========================================================================== */
+    :root {
+      --bg-dark: #08090d;
+      --bg-surface: #0f1118;
+      --bg-card: #151822;
+      --bg-card-hover: #1c202d;
+      --border-subtle: #202433;
+      --border-bright: #30374e;
+      --border-accent: rgba(0, 242, 255, 0.2);
+      
+      --text-main: #f3f4f6;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --accent-cyan: #00f2ff;
+      --accent-cyan-glow: rgba(0, 242, 255, 0.15);
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.15);
+      --accent-purple: #a855f7;
+      --accent-purple-glow: rgba(168, 85, 247, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', ui-monospace, monospace;
+      
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-/* ─── ambient background: slow-drifting radial field + particle canvas ─── */
-#field{position:fixed;inset:0;z-index:0;overflow:hidden;background:var(--bg)}
-#field::before{
-  content:"";position:absolute;inset:-20%;
-  background:radial-gradient(closest-side, var(--slide-accent, var(--cat-1)) 0%, transparent 68%);
-  opacity:.12;filter:blur(60px);
-  animation:drift 26s ease-in-out infinite alternate;
-  transition:background var(--t-slow) var(--ease-out);
-}
-@keyframes drift{
-  0%{transform:translate(-6%,-4%) scale(1)}
-  100%{transform:translate(6%,5%) scale(1.15)}
-}
-#particles{position:fixed;inset:0;z-index:0;opacity:.5}
-.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.025;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+      background-color: var(--bg-dark);
+      font-family: var(--font-sans);
+      color: var(--text-main);
+    }
 
-/* ─── deck shell ─── */
-#deck{position:relative;z-index:2;height:100vh;width:100vw}
-.slide{
-  position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:56px 76px;
-  opacity:0;pointer-events:none;
-  transform:translateY(18px) scale(.98);
-  transition:opacity var(--t-slow) var(--ease-out),transform var(--t-slow) var(--ease-out);
-}
-.slide.on{opacity:1;pointer-events:auto;transform:none}
-.slide.leaving{opacity:0;transform:translateY(-18px) scale(.98);transition-duration:260ms}
-.slide-inner{max-width:1120px;width:100%}
-.slide-inner.wide{max-width:1280px}
+    body {
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
 
-.eyebrow{
-  display:inline-flex;align-items:center;gap:10px;font:600 12.5px/1 var(--mono);
-  letter-spacing:.14em;text-transform:uppercase;color:var(--slide-accent,var(--cat-1));
-  margin-bottom:18px;opacity:0;transform:translateY(10px);
-}
-.eyebrow .n{color:var(--muted);font-weight:500}
-.eyebrow .bar{width:26px;height:1px;background:var(--slide-accent,var(--cat-1))}
-.slide.on .eyebrow{animation:up 620ms var(--ease-out) 80ms forwards}
+    /* Ambient Background Mesh */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
 
-h2.headline{
-  font-size:clamp(34px,4.6vw,58px);font-weight:700;letter-spacing:-.025em;
-  color:#fff;line-height:1.06;margin-bottom:16px;
-  opacity:0;transform:translateY(16px);
-}
-.slide.on h2.headline{animation:up 620ms var(--ease-out) 160ms forwards}
+    .bg-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-cyan-glow) 0%, transparent 70%);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+    }
 
-.dek{
-  font-size:clamp(14.5px,1.3vw,17px);line-height:1.58;color:var(--ink-dim);
-  max-width:600px;margin-bottom:26px;
-  opacity:0;transform:translateY(12px);
-}
-.slide.on .dek{animation:up 620ms var(--ease-out) 240ms forwards}
+    /* Layout Containers */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 100px 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
 
-@keyframes up{to{opacity:1;transform:none}}
-@keyframes fadeIn{to{opacity:1}}
-@keyframes popIn{to{opacity:1;transform:none}}
-@keyframes drawLine{to{stroke-dashoffset:0}}
-@keyframes glowPulse{0%,100%{opacity:.55}50%{opacity:1}}
-@keyframes countTick{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
-@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-@keyframes ringPulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+    .section-header {
+      text-align: center;
+      max-width: 850px;
+      margin: 0 auto 60px auto;
+    }
 
-/* ─── proof chip ─── */
-.proof{
-  display:inline-flex;align-items:center;gap:12px;
-  background:var(--card);border:1px solid var(--border-hi);border-radius:99px;
-  padding:9px 18px 9px 9px;
-  opacity:0;transform:translateY(10px) scale(.96);
-  box-shadow:0 20px 50px -22px rgba(0,0,0,.7);
-}
-.slide.on .proof{animation:popIn 560ms var(--spring) 420ms forwards}
-.proof .dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none;
-  box-shadow:0 0 0 0 rgba(12,163,12,.5);animation:pulse 2.4s var(--ease-out) infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(12,163,12,.45)}70%{box-shadow:0 0 0 6px rgba(12,163,12,0)}100%{box-shadow:0 0 0 0 rgba(12,163,12,0)}}
-.proof .v{font:700 19px/1 var(--sans);color:#fff;font-variant-numeric:tabular-nums}
-.proof .l{font-size:12px;color:var(--muted)}
-.proof.stale .dot{background:var(--muted);animation:none}
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(0, 242, 255, 0.06);
+      border: 1px solid var(--border-accent);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
 
-/* ─── visual slot ─── */
-.visual{margin-top:4px;opacity:0;transform:translateY(14px);width:100%}
-.slide.on .visual{animation:up 640ms var(--ease-out) 300ms forwards}
-.viz-frame{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
-  padding:26px 30px;position:relative;overflow:hidden}
-.viz-frame::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
-  background:linear-gradient(135deg,var(--slide-accent,var(--cat-1)),transparent 40%);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;pointer-events:none}
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 16px;
+    }
 
-.mono{font-family:var(--mono)}
-.chip-label{font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
 
-/* ─── two-column layout for slides with diagram + side notes ─── */
-.split-viz{display:grid;grid-template-columns:1.3fr .95fr;gap:22px;align-items:stretch}
-@media(max-width:980px){.split-viz{grid-template-columns:1fr}}
-.side-notes{display:flex;flex-direction:column;gap:10px;justify-content:center}
-.note-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink-dim);
-  opacity:0;transform:translateX(8px)}
-.slide.on .note-row{animation:noteIn 480ms var(--ease-out) forwards}
-@keyframes noteIn{to{opacity:1;transform:none}}
-.note-row .idx{width:20px;height:20px;border-radius:50%;background:var(--card-hi);
-  border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;
-  font:600 10px var(--mono);color:var(--slide-accent,var(--cat-1));flex:none;margin-top:1px}
+    /* Typography Utilities */
+    .highlight-cyan { color: var(--accent-cyan); }
+    .highlight-emerald { color: var(--accent-emerald); }
+    .highlight-purple { color: var(--accent-purple); }
+    .gradient-text {
+      background: linear-gradient(135deg, #fff 0%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-/* ─── SVG diagram helpers ─── */
-.diagram{width:100%;height:auto;overflow:visible}
-.diagram .lbl{font:500 12px var(--sans);fill:var(--ink-dim)}
-.diagram .lbl-mono{font:500 10.5px var(--mono);fill:var(--muted)}
-.diagram .lbl-strong{font:600 13px var(--sans);fill:#fff}
-.diagram .node-circle{fill:var(--card-hi);stroke:var(--border-hi);stroke-width:1.5}
-.diagram .node-circle.hit{fill:color-mix(in srgb, var(--slide-accent,var(--cat-1)) 22%, var(--card-hi));
-  stroke:var(--slide-accent,var(--cat-1))}
-.diagram .edge{stroke:var(--border-hi);stroke-width:1.5;fill:none}
-.diagram .edge.active{stroke:var(--slide-accent,var(--cat-1))}
-.diagram .pulse-ring{fill:none;stroke:var(--slide-accent,var(--cat-1));stroke-width:2;
-  transform-origin:center;transform-box:fill-box;animation:ringPulse 2.2s ease-out infinite}
+    /* Buttons & Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .badge-cyan { background: rgba(0, 242, 255, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 255, 0.2); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-amber { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge-red { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); }
 
-/* lock TTL bar */
-.ttl-bar{height:8px;border-radius:99px;background:var(--bg-lift);overflow:hidden;position:relative}
-.ttl-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--good),var(--slide-accent,var(--cat-1)));
-  transform-origin:left;animation:countTick 4.5s linear infinite}
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: #000;
+      box-shadow: 0 0 20px var(--accent-cyan-glow);
+    }
+    .btn-primary:hover {
+      background: #33f5ff;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-bright);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-cyan);
+    }
 
-/* hash chain */
-.chain{display:flex;align-items:center;flex-wrap:wrap;gap:0;justify-content:center}
-.chain .link{
-  background:var(--card-hi);border:1px solid var(--border-hi);border-radius:var(--r-sm);
-  padding:12px 15px;font:500 11.5px var(--mono);color:var(--ink-dim);position:relative;
-  opacity:0;transform:translateY(6px) scale(.94);
-}
-.slide.on .chain .link{animation:linkIn 420ms var(--spring) forwards}
-@keyframes linkIn{to{opacity:1;transform:none}}
-.chain .link b{color:#fff;display:block;font-size:12.5px;margin-bottom:2px}
-.chain .link.verified{border-color:var(--good);color:#8ce68c}
-.chain .connector{width:22px;height:2px;background:var(--border-hi);position:relative;flex:none;
-  opacity:0;animation:fadeIn 300ms ease-out forwards}
-.chain .connector::after{content:"";position:absolute;right:-1px;top:50%;transform:translateY(-50%);
-  border:4px solid transparent;border-left-color:var(--border-hi)}
+    /* Glass Cards */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      transition: var(--transition-smooth);
+    }
+    .glass-card:hover {
+      border-color: var(--border-bright);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
 
-/* bar chart (F6 session volume) */
-.barchart{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:10px}
-.barchart .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
-.barchart .bar{width:100%;border-radius:4px 4px 2px 2px;background:var(--slide-accent,var(--cat-1));
-  opacity:.55;transform:scaleY(0);transform-origin:bottom}
-.slide.on .barchart .bar{animation:barGrow 620ms var(--spring) forwards}
-@keyframes barGrow{to{transform:scaleY(1)}}
-.barchart .bar.outlier{background:var(--critical);opacity:.9}
-.barchart .bar-n{font:600 11px var(--mono);color:var(--ink-dim)}
-.barchart .bar-l{font:500 9.5px var(--mono);color:var(--muted)}
+    /* ==========================================================================
+       2. STICKY HEADER & PROGRESS BAR
+       ========================================================================== */
+    #progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(to right, var(--accent-cyan), var(--accent-emerald));
+      width: 0%;
+      z-index: 1000;
+      transition: width 50ms ease-out;
+    }
 
-/* permission matrix (F2) */
-.matrix{display:grid;gap:8px}
-.matrix .mrow{display:grid;grid-template-columns:120px repeat(3,1fr);gap:8px;align-items:center}
-.matrix .mhead{font:600 10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:center}
-.matrix .agent-name{font:600 12.5px var(--sans);color:#fff}
-.matrix .cell{height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-  font:600 10px var(--mono);border:1px solid var(--border);opacity:0;transform:scale(.85)}
-.slide.on .matrix .cell{animation:cellIn 380ms var(--spring) forwards}
-@keyframes cellIn{to{opacity:1;transform:none}}
-.matrix .cell.allow{background:rgba(12,163,12,.14);border-color:rgba(12,163,12,.4);color:#8ce68c}
-.matrix .cell.deny{background:rgba(208,59,59,.14);border-color:rgba(208,59,59,.4);color:#ffb3ab}
-.matrix .cell.ro{background:rgba(250,178,25,.14);border-color:rgba(250,178,25,.4);color:#ffd48a}
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      background: rgba(8, 9, 13, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
 
-/* sequence diagram (block -> approve -> retry, F5) */
-.seq{display:flex;flex-direction:column;gap:0}
-.seq .step{display:flex;align-items:center;gap:14px;padding:11px 0;opacity:0;transform:translateX(-10px)}
-.slide.on .seq .step{animation:stepIn 480ms var(--ease-out) forwards}
-@keyframes stepIn{to{opacity:1;transform:none}}
-.seq .step .ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  flex:none;border:1.5px solid var(--border-hi);background:var(--card-hi)}
-.seq .step.block .ic{border-color:var(--critical);color:var(--critical)}
-.seq .step.wait .ic{border-color:var(--warning);color:var(--warning)}
-.seq .step.ok .ic{border-color:var(--good);color:var(--good)}
-.seq .step .txt b{display:block;color:#fff;font-size:13.5px}
-.seq .step .txt span{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
-.seq .connector-v{width:1.5px;height:16px;background:var(--border-hi);margin-left:17px}
+    .nav-container {
+      max-width: 1380px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+    }
 
-/* severity chips */
-.sev-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
-.sev-chip{display:flex;align-items:center;gap:6px;font:600 11.5px var(--mono);color:var(--ink-dim);
-  background:var(--card-hi);border:1px solid var(--border-hi);border-radius:99px;padding:6px 13px;
-  opacity:0;transform:translateY(6px)}
-.slide.on .sev-chip{animation:up 420ms var(--ease-out) forwards}
-.sev-chip .d{width:7px;height:7px;border-radius:50%}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.03em;
+      color: #fff;
+      text-decoration: none;
+    }
 
-/* redaction bar (F7) */
-.redact{display:inline-block;background:repeating-linear-gradient(135deg,var(--card-hi),var(--card-hi) 4px,var(--border-hi) 4px,var(--border-hi) 8px);
-  border-radius:3px;color:transparent;padding:1px 3px}
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #000;
+      font-size: 0.9rem;
+    }
 
-/* ─── title slide ─── */
-#s-0 .brand{font:800 clamp(52px,8.4vw,102px)/1 var(--sans);letter-spacing:-.03em;color:#fff;
-  opacity:0;transform:translateY(20px)}
-#s-0.on .brand{animation:up 680ms var(--ease-out) 100ms forwards}
-#s-0 .tagline{font-size:clamp(15px,1.9vw,19px);color:var(--ink-dim);margin-top:16px;
-  max-width:600px;text-align:center;opacity:0;transform:translateY(12px)}
-#s-0.on .tagline{animation:up 620ms var(--ease-out) 300ms forwards}
-#s-0 .hint{margin-top:46px;font:500 12px var(--mono);color:var(--muted);
-  display:flex;align-items:center;gap:8px;opacity:0}
-#s-0.on .hint{animation:up 620ms var(--ease-out) 520ms forwards}
-#s-0 .hint kbd{background:var(--card);border:1px solid var(--border-hi);border-radius:5px;
-  padding:2px 8px;color:var(--ink-dim);font-family:var(--mono)}
-#s-0{align-items:center}
-#s-0 .slide-inner{text-align:center;display:flex;flex-direction:column;align-items:center}
+    nav {
+      display: flex;
+      gap: 14px;
+    }
 
-/* ─── closing slide ─── */
-#s-12 .grid-recap{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;max-width:840px}
-@media(max-width:900px){#s-12 .grid-recap{grid-template-columns:repeat(2,1fr)}}
-.recap-chip{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
-  padding:11px 13px;font:500 12px var(--sans);color:var(--ink-dim);text-align:left;
-  opacity:0;transform:translateY(8px)}
-.slide.on .recap-chip{animation:up 480ms var(--ease-out) forwards}
-.recap-chip b{display:block;color:#fff;font-size:12.5px;margin-bottom:2px}
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: var(--transition-fast);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
 
-/* ─── nav chrome ─── */
-#progress{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  display:flex;gap:7px;pointer-events:auto;z-index:10}
-.pdot{width:7px;height:7px;border-radius:50%;background:var(--border-hi);cursor:pointer;
-  transition:all var(--t-fast) var(--ease-out);flex:none}
-.pdot:hover{background:var(--muted)}
-.pdot.on{width:22px;border-radius:99px;background:var(--slide-accent,var(--cat-1))}
+    nav a:hover, nav a.active {
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.05);
+    }
 
-#navbtn{position:fixed;top:24px;right:28px;display:flex;gap:8px;pointer-events:auto;z-index:11}
-.nbtn{width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border-hi);
-  color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;
-  transition:all var(--t-fast) var(--ease-out)}
-.nbtn:hover{color:#fff;border-color:var(--slide-accent,var(--cat-1));background:var(--card-hi)}
-.nbtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    /* ==========================================================================
+       3. HERO SECTION
+       ========================================================================== */
+    .hero-section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding-top: 120px;
+      text-align: center;
+    }
 
-#exit{position:fixed;top:26px;left:28px;pointer-events:auto;z-index:11;
-  font:500 12px var(--mono);color:var(--muted);text-decoration:none;
-  display:flex;align-items:center;gap:7px;transition:color var(--t-fast)}
-#exit:hover{color:var(--ink-dim)}
+    .hero-badge-container {
+      margin-bottom: 24px;
+    }
 
-#counter{position:fixed;bottom:28px;right:28px;font:500 11.5px var(--mono);color:var(--muted);
-  pointer-events:none;font-variant-numeric:tabular-nums;z-index:10}
+    .hero-title {
+      font-size: clamp(2.5rem, 5.5vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      max-width: 950px;
+      margin: 0 auto 24px auto;
+      color: #fff;
+    }
 
-.arrow-edge{position:fixed;top:0;bottom:0;width:13%;z-index:9;cursor:pointer;pointer-events:auto}
-.arrow-edge.left{left:0}
-.arrow-edge.right{right:0}
+    .hero-subtitle {
+      font-size: clamp(1.1rem, 2vw, 1.35rem);
+      color: var(--text-dim);
+      max-width: 850px;
+      margin: 0 auto 40px auto;
+      font-weight: 400;
+      line-height: 1.6;
+    }
 
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
-}
-</style>
+    /* Architecture Visual Flow */
+    .arch-flow-container {
+      width: 100%;
+      max-width: 900px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .arch-node-main {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+    }
+    .arch-agents { background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple); color: #e9d5ff; }
+    .arch-codebase { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: #a7f3d0; }
+
+    .arch-chronos-box {
+      background: rgba(0, 242, 255, 0.05);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      margin: 20px 0;
+      box-shadow: 0 0 30px var(--accent-cyan-glow);
+    }
+
+    .arch-chronos-header {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--accent-cyan);
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    .arch-wedge-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .arch-wedge-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-main);
+      text-align: center;
+      transition: var(--transition-fast);
+    }
+    .arch-wedge-pill:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+    }
+
+    /* Flow SVG Connector Lines */
+    .flow-connector {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 30px;
+    }
+    .flow-pulse {
+      stroke-dasharray: 6 6;
+      animation: pulse-flow 1.5s linear infinite;
+    }
+    @keyframes pulse-flow {
+      to { stroke-dashoffset: -24; }
+    }
+
+    /* ==========================================================================
+       4. THE MARKET PROBLEM
+       ========================================================================== */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .problem-card {
+      position: relative;
+      cursor: pointer;
+      height: 100%;
+    }
+
+    .problem-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .problem-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .problem-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .problem-desc {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .problem-example {
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 3px solid var(--accent-amber);
+      padding: 12px 14px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      display: none;
+    }
+    .problem-card:hover .problem-example {
+      display: block;
+    }
+
+    .card-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ==========================================================================
+       4.5 QUANTIFYING THE PROBLEM (REAL ONLINE DATA & SOURCES)
+       ========================================================================== */
+    .scale-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .scale-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 14px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scale-card-accent {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .scale-stat {
+      font-family: var(--font-mono);
+      font-size: clamp(2rem, 3.5vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin: 12px 0 6px 0;
+      line-height: 1;
+    }
+
+    .scale-label {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .scale-desc {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    .source-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.78rem;
+    }
+
+    .source-link {
+      color: var(--accent-cyan);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .source-link:hover { text-decoration: underline; }
+
+    .data-table-wrapper {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-top: 30px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 900px;
+    }
+
+    .data-table th, .data-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+
+    .data-table th {
+      background: var(--bg-card);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       5. COMPETITIVE LANDSCAPE MAP
+       ========================================================================== */
+    .landscape-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 40px 24px;
+      position: relative;
+    }
+
+    .landscape-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      position: relative;
+    }
+
+    .landscape-category {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .category-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .competitor-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .competitor-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .competitor-chip:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .chronos-center-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-dark);
+      border: 2px solid var(--accent-cyan);
+      box-shadow: 0 0 40px var(--accent-cyan-glow);
+      border-radius: 16px;
+      padding: 24px 32px;
+      text-align: center;
+      z-index: 5;
+    }
+    .hub-title {
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 1.4rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.05em;
+    }
+    .hub-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* Slide Panel Drawer for Competitors */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1001;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-smooth);
+    }
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-bright);
+      z-index: 1002;
+      transform: translateX(100%);
+      transition: transform var(--transition-smooth);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+    }
+    .drawer-overlay.open .drawer-panel {
+      transform: translateX(0);
+    }
+
+    .drawer-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    /* ==========================================================================
+       6. GITNEXUS VS CHRONOS HEAD-TO-HEAD MATRIX
+       ========================================================================== */
+    .matrix-wrapper {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+      min-width: 800px;
+    }
+
+    .matrix-table th, .matrix-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .matrix-table th {
+      background: var(--bg-card);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      position: sticky;
+      top: 0;
+    }
+
+    .matrix-table th.col-chronos, .matrix-table td.col-chronos {
+      background: rgba(0, 242, 255, 0.05);
+      border-left: 2px solid rgba(0, 242, 255, 0.3);
+      border-right: 2px solid rgba(0, 242, 255, 0.3);
+    }
+
+    .matrix-table th.col-chronos {
+      color: var(--accent-cyan);
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+    }
+
+    .matrix-table tr.row-feature {
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+
+    .matrix-table tr.row-feature:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .matrix-table tr.row-purpose {
+      background: rgba(0, 242, 255, 0.08);
+      font-weight: 800;
+    }
+
+    .matrix-val {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .val-yes { color: var(--accent-emerald); }
+    .val-no { color: var(--text-muted); opacity: 0.6; }
+    .val-custom { color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.85rem; }
+
+    .matrix-explanation {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 14px 20px;
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      border-left: 3px solid var(--accent-cyan);
+      display: none;
+    }
+
+    /* ==========================================================================
+       7. DIFFERENTIATION: UNIT OF COORDINATION
+       ========================================================================== */
+    .diff-demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .diff-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .diff-card.chronos-card {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 30px var(--accent-cyan-glow);
+    }
+
+    .code-node-block {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: var(--bg-dark);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .node-item {
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .node-locked-red { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-red); color: #fca5a5; }
+    .node-locked-cyan { background: rgba(0, 242, 255, 0.15); border: 1px solid var(--accent-cyan); color: #c7d2fe; }
+    .node-locked-purple { background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple); color: #e9d5ff; }
+    .node-avail { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: #a7f3d0; }
+
+    .diff-metrics {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 30px;
+      padding: 16px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    .metric-item {
+      text-align: center;
+    }
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+    }
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* ==========================================================================
+       8. COMPARISONS (GitNexus, Graphify, Runtime)
+       ========================================================================== */
+    .flow-compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .flow-chain {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .flow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    .flow-step:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card-hover);
+    }
+    .flow-step.highlight {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.05);
+    }
+
+    .taxonomy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    /* ==========================================================================
+       9. THE FIVE WEDGES
+       ========================================================================== */
+    .wedge-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 30px;
+      overflow-x: auto;
+    }
+
+    .wedge-btn {
+      flex: 1;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition-fast);
+      min-width: 160px;
+    }
+    .wedge-btn:hover {
+      border-color: var(--border-bright);
+    }
+    .wedge-btn.active {
+      background: rgba(0, 242, 255, 0.08);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px var(--accent-cyan-glow);
+    }
+
+    .wedge-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+    .wedge-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .wedge-content-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    /* ==========================================================================
+       10. MERGE GATE INTERACTIVE DEMO
+       ========================================================================== */
+    .demo-window {
+      background: #090a0f;
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .window-header {
+      background: #12141d;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .window-body {
+      padding: 24px;
+    }
+
+    .code-diff {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      background: #050608;
+      border-radius: 8px;
+      padding: 16px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+    .diff-add { color: #4ade80; background: rgba(74, 222, 128, 0.1); display: block; padding: 0 4px; }
+    .diff-rem { color: #f87171; background: rgba(248, 113, 113, 0.1); display: block; padding: 0 4px; }
+
+    .policy-verdict-box {
+      border-radius: 8px;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      transition: var(--transition-smooth);
+    }
+    .verdict-blocked {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    .verdict-passed {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    /* ==========================================================================
+       11. BEFORE / AFTER SLIDER
+       ========================================================================== */
+    .slider-container {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border-bright);
+      background: var(--bg-surface);
+    }
+
+    .slider-pane {
+      position: absolute;
+      inset: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .pane-before {
+      background: #110d13;
+      color: #f87171;
+    }
+
+    .pane-after {
+      background: #0d1418;
+      color: var(--accent-cyan);
+      clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+    }
+
+    .slider-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 4px;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 15px var(--accent-cyan);
+      cursor: ew-resize;
+      z-index: 10;
+    }
+
+    .handle-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1rem;
+    }
+
+    /* ==========================================================================
+       12. WHY CHRONOS WINS & FINAL POSITIONING
+       ========================================================================== */
+    .reasons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .reason-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      transition: var(--transition-smooth);
+    }
+    .reason-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-4px);
+    }
+
+    .reason-word {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .reason-statement {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .finale-section {
+      text-align: center;
+      padding: 120px 24px;
+      background: radial-gradient(circle at center, rgba(0, 242, 255, 0.08) 0%, transparent 70%);
+    }
+
+    .finale-headline {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 24px;
+    }
+
+    .finale-subtitle {
+      font-size: 1.3rem;
+      color: var(--text-dim);
+      max-width: 800px;
+      margin: 0 auto 40px auto;
+    }
+
+    .finale-punchline {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-top: 40px;
+    }
+
+    /* Responsive Breakdown */
+    @media (max-width: 768px) {
+      .diff-demo-container, .flow-compare-grid, .taxonomy-grid, .wedge-content-card {
+        grid-template-columns: 1fr;
+      }
+      .landscape-grid { grid-template-columns: 1fr; }
+      .chronos-center-hub { position: relative; top: auto; left: auto; transform: none; margin: 20px 0; }
+      nav { display: none; } /* Simplified mobile header */
+    }
+  </style>
 </head>
 <body>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <g id="i-key"><circle cx="7.5" cy="14.5" r="4"/><path d="M10.3 11.7 19 3l2 2-1.7 1.7L21 8.4l-2.6 2.6-1.7-1.7-1.9 1.9"/></g>
-  <g id="i-ban"><circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2l11.6 11.6"/></g>
-  <g id="i-hand"><path d="M8 13.5V6a1.5 1.5 0 0 1 3 0v6M11 12.2V4.5a1.5 1.5 0 0 1 3 0V12M14 12.5V6a1.5 1.5 0 0 1 3 0v8"/><path d="M17 11v2.5a6.5 6.5 0 0 1-13 0V13l-1.6-2.7A1.4 1.4 0 0 1 4.7 8.3L6 10"/></g>
-  <g id="i-check"><path d="M20 6.5 9.5 17 4 11.6"/></g>
-  <g id="i-clock"><circle cx="12" cy="12" r="8.8"/><path d="M12 7v5.3l3.3 2"/></g>
-  <g id="i-eye"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></g>
-  <g id="i-arrow-r"><path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5"/></g>
-  <g id="i-arrow-l"><path d="M19.5 12h-14M11 17.5 5.5 12l5.5-5.5"/></g>
-</defs></svg>
+  <!-- Ambient Mesh Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
 
-<div id="field"><canvas id="particles"></canvas></div>
-<div class="grain"></div>
+  <!-- Top Scroll Progress Bar -->
+  <div id="progress-bar"></div>
 
-<a id="exit" href="/"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px"><use href="#i-arrow-l"/></svg> exit to dashboard</a>
-<div id="navbtn">
-  <button class="nbtn" id="btn-prev" aria-label="Previous slide"><svg viewBox="0 0 24 24"><use href="#i-arrow-l"/></svg></button>
-  <button class="nbtn" id="btn-next" aria-label="Next slide"><svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></button>
-</div>
-<div class="arrow-edge left" id="edge-left"></div>
-<div class="arrow-edge right" id="edge-right"></div>
-<div id="counter"></div>
-<div id="progress"></div>
+  <!-- Sticky Header -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">C</div>
+        Chronos
+      </a>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#problem">Problem</a>
+        <a href="#scale">Data & Scale</a>
+        <a href="#landscape">Landscape</a>
+        <a href="#matrix">Comparison Matrix</a>
+        <a href="#coordination">Coordination</a>
+        <a href="#wedges">5 Wedges</a>
+        <a href="#gate-demo">Live Demo</a>
+        <a href="#why-wins">Why Wins</a>
+      </nav>
+      <div class="badge badge-cyan">LOCAL-FIRST CORE</div>
+    </div>
+  </header>
 
-<div id="deck"></div>
+  <!-- ==========================================================================
+     SECTION 2: HERO SECTION
+     ========================================================================== -->
+  <section id="overview" class="hero-section">
+    <div class="hero-badge-container">
+      <span class="badge badge-cyan">LOCAL-FIRST • ZERO-EGRESS CORE • DETERMINISTIC</span>
+    </div>
+    
+    <h1 class="hero-title">
+      AI agents can write code.<br>
+      <span class="gradient-text">Who governs what they do with it?</span>
+    </h1>
 
-<script>
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-const API = location.protocol === "file:" ? "http://127.0.0.1:8080" : "";
-const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    <p class="hero-subtitle">
+      Chronos is a local-first, bi-temporal AST governance layer for AI engineering agents — giving them persistent codebase knowledge, fine-grained coordination, deterministic policy enforcement, and cryptographic accountability.
+    </p>
 
-/* ── ambient particle field: small nodes drifting + occasional connecting
-   lines, evokes "graph" without literally being one -- runs behind every
-   slide at low opacity, independent of slide content ── */
-(function particles(){
-  const cvs = $("#particles");
-  const ctx = cvs.getContext("2d");
-  let w, h, pts;
-  function resize(){
-    w = cvs.width = innerWidth; h = cvs.height = innerHeight;
-    const n = Math.round((w*h) / 42000);
-    pts = Array.from({length: n}, () => ({
-      x: Math.random()*w, y: Math.random()*h,
-      vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18, r: 1 + Math.random()*1.4,
-    }));
-  }
-  function accent(){
-    return getComputedStyle(document.documentElement).getPropertyValue("--slide-accent-rgb").trim() || "57,135,229";
-  }
-  function step(){
-    if(!RM){
-      ctx.clearRect(0,0,w,h);
-      const col = accent();
-      for(const p of pts){
-        p.x += p.vx; p.y += p.vy;
-        if(p.x < 0 || p.x > w) p.vx *= -1;
-        if(p.y < 0 || p.y > h) p.vy *= -1;
-      }
-      for(let i=0;i<pts.length;i++){
-        for(let j=i+1;j<pts.length;j++){
-          const a = pts[i], b = pts[j];
-          const d = Math.hypot(a.x-b.x, a.y-b.y);
-          if(d < 130){
-            ctx.strokeStyle = `rgba(${col},${(1-d/130)*.14})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-          }
+    <!-- Architecture Visual Flow -->
+    <div class="arch-flow-container">
+      <div class="arch-layer">
+        <div class="arch-node-main arch-agents">🤖 AI AGENTS (Claude Code, Cursor, Devin)</div>
+      </div>
+
+      <div class="flow-connector">
+        <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+          <path d="M20 0 V24 M12 16 L20 24 L28 16" stroke="var(--accent-purple)" stroke-width="2" class="flow-pulse"/>
+        </svg>
+      </div>
+
+      <div class="arch-chronos-box">
+        <div class="arch-chronos-header">CHRONOS CONTROL PLANE</div>
+        <div class="arch-wedge-grid">
+          <div class="arch-wedge-pill">UNDERSTAND</div>
+          <div class="arch-wedge-pill">REMEMBER</div>
+          <div class="arch-wedge-pill">COORDINATE</div>
+          <div class="arch-wedge-pill">GOVERN</div>
+          <div class="arch-wedge-pill">AUDIT</div>
+        </div>
+      </div>
+
+      <div class="flow-connector">
+        <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+          <path d="M20 0 V24 M12 16 L20 24 L28 16" stroke="var(--accent-cyan)" stroke-width="2" class="flow-pulse"/>
+        </svg>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-node-main arch-codebase">⚡ EVOLVING CODEBASE</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 3: THE MARKET PROBLEM
+     ========================================================================== -->
+  <section id="problem">
+    <div class="section-header">
+      <div class="section-tag">Market Reality</div>
+      <h2 class="section-title">The agent is getting autonomous.<br>The infrastructure isn't.</h2>
+      <p class="section-subtitle">As agents evolve from auto-complete helpers to autonomous team members, traditional dev infrastructure breaks down in 4 key areas.</p>
+    </div>
+
+    <div class="problem-grid">
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🔍</div>
+          <div class="problem-title">Understand</div>
+        </div>
+        <p class="problem-desc">Agents repeatedly reconstruct context from files and tools on every prompt.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> An agent reads 40 files to understand a function signature, wasting 80% of tokens, and still misses past caller dependencies.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🧠</div>
+          <div class="problem-title">Remember</div>
+        </div>
+        <p class="problem-desc">Important decisions, incidents, and previous failures disappear across sessions.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> Agent A fixes a security bug. 3 days later, Agent B re-introduces the exact same vulnerable code because post-mortem lessons vanish.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">⚔️</div>
+          <div class="problem-title">Coordinate</div>
+        </div>
+        <p class="problem-desc">Multiple agents collide when attempting to modify the same codebase.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> Agent A refactors `auth.py` while Agent B updates session handling. File locks block Agent B, or uncoordinated edits produce broken git merges.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+
+      <div class="glass-card problem-card">
+        <div class="problem-card-header">
+          <div class="problem-icon">🛡️</div>
+          <div class="problem-title">Govern</div>
+        </div>
+        <p class="problem-desc">Prompt instructions are soft recommendations, not deterministic enforcement.</p>
+        <div class="problem-example">
+          <strong>Concrete Example:</strong> "Never write raw SQL queries" in system prompts is probabilistic. Under complex multi-step reasoning, agents hallucinate around prompt rules.
+        </div>
+        <div class="card-hint">Hover / Click to reveal concrete example →</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 3.5: QUANTIFYING THE GOVERNANCE GAP (REAL DATA & SOURCES)
+     ========================================================================== -->
+  <section id="scale">
+    <div class="section-header">
+      <div class="section-tag">Empirical Industry Data</div>
+      <h2 class="section-title">How Big is the Problem Chronos Solves?</h2>
+      <p class="section-subtitle">Real-world research shows that ungoverned AI velocity rapidly inflates code churn, introduces critical security flaws, and creates trillions in technical debt.</p>
+    </div>
+
+    <div class="scale-grid">
+      <!-- Metric 1: Code Churn & Duplication -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-amber);"></div>
+        <div>
+          <span class="badge badge-amber">CODE QUALITY CRISIS</span>
+          <div class="scale-stat highlight-amber" style="color: var(--accent-amber);">7.1% Churn</div>
+          <div class="scale-label">+115% Code Churn & +81% Duplication</div>
+          <div class="scale-desc">
+            Analyzing <strong>150M+ lines of code</strong> revealed that AI code assistants double short-term code churn (reverted or deleted code) and surge code duplication by 81%. Copy-pasted lines exceeded moved lines for the first time in software history, while refactoring collapsed.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Study:</span>
+          <a href="https://www.gitclear.com" target="_blank" rel="noopener" class="source-link">GitClear GenAI Study ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 2: Security Vulnerability Rate -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-red);"></div>
+        <div>
+          <span class="badge badge-red">SECURITY RISK</span>
+          <div class="scale-stat" style="color: var(--accent-red);">45% Flawed</div>
+          <div class="scale-label">2.74x Security Vulnerabilities</div>
+          <div class="scale-desc">
+            Empirical security scans show <strong>45% of AI-generated code contains critical OWASP security vulnerabilities</strong> (SQL Injection, XSS, Cryptographic failures). AI code exhibits 2.74x more vulnerabilities than human code because LLMs prioritize syntax correctness (>95%) over security compliance.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Study:</span>
+          <a href="https://www.veracode.com" target="_blank" rel="noopener" class="source-link">Veracode GenAI Security Report ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 3: Cost of Tech Debt -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-purple);"></div>
+        <div>
+          <span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple);">ECONOMIC IMPACT</span>
+          <div class="scale-stat" style="color: var(--accent-purple);">$2.41 Trillion</div>
+          <div class="scale-label">Annual Software Quality Deficit</div>
+          <div class="scale-desc">
+            The Consortium for Information & Software Quality estimates the cost of bad software quality and unmanaged technical debt in the US alone at <strong>$2.41 Trillion annually</strong>. Ungoverned AI velocity compounds this debt exponentially by producing fragile "V1-only" code structures.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Report:</span>
+          <a href="https://www.it-cisq.org" target="_blank" rel="noopener" class="source-link">CISQ Poor Quality Cost Report ↗</a>
+        </div>
+      </div>
+
+      <!-- Metric 4: Multi-Agent Governance Risk -->
+      <div class="scale-card">
+        <div class="scale-card-accent" style="background: var(--accent-cyan);"></div>
+        <div>
+          <span class="badge badge-cyan">FLEET GOVERNANCE</span>
+          <div class="scale-stat highlight-cyan">80%+ CISOs</div>
+          <div class="scale-label">Flag Agent Fleet Collision Risk</div>
+          <div class="scale-desc">
+            By 2028, autonomous AI agents are projected to generate <strong>over 60% of enterprise code</strong>. However, over 80% of security & engineering leaders cite uncoordinated multi-agent repository edits and lack of deterministic CI merge gates as their single greatest operational risk.
+          </div>
+        </div>
+        <div class="source-box">
+          <span style="color: var(--text-muted);">Source Forecast:</span>
+          <a href="https://www.gartner.com" target="_blank" rel="noopener" class="source-link">Gartner & McKinsey AI Studies ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Summary & Citation Matrix -->
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Published Research</th>
+            <th>Empirical Sample Size</th>
+            <th>Core Finding & Metric</th>
+            <th>How Chronos Solves It</th>
+            <th>Citation Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">GitClear Longitudinal Research</td>
+            <td>150,000,000+ Lines of Code</td>
+            <td>Code churn +115% (7.1%), code duplication +81%, refactoring collapsed.</td>
+            <td><strong>Bi-Temporal AST Graph</strong> tracks caller/callee context and prevents DRY violations.</td>
+            <td><a href="https://www.gitclear.com" target="_blank" rel="noopener" class="source-link">gitclear.com ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">Veracode GenAI Security Report</td>
+            <td>Millions of SAST code scans</td>
+            <td>45% of AI code has security flaws; 2.74x more vulnerabilities than human code.</td>
+            <td><strong>Sub-Second OPA CI Merge Gate</strong> deterministically blocks CWE flaws before merge.</td>
+            <td><a href="https://www.veracode.com" target="_blank" rel="noopener" class="source-link">veracode.com ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">CISQ Software Quality Study</td>
+            <td>US Software Ecosystem</td>
+            <td>$2.41 Trillion annual US economic deficit caused by bad software & technical debt.</td>
+            <td><strong>Self-Healing Policy Playbook</strong> converts post-mortems into enforceable rules.</td>
+            <td><a href="https://www.it-cisq.org" target="_blank" rel="noopener" class="source-link">it-cisq.org ↗</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #fff;">Gartner Agentic AI Survey</td>
+            <td>Global Enterprise Tech Leaders</td>
+            <td>80%+ view uncoordinated multi-agent edits as a critical security threat.</td>
+            <td><strong>Sub-File AST Node Locks</strong> & SHA-256 audit ledger ensure collision-free fleets.</td>
+            <td><a href="https://www.gartner.com" target="_blank" rel="noopener" class="source-link">gartner.com ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="glass-card" style="margin-top: 30px; text-align: center; border-color: var(--accent-cyan);">
+      <p style="font-size: 1.15rem; color: #fff; line-height: 1.6;">
+        💡 <strong>The Core Takeaway:</strong> Giving AI agents 10x code generation velocity without structural governance is like driving a supercar with no brakes.<br>
+        <span class="highlight-cyan">Chronos provides the control plane that transforms raw AI velocity into safe, enterprise-grade engineering.</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 4: COMPETITIVE LANDSCAPE MAP
+     ========================================================================== -->
+  <section id="landscape">
+    <div class="section-header">
+      <div class="section-tag">Ecosystem Positioning</div>
+      <h2 class="section-title">Everyone is solving a piece of the problem.</h2>
+      <p class="section-subtitle">Chronos connects the pieces into a unified control plane for agentic software engineering.</p>
+    </div>
+
+    <div class="landscape-container">
+      <div class="landscape-grid">
+        
+        <!-- Category 1 -->
+        <div class="landscape-category">
+          <div class="category-title">AI Coding Agents</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Copilot')">GitHub Copilot</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Cursor')">Cursor</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Claude Code')">Claude Code</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Devin')">Devin</div>
+          </div>
+        </div>
+
+        <!-- Category 2 -->
+        <div class="landscape-category">
+          <div class="category-title">Code Intelligence / Memory</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('GitNexus')">GitNexus / Akon</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Graphify')">Graphify</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Sourcegraph')">Sourcegraph</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Hivemind')">Hivemind / Activeloop</div>
+          </div>
+        </div>
+
+        <!-- Category 3 -->
+        <div class="landscape-category">
+          <div class="category-title">Agent Infrastructure / Governance</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Runtime')">Runtime</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Ellipsis')">Ellipsis</div>
+            <div class="competitor-chip" onclick="openCompetitorModal('Unbound')">Unbound</div>
+          </div>
+        </div>
+
+        <!-- Category 4 -->
+        <div class="landscape-category">
+          <div class="category-title">Agent Coordination / Memory</div>
+          <div class="competitor-list">
+            <div class="competitor-chip" onclick="openCompetitorModal('Mosaic')">Mosaic</div>
+          </div>
+        </div>
+
+        <!-- Center Hub -->
+        <div class="chronos-center-hub">
+          <div class="hub-title">CHRONOS</div>
+          <div class="hub-subtitle">Control Plane & Governance Layer</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide Panel Drawer for Competitors -->
+  <div id="drawer-overlay" class="drawer-overlay" onclick="closeCompetitorModal()">
+    <div class="drawer-panel" onclick="event.stopPropagation()">
+      <button class="drawer-close" onclick="closeCompetitorModal()">&times;</button>
+      <div>
+        <span class="badge badge-cyan" id="drawer-badge">COMPETITOR ANALYSIS</span>
+        <h3 id="drawer-title" style="font-size: 1.8rem; margin: 12px 0; color: #fff;">Product Name</h3>
+        
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); text-transform: uppercase; margin-bottom: 8px;">Primary Focus</h4>
+          <p id="drawer-primary" style="color: var(--text-dim); font-size: 0.95rem;"></p>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-purple); text-transform: uppercase; margin-bottom: 8px;">Chronos Wedge Overlap</h4>
+          <p id="drawer-overlap" style="color: var(--text-dim); font-size: 0.95rem;"></p>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h4 style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-emerald); text-transform: uppercase; margin-bottom: 8px;">Where Chronos Differs</h4>
+          <p id="drawer-differs" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.6;"></p>
+        </div>
+      </div>
+      
+      <button class="btn btn-secondary" onclick="closeCompetitorModal()" style="width: 100%; margin-top: 24px;">Close Drawer</button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+     SECTION 5: GITNEXUS VS CHRONOS CAPABILITY MATRIX
+     ========================================================================== -->
+  <section id="matrix">
+    <div class="section-header">
+      <div class="section-tag">Direct Head-to-Head</div>
+      <h2 class="section-title">GitNexus / Akon Labs vs. Chronos</h2>
+      <p class="section-subtitle">Code intelligence helps an agent understand code. Chronos governs how agents modify code safely.</p>
+    </div>
+
+    <div class="matrix-wrapper">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th style="width: 30%;">GitNexus / Akon Labs</th>
+            <th class="col-chronos" style="width: 35%;">Chronos</th>
+          </tr>
+        </thead>
+        <tbody id="matrix-body">
+          <!-- Rows injected dynamically by JS -->
+        </tbody>
+      </table>
+    </div>
+    <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">Click any feature row to inspect architectural details.</p>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 6: DIFFERENTIATION: UNIT OF COORDINATION
+     ========================================================================== -->
+  <section id="coordination">
+    <div class="section-header">
+      <div class="section-tag">Core Innovation</div>
+      <h2 class="section-title">Chronos changes the unit of coordination.</h2>
+      <p class="section-subtitle">The unit of coordination is no longer the file. It's the code structure.</p>
+    </div>
+
+    <div class="diff-demo-container">
+      <!-- Left Card: Traditional Approach -->
+      <div class="diff-card">
+        <span class="badge badge-amber">TRADITIONAL APPROACH</span>
+        <h3 style="color: #fff; margin-top: 8px;">File-Level Locking</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">Entire file is locked when an agent edits any line.</p>
+
+        <div class="code-node-block">
+          <div style="color: var(--text-muted); margin-bottom: 8px;">📄 auth.py (FULL FILE LOCKED)</div>
+          
+          <div class="node-item node-locked-red">
+            <span>Agent A → authenticate_user()</span>
+            <span class="badge badge-amber">LOCKED</span>
+          </div>
+
+          <div class="node-item node-locked-red">
+            <span>Agent B → refresh_token()</span>
+            <span class="badge badge-amber">BLOCKED</span>
+          </div>
+
+          <div class="node-item node-locked-red">
+            <span>logout()</span>
+            <span class="badge badge-amber">BLOCKED</span>
+          </div>
+        </div>
+
+        <p style="color: #f87171; font-size: 0.85rem; margin-top: 16px;">❌ Result: Agent B is completely blocked from modifying unrelated code.</p>
+      </div>
+
+      <!-- Right Card: Chronos AST Approach -->
+      <div class="diff-card chronos-card">
+        <span class="badge badge-cyan">CHRONOS APPROACH</span>
+        <h3 style="color: #fff; margin-top: 8px;">Sub-File AST Node Locking</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">Agents lock specific AST nodes (functions/classes) via intent ledger.</p>
+
+        <div class="code-node-block">
+          <div style="color: var(--text-muted); margin-bottom: 8px;">📄 auth.py (AST GRANULAR LOCKS)</div>
+          
+          <div class="node-item node-locked-cyan">
+            <span>Agent A → authenticate_user()</span>
+            <span class="badge badge-cyan">LOCKED BY A</span>
+          </div>
+
+          <div class="node-item node-locked-purple">
+            <span>Agent B → refresh_token()</span>
+            <span class="badge badge-emerald">LOCKED BY B</span>
+          </div>
+
+          <div class="node-item node-avail">
+            <span>logout()</span>
+            <span class="badge badge-emerald">AVAILABLE</span>
+          </div>
+        </div>
+
+        <p style="color: var(--accent-emerald); font-size: 0.85rem; margin-top: 16px;">✓ Result: Zero unnecessary blocking. Agents modify unrelated nodes concurrently.</p>
+      </div>
+    </div>
+
+    <!-- Impact Metrics -->
+    <div class="diff-metrics">
+      <div class="metric-item">
+        <div class="metric-val">Precision ↑</div>
+        <div class="metric-label">AST Node Level</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">Concurrency ↑</div>
+        <div class="metric-label">Multi-Agent Velocity</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">Blocking ↓</div>
+        <div class="metric-label">Zero File Deadlocks</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 7 & 8: DEEP DIVES (GitNexus & Graphify)
+     ========================================================================== -->
+  <section id="deep-dives">
+    <div class="section-header">
+      <div class="section-tag">Deep Dives</div>
+      <h2 class="section-title">Code intelligence is not governance.</h2>
+      <p class="section-subtitle">Understanding code context is step 1. Chronos uses structural understanding to control how agents modify it.</p>
+    </div>
+
+    <div class="flow-compare-grid">
+      <!-- GitNexus Comparison Flow -->
+      <div class="glass-card">
+        <h3 style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 16px;">GitNexus / Akon Labs Flow</h3>
+        <div class="flow-chain">
+          <div class="flow-step">Repository</div>
+          <div class="flow-step">Knowledge Graph</div>
+          <div class="flow-step">Relevant Context</div>
+          <div class="flow-step" style="border-color: var(--accent-amber); color: var(--accent-amber);">Smarter Agent (No Control Loop)</div>
+        </div>
+      </div>
+
+      <!-- Chronos Flow -->
+      <div class="glass-card" style="border-color: var(--accent-cyan);">
+        <h3 style="color: var(--accent-cyan); font-size: 1.1rem; margin-bottom: 16px;">Chronos Control Plane Flow</h3>
+        <div class="flow-chain">
+          <div class="flow-step highlight">Repository</div>
+          <div class="flow-step highlight">Bi-temporal AST Graph</div>
+          <div class="flow-step highlight">Intent Ledger & AST Lock</div>
+          <div class="flow-step highlight">OPA Policy Evaluation</div>
+          <div class="flow-step highlight" style="border-color: var(--accent-emerald); color: var(--accent-emerald);">Deterministic Merge Gate + Audit</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card" style="margin-top: 30px; text-align: center;">
+      <p style="font-size: 1.1rem; color: #fff;">
+        <strong class="highlight-cyan">Graphify</strong> builds excellent code knowledge graphs for context retrieval.<br>
+        <strong class="highlight-emerald">Chronos</strong> extends structural understanding directly into multi-agent coordination and CI gate enforcement.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 9: RUNTIME / ELLIPSIS / UNBOUND COMPARISON
+     ========================================================================== -->
+  <section id="taxonomy">
+    <div class="section-header">
+      <div class="section-tag">Governance Levels</div>
+      <h2 class="section-title">Where Governance Takes Place</h2>
+      <p class="section-subtitle">Chronos governs the modification itself — using the structure and semantics of the code being changed.</p>
+    </div>
+
+    <div class="taxonomy-grid">
+      <div class="glass-card">
+        <span class="badge badge-amber">ENVIRONMENT LEVEL</span>
+        <h3 style="color: #fff; margin: 12px 0 6px 0;">Runtime</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem;">Controls sandbox container execution, network egress, and OS permissions.</p>
+      </div>
+
+      <div class="glass-card">
+        <span class="badge badge-amber">AGENT / TOOL LEVEL</span>
+        <h3 style="color: #fff; margin: 12px 0 6px 0;">Ellipsis & Unbound</h3>
+        <p style="color: var(--text-dim); font-size: 0.9rem;">Governs agent fleets, API tool calls, and prompt compliance wrappers.</p>
+      </div>
+
+      <div class="glass-card" style="border-color: var(--accent-cyan); background: rgba(0, 242, 255, 0.04);">
+        <span class="badge badge-cyan">CODE STRUCTURE LEVEL</span>
+        <h3 style="color: var(--accent-cyan); margin: 12px 0 6px 0;">CHRONOS</h3>
+        <p style="color: var(--text-main); font-size: 0.9rem;">Governs exact AST node modifications, intent conflicts, and code rule semantics.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 10: THE FIVE CHRONOS WEDGES
+     ========================================================================== -->
+  <section id="wedges">
+    <div class="section-header">
+      <div class="section-tag">Architectural Core</div>
+      <h2 class="section-title">The 5 Structural Wedges of Chronos</h2>
+      <p class="section-subtitle">Click each wedge to inspect how it replaces soft prompt conventions with deterministic control.</p>
+    </div>
+
+    <div class="wedge-nav">
+      <button class="wedge-btn active" onclick="showWedge(1, this)">
+        <div class="wedge-num">WEDGE 01</div>
+        <div class="wedge-name">UNDERSTAND</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(2, this)">
+        <div class="wedge-num">WEDGE 02</div>
+        <div class="wedge-name">REMEMBER</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(3, this)">
+        <div class="wedge-num">WEDGE 03</div>
+        <div class="wedge-name">COORDINATE</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(4, this)">
+        <div class="wedge-num">WEDGE 04</div>
+        <div class="wedge-name">GOVERN</div>
+      </button>
+      <button class="wedge-btn" onclick="showWedge(5, this)">
+        <div class="wedge-num">WEDGE 05</div>
+        <div class="wedge-name">AUDIT</div>
+      </button>
+    </div>
+
+    <div id="wedge-display" class="wedge-content-card">
+      <!-- Dynamic Wedge Content inserted via JS -->
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 11: THE MERGE GATE DEMO
+     ========================================================================== -->
+  <section id="gate-demo">
+    <div class="section-header">
+      <div class="section-tag">Sub-Second Enforcement</div>
+      <h2 class="section-title">Interactive Merge Gate Simulator</h2>
+      <p class="section-subtitle">AI agents can propose changes. Deterministic policy decides whether to merge them.</p>
+    </div>
+
+    <div class="demo-window">
+      <div class="window-header">
+        <div class="window-dots">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
+          chronos enforce --diff origin/main --lang python
+        </div>
+        <div class="badge badge-cyan">0.04s EXECTIME</div>
+      </div>
+
+      <div class="window-body">
+        <div style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 8px;">PROPOSED AGENT DIFF (api/users.py):</div>
+        
+        <div class="code-diff" id="demo-diff-box">
+          <span style="color: var(--text-muted);"> def create_user(username, email):</span>
+          <span class="diff-rem">-    return user_repo.create(username, email)</span>
+          <span class="diff-add" id="diff-line-add">+    db.execute("INSERT INTO users VALUES (?, ?)", (username, email))</span>
+        </div>
+
+        <div class="policy-verdict-box verdict-blocked" id="demo-verdict-box">
+          <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 8px;" id="demo-verdict-title">
+            ❌ MERGE GATE VERDICT: BLOCKED BY POLICY
+          </div>
+          <div id="demo-verdict-details">
+            <strong>Rule:</strong> POL-08 (No direct DB access in API handlers)<br>
+            <strong>Affected Symbol:</strong> <code>api/users.py └── create_user()</code><br>
+            <strong>Reason:</strong> Direct SQL execution violates the repository-layer architecture boundary.<br>
+            <strong>Required Action:</strong> Route database access through <code>UserRepository</code>.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 16px; margin-top: 24px;">
+          <button class="btn btn-primary" onclick="runSimulatedFix()">Fix Implementation Automatically</button>
+          <button class="btn btn-secondary" onclick="runSimulatedApproval()">Request Human Signoff Gate</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 12: BEFORE / AFTER SLIDER
+     ========================================================================== -->
+  <section id="before-after">
+    <div class="section-header">
+      <div class="section-tag">Transformation</div>
+      <h2 class="section-title">Before & With Chronos</h2>
+      <p class="section-subtitle">Drag the slider to see how Chronos turns chaotic multi-agent editing into governed engineering.</p>
+    </div>
+
+    <div class="slider-container" id="slider-container">
+      <!-- Left Pane: Without Chronos -->
+      <div class="slider-pane pane-before">
+        <h3 style="font-size: 2rem; color: #ef4444; margin-bottom: 16px;">Without Chronos</h3>
+        <ul style="list-style: none; font-size: 1.1rem; line-height: 2;">
+          <li>❌ Context fragmentation across files</li>
+          <li>❌ Agents colliding on the same files</li>
+          <li>❌ Re-introducing previously fixed security bugs</li>
+          <li>❌ Bypassing soft system prompt rules</li>
+          <li>❌ Zero cryptographic audit trail</li>
+        </ul>
+      </div>
+
+      <!-- Right Pane: With Chronos -->
+      <div class="slider-pane pane-after" id="pane-after">
+        <h3 style="font-size: 2rem; color: var(--accent-cyan); margin-bottom: 16px;">With Chronos</h3>
+        <ul style="list-style: none; font-size: 1.1rem; line-height: 2;">
+          <li>✓ Bi-temporal AST Knowledge Graph</li>
+          <li>✓ Sub-file AST node locking (No collision)</li>
+          <li>✓ Self-healing incident policy playbook</li>
+          <li>✓ Sub-second deterministic CI merge gates</li>
+          <li>✓ Tamper-evident SHA-256 audit ledger</li>
+        </ul>
+      </div>
+
+      <!-- Slider Handle -->
+      <div class="slider-handle" id="slider-handle">
+        <div class="handle-circle">↔</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 13: WHY CHRONOS WINS
+     ========================================================================== -->
+  <section id="why-wins">
+    <div class="section-header">
+      <div class="section-tag">Value Proposition</div>
+      <h2 class="section-title">Why Chronos Wins</h2>
+      <p class="section-subtitle">5 fundamental principles that define the control plane for autonomous software agents.</p>
+    </div>
+
+    <div class="reasons-grid">
+      <div class="reason-card">
+        <div class="reason-word">01 · UNDERSTAND</div>
+        <div class="reason-statement">Know the structure, not just the files.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">02 · REMEMBER</div>
+        <div class="reason-statement">Carry engineering knowledge forward.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">03 · COORDINATE</div>
+        <div class="reason-statement">Lock the intent, not the entire file.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">04 · GOVERN</div>
+        <div class="reason-statement">Enforce rules deterministically.</div>
+      </div>
+
+      <div class="reason-card">
+        <div class="reason-word">05 · AUDIT</div>
+        <div class="reason-statement">Make agent actions accountable.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     SECTION 14: FINAL POSITIONING
+     ========================================================================== -->
+  <section class="finale-section">
+    <h2 class="finale-headline">
+      The future isn't one AI engineer.<br>
+      <span class="gradient-text">It's a fleet of them.</span>
+    </h2>
+    
+    <p class="finale-subtitle">
+      Chronos is the control plane that lets that fleet operate on the same evolving codebase safely.
+    </p>
+
+    <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 40px; flex-wrap: wrap;">
+      <span class="badge badge-cyan">UNDERSTAND</span> →
+      <span class="badge badge-cyan">REMEMBER</span> →
+      <span class="badge badge-cyan">COORDINATE</span> →
+      <span class="badge badge-cyan">GOVERN</span> →
+      <span class="badge badge-cyan">AUDIT</span>
+    </div>
+
+    <div class="finale-punchline">
+      Others build better agents.<br>
+      Chronos makes an entire fleet of agents safe to operate.
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+     JAVA SCRIPT LOGIC
+     ========================================================================== -->
+  <script>
+    // --------------------------------------------------------------------------
+    // 1. Scroll Progress & Sticky Nav Active Link
+    // --------------------------------------------------------------------------
+    window.addEventListener('scroll', () => {
+      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress-bar').style.width = scrolled + '%';
+
+      // Update Nav active link
+      const sections = document.querySelectorAll('section[id]');
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 150;
+        const bottom = top + sec.offsetHeight;
+        if (winScroll >= top && winScroll < bottom) {
+          document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+          const link = document.querySelector(`nav a[href="#${sec.id}"]`);
+          if (link) link.classList.add('active');
         }
-        ctx.fillStyle = `rgba(${col},.4)`;
-        ctx.beginPath(); ctx.arc(pts[i].x, pts[i].y, pts[i].r, 0, 7); ctx.fill();
+      });
+    });
+
+    // --------------------------------------------------------------------------
+    // 2. Competitor Side Drawer Data & Modal Logic
+    // --------------------------------------------------------------------------
+    const competitorData = {
+      'Copilot': {
+        primary: 'Inline code completion and context retrieval inside IDE.',
+        overlap: 'Context retrieval & code generation assistance.',
+        differs: 'Copilot focuses on single-developer auto-complete. Chronos provides multi-agent coordination, sub-file AST locking, and deterministic OPA policy enforcement.'
+      },
+      'Cursor': {
+        primary: 'AI-first IDE with repository-wide semantic search and multi-file editing.',
+        overlap: 'Codebase context indexing.',
+        differs: 'Cursor is an editing client for a human developer. Chronos is the governance control plane that coordinates multiple autonomous agents editing the same codebase.'
+      },
+      'Claude Code': {
+        primary: 'Terminal-based agentic CLI for file edits, searches, and git operations.',
+        overlap: 'Agentic codebase modification.',
+        differs: 'Claude Code executes edits as an autonomous agent. Chronos sits beneath Claude Code to enforce AST locks, record provenance, and prevent policy violations.'
+      },
+      'Devin': {
+        primary: 'Autonomous end-to-end software engineering agent.',
+        overlap: 'Autonomous engineering execution.',
+        differs: 'Devin acts as an AI worker. Chronos acts as the enterprise control plane that governs Devin and other agents operating on shared production codebases.'
+      },
+      'GitNexus': {
+        primary: 'Code knowledge graph indexing files and relationships for agent context.',
+        overlap: 'Wedge 1 (Bi-temporal AST Graph).',
+        differs: 'GitNexus helps an agent understand code. Chronos uses structural understanding to actively govern changes (AST locking, policy gates, cryptographic audit).'
+      },
+      'Graphify': {
+        primary: 'Deterministic structural graph generator for code context verification.',
+        overlap: 'Wedge 1 Code Knowledge Graphing.',
+        differs: 'Graphify focuses on context verification. Chronos extends graph intelligence directly into sub-file node locking, policy engines, and CI merge gates.'
+      },
+      'Sourcegraph': {
+        primary: 'Enterprise code search and Cody AI assistant.',
+        overlap: 'Code search & context retrieval.',
+        differs: 'Sourcegraph provides search for humans and agents. Chronos provides multi-agent synchronization and deterministic policy governance.'
+      },
+      'Hivemind': {
+        primary: 'Unstructured data & code indexing for vector retrieval.',
+        overlap: 'Semantic memory indexing.',
+        differs: 'Hivemind offers vector index storage. Chronos uses a bi-temporal graph (KùzuDB) for exact AST symbol relationships and deterministic enforcement.'
+      },
+      'Runtime': {
+        primary: 'Sandbox environment governance, egress filtering, and OS isolation.',
+        overlap: 'Governance taxonomy.',
+        differs: 'Runtime governs OS and container environments. Chronos governs the code structure itself (AST symbols, AST node locks, and repository policy rules).'
+      },
+      'Ellipsis': {
+        primary: 'AI code review bot and fleet management.',
+        overlap: 'Code review verification.',
+        differs: 'Ellipsis runs post-hoc PR reviews. Chronos enforces sub-second local CI gates before merge and manages active sub-file intent locks.'
+      },
+      'Unbound': {
+        primary: 'Tool-level call governance and API permission wrappers.',
+        overlap: 'Permission manifests.',
+        differs: 'Unbound governs API calls. Chronos governs code structure, symbol dependencies, and bi-temporal repository history.'
+      },
+      'Mosaic': {
+        primary: 'Multi-agent conversation memory orchestration.',
+        overlap: 'Agent memory.',
+        differs: 'Mosaic manages agent conversation state. Chronos manages codebase AST state, lock leases, and deterministic OPA policies.'
+      }
+    };
+
+    function openCompetitorModal(name) {
+      const data = competitorData[name] || {
+        primary: 'Specialized developer product.',
+        overlap: 'Codebase context or execution.',
+        differs: 'Chronos provides complete bi-temporal AST governance and multi-agent coordination.'
+      };
+      document.getElementById('drawer-title').innerText = name;
+      document.getElementById('drawer-primary').innerText = data.primary;
+      document.getElementById('drawer-overlap').innerText = data.overlap;
+      document.getElementById('drawer-differs').innerText = data.differs;
+      document.getElementById('drawer-overlay').classList.add('open');
+    }
+
+    function closeCompetitorModal() {
+      document.getElementById('drawer-overlay').classList.remove('open');
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. Head-to-Head Capability Matrix: GitNexus vs Chronos
+    // --------------------------------------------------------------------------
+    const matrixData = [
+      { feat: 'Codebase knowledge graph', git: '✅', chr: '✅', exp: 'Enables symbol relationship queries, call graphs, and dependency tracking.' },
+      { feat: 'Symbol/function relationships', git: '✅', chr: '✅', exp: 'Maps caller and callee hierarchies across functions, classes, and modules.' },
+      { feat: 'Code history', git: '✅', chr: 'Bi-temporal model', exp: 'Chronos uses a bi-temporal graph tracking codebase evolution over time ("what was true at commit X?").' },
+      { feat: 'Context retrieval', git: '✅', chr: '✅', exp: 'Retrieves relevant AST nodes and code snippets for LLM prompting.' },
+      { feat: 'Coding agent built on graph', git: '✅', chr: '❌ not the goal', exp: 'GitNexus builds a smart agent. Chronos is an open governance plane for ALL agent fleets (Claude, Cursor, Devin, etc.).' },
+      { feat: 'PR review', git: '✅', chr: '✅', exp: 'Evaluates proposed code changes during pull requests.' },
+      { feat: 'Structural policy enforcement', git: '—', chr: '✅ ast-grep + OPA', exp: 'Enforces 100% deterministic AST rules via ast-grep and Open Policy Agent in under 1 second.' },
+      { feat: 'Agent intent tracking', git: '—', chr: '✅ Intent Ledger', exp: 'Logs what an agent intends to edit and why before code modifications occur.' },
+      { feat: 'Fine-grained AST locking', git: '—', chr: '✅', exp: 'Allows agents to lock specific AST nodes (functions/classes) rather than locking entire files.' },
+      { feat: 'Multi-agent conflict prevention', git: '—', chr: '✅', exp: 'Prevents race conditions and git merge collisions when multiple agents edit the same repository.' },
+      { feat: 'Agent permissions', git: '—', chr: '✅', exp: 'Least-privilege path manifests (F2) restricting agent access to authorized modules only.' },
+      { feat: 'Human approval gates', git: '—', chr: '✅', exp: 'Parks agent write requests on sensitive paths until explicit human signoff (F5).' },
+      { feat: 'Cryptographic audit trail', git: '—', chr: '✅ SHA-256', exp: 'Append-only SHA-256 hash-chained event ledger (F4) for SOC-2 and regulatory audits.' },
+      { feat: 'Sensitive-read tracking', git: '—', chr: '✅', exp: 'Audits and redacts agent access to secrets, .env files, and private credentials (F7).' },
+      { feat: 'Self-healing policy knowledge', git: '—', chr: '✅', exp: 'Automatically converts post-mortem incident reports into enforceable playbook rules (Wedge 2).' },
+      { feat: 'Deterministic merge gate', git: '—', chr: '✅', exp: 'Non-probabilistic local CI gate blocking policy violations before code touches main branch.' },
+      { feat: 'Local-first / zero-egress architecture', git: '—', chr: '✅', exp: 'Runs 100% locally with embedded databases (KùzuDB + SQLite) and zero network egress.' },
+      { feat: 'Purpose', git: 'Make agents understand code better', chr: 'Make agents operate on code safely', isPurpose: true, exp: 'GitNexus focuses on code intelligence. Chronos provides full-stack agent governance and coordination.' }
+    ];
+
+    const matrixBody = document.getElementById('matrix-body');
+    matrixData.forEach((r, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = r.isPurpose ? 'row-purpose' : 'row-feature';
+      if (!r.isPurpose) {
+        tr.onclick = () => toggleRowExp(idx);
+      }
+      
+      const formatVal = (v) => {
+        if (v === '✅') return `<span class="val-yes">✅</span>`;
+        if (v === '—') return `<span class="val-no">—</span>`;
+        if (v.startsWith('❌')) return `<span style="color: var(--accent-red); font-family: var(--font-mono); font-size: 0.85rem;">${v}</span>`;
+        return `<span class="val-custom">${v}</span>`;
+      };
+      
+      tr.innerHTML = `
+        <td style="font-weight: 700; color: #fff;">${r.feat}</td>
+        <td class="matrix-val">${formatVal(r.git)}</td>
+        <td class="matrix-val col-chronos">${formatVal(r.chr)}</td>
+      `;
+      matrixBody.appendChild(tr);
+
+      // Explanation Row
+      if (!r.isPurpose) {
+        const trExp = document.createElement('tr');
+        trExp.id = `exp-row-${idx}`;
+        trExp.style.display = 'none';
+        trExp.innerHTML = `
+          <td colspan="3" style="padding: 0;">
+            <div class="matrix-explanation" style="display: block;">
+              <strong>Architectural Context:</strong> ${r.exp}
+            </div>
+          </td>
+        `;
+        matrixBody.appendChild(trExp);
+      }
+    });
+
+    function toggleRowExp(idx) {
+      const el = document.getElementById(`exp-row-${idx}`);
+      if (el) {
+        el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
       }
     }
-    requestAnimationFrame(step);
-  }
-  addEventListener("resize", resize);
-  resize(); step();
-})();
 
-/* ── accent color plumbing: slides set --slide-accent as a CSS color (var()
-   reference), but the particle canvas needs an actual "r,g,b" string, so we
-   also set --slide-accent-rgb alongside it from a lookup table ── */
-const ACCENT_RGB = {
-  "var(--cat-1)": "57,135,229", "var(--cat-2)": "217,89,38", "var(--cat-3)": "25,158,112",
-  "var(--cat-4)": "144,133,233", "var(--serious)": "236,131,90", "var(--warning)": "250,178,25",
-};
-function setAccent(v){
-  document.documentElement.style.setProperty("--slide-accent", v);
-  document.documentElement.style.setProperty("--slide-accent-rgb", ACCENT_RGB[v] || "57,135,229");
-}
+    // --------------------------------------------------------------------------
+    // 4. Five Wedges Dynamic Content
+    // --------------------------------------------------------------------------
+    const wedgeData = [
+      {
+        num: '01',
+        title: 'Bi-Temporal AST Knowledge Graph',
+        what: 'Embedded KùzuDB graph store tracking functions, classes, dependencies, and temporal code evolution.',
+        why: 'Allows agents to query historical state ("what was true at timestamp T?") and trace caller impact across refactors.',
+        instead: 'Conventional systems re-read raw files on every prompt or use static vector embeddings.',
+        advantage: 'Zero context loss during refactors + complete temporal audit.'
+      },
+      {
+        num: '02',
+        title: 'Self-Healing Policy Playbook',
+        what: 'SQLite rule engine that records post-mortems and converts failed reviews into enforceable rules.',
+        why: 'Prevents agents from repeatedly re-introducing bugs or architecture regressions deleted last month.',
+        instead: 'Conventional systems rely on human memory or static developer documentation.',
+        advantage: 'Codebase memory automatically strengthens after every incident.'
+      },
+      {
+        num: '03',
+        title: 'Sub-File AST Node Locking & Intent Ledger',
+        what: 'Fine-grained leases on AST nodes (functions/classes) with intent recording.',
+        why: 'Enables multiple agents to modify the same file concurrently without collisions or git merge conflicts.',
+        instead: 'Conventional systems lock entire files or allow uncoordinated edits that fail at merge.',
+        advantage: 'Maximizes multi-agent concurrency while guaranteeing zero file race conditions.'
+      },
+      {
+        num: '04',
+        title: 'Sub-Second CI Merge Gate',
+        what: 'Deterministic ast-grep + OPA rule engine verifying git diffs in under 1 second.',
+        why: 'Provides explainable, non-probabilistic rule enforcement on every proposed commit.',
+        instead: 'Conventional systems rely on LLM system prompt instructions.',
+        advantage: '100% deterministic compliance before code touches main branch.'
+      },
+      {
+        num: '05',
+        title: 'Cryptographic Audit & Human Approval Gates',
+        what: 'SHA-256 hash-chained event ledger with human-in-the-loop signoff gates.',
+        why: 'Provides SOC-2 compliant audit trails proving exactly which agent edited what symbol and why.',
+        instead: 'Conventional systems leave unstructured git commits with unknown agent attribution.',
+        advantage: 'Complete enterprise accountability for autonomous AI fleets.'
+      }
+    ];
 
-/* ── live data cache ── */
-const D = {};
+    function showWedge(num, btn) {
+      document.querySelectorAll('.wedge-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
 
-/* ═══════════════════════════ SLIDE DIAGRAMS ═══════════════════════════ */
-
-function diagWedge1(){
-  // mini call-graph: process_payment <- charge_card <- verify_signature,
-  // nodes light up left-to-right to suggest a traversal, with a time axis
-  // underneath showing "before refactor" vs "now" states.
-  return `<div class="viz-frame"><svg class="diagram" viewBox="0 0 640 200">
-    <g class="edge-group">
-      <path class="edge active" d="M120,100 L280,100" stroke-dasharray="160" stroke-dashoffset="160" style="animation:drawLine 900ms 300ms ease-out forwards"/>
-      <path class="edge active" d="M320,100 L480,100" stroke-dasharray="160" stroke-dashoffset="160" style="animation:drawLine 900ms 700ms ease-out forwards"/>
-    </g>
-    <g style="opacity:0;animation:fadeIn 400ms 150ms forwards">
-      <circle class="node-circle hit" cx="80" cy="100" r="34"/>
-      <text class="lbl-strong" x="80" y="96" text-anchor="middle">verify_</text>
-      <text class="lbl-strong" x="80" y="110" text-anchor="middle">signature</text>
-    </g>
-    <g style="opacity:0;animation:fadeIn 400ms 550ms forwards">
-      <circle class="node-circle hit" cx="300" cy="100" r="34"/>
-      <text class="lbl-strong" x="300" y="96" text-anchor="middle">charge_</text>
-      <text class="lbl-strong" x="300" y="110" text-anchor="middle">card</text>
-    </g>
-    <g style="opacity:0;animation:fadeIn 400ms 950ms forwards">
-      <circle class="node-circle hit" cx="530" cy="100" r="38"/>
-      <text class="lbl-strong" x="530" y="96" text-anchor="middle">process_</text>
-      <text class="lbl-strong" x="530" y="110" text-anchor="middle">payment</text>
-      <circle class="pulse-ring" cx="530" cy="100" r="38" style="animation-delay:1.1s"/>
-    </g>
-    <line x1="40" y1="168" x2="600" y2="168" stroke="var(--border)" stroke-width="1"/>
-    <text class="lbl-mono" x="40" y="188">2026-06-12 · requests-based</text>
-    <text class="lbl-mono" x="480" y="188" text-anchor="end">now · httpx-based</text>
-    <circle cx="180" cy="168" r="3.5" fill="var(--muted)"/>
-    <circle cx="600" cy="168" r="4" fill="var(--slide-accent,var(--cat-1))"/>
-  </svg></div>`;
-}
-
-function diagWedge2(){
-  return `<div class="viz-frame"><div class="seq">
-    <div class="step block"><div class="ic">${icon("i-ban",16)}</div>
-      <div class="txt"><b>Agent used requests.post()</b><span>flagged in code review — src/payments/client.py</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step wait" style="animation-delay:260ms"><div class="ic">${icon("i-clock",16)}</div>
-      <div class="txt"><b>Rule proposed: no-requests</b><span>"Don't use requests — use httpx (async)"</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step ok" style="animation-delay:520ms"><div class="ic">${icon("i-check",16)}</div>
-      <div class="txt"><b>Promoted to blocking, by a human</b><span>now enforced on every future diff</span></div></div>
-  </div></div>`;
-}
-
-function diagWedge3(){
-  return `<div class="viz-frame"><svg class="diagram" viewBox="0 0 640 170">
-    <g style="opacity:0;animation:fadeIn 400ms 150ms forwards">
-      <rect x="30" y="55" width="220" height="60" rx="10" class="node-circle hit"/>
-      <text class="lbl-strong" x="140" y="80" text-anchor="middle">claude-code</text>
-      <text class="lbl-mono" x="140" y="98" text-anchor="middle">locks charge_card()</text>
-    </g>
-    <path class="edge active" d="M250,85 L370,85" stroke-dasharray="120" stroke-dashoffset="120" style="animation:drawLine 700ms 500ms ease-out forwards"/>
-    <g style="opacity:0;animation:fadeIn 400ms 900ms forwards">
-      <rect x="380" y="55" width="230" height="60" rx="10" fill="rgba(208,59,59,.12)" stroke="var(--critical)" stroke-width="1.5"/>
-      <text x="495" y="80" text-anchor="middle" font="600 13px var(--sans)" fill="#ffb3ab">cursor — conflict</text>
-      <text class="lbl-mono" x="495" y="98" text-anchor="middle" fill="#ffb3ab">told exactly who holds it</text>
-    </g>
-  </svg></div>`;
-}
-
-function diagWedge4(){
-  return `<div class="viz-frame"><div style="font-family:var(--mono);font-size:13px;line-height:1.9">
-    <div style="color:var(--critical);font-weight:700;display:flex;align-items:center;gap:8px;
-      opacity:0;animation:up 420ms var(--ease-out) 150ms forwards">${icon("i-ban",15)} BLOCKED &nbsp;chronos-enforce</div>
-    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 340ms forwards">Rule: <b style="color:#fff">no-requests</b> (promoted, blocking)</div>
-    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 480ms forwards">Match: <span style="color:#fff">src/payments/client.py:47</span></div>
-    <div style="color:var(--ink-dim);opacity:0;animation:up 420ms var(--ease-out) 620ms forwards">Fix: use httpx.AsyncClient instead of requests</div>
-  </div></div>`;
-}
-
-function diagF1(){
-  return `<div class="viz-frame"><div class="seq">
-    <div class="step" style="border:none"><div class="ic">${icon("i-key",16)}</div>
-      <div class="txt"><b>chron_•••••••• presented</b><span>on every MCP tool call</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step" style="animation-delay:220ms"><div class="ic">${icon("i-arrow-r",16)}</div>
-      <div class="txt"><b>resolve_key() looks up the hash</b><span>raw key is never stored, only its SHA-256</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step ok" style="animation-delay:440ms"><div class="ic">${icon("i-check",16)}</div>
-      <div class="txt"><b>agent_id confirmed: cursor</b><span>every action from here is attributed</span></div></div>
-  </div></div>`;
-}
-
-function diagF2(){
-  const rows = [
-    {name:"claude-code", cells:["allow","allow","allow"]},
-    {name:"cursor", cells:["allow","allow","allow"]},
-    {name:"intern-bot", cells:["allow","deny","ro"]},
-  ];
-  const cols = ["src/payments/**","src/auth/**","write access"];
-  return `<div class="viz-frame"><div class="matrix">
-    <div class="mrow"><div></div>${cols.map(c=>`<div class="mhead">${esc(c)}</div>`).join("")}</div>
-    ${rows.map((r,ri) => `<div class="mrow">
-      <div class="agent-name">${esc(r.name)}</div>
-      ${r.cells.map((c,ci) => `<div class="cell ${c}" style="animation-delay:${150+ri*90+ci*60}ms">${
-        c==="allow"?"ALLOW":c==="deny"?"DENY":"READ-ONLY"}</div>`).join("")}
-    </div>`).join("")}
-  </div></div>`;
-}
-
-function diagF3(){
-  return `<div class="viz-frame"><div style="display:flex;flex-direction:column;gap:16px">
-    <div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:7px">
-        <span class="chip-label">src/payments/webhooks.py::verify_signature</span>
-        <span class="lbl-mono" style="fill:var(--muted)">TTL 300s</span>
-      </div>
-      <div class="ttl-bar"><div class="ttl-fill"></div></div>
-    </div>
-    <div class="seq" style="margin-top:4px">
-      <div class="step wait"><div class="ic">${icon("i-clock",16)}</div>
-        <div class="txt"><b>Emergency request arrives mid-hold</b><span>doesn't fail outright — posts a preemption notice</span></div></div>
-      <div class="connector-v"></div>
-      <div class="step ok" style="animation-delay:240ms"><div class="ic">${icon("i-check",16)}</div>
-        <div class="txt"><b>60s grace, then reclaimed</b><span>or the original holder finishes first — no data loss either way</span></div></div>
-    </div>
-  </div></div>`;
-}
-
-function diagF4(){
-  return `<div class="viz-frame"><div class="chain">
-    <div class="link" style="animation-delay:100ms"><b>seq 117</b>lock_acquired</div>
-    <div class="connector" style="animation-delay:260ms"></div>
-    <div class="link" style="animation-delay:340ms"><b>seq 118</b>permission_denied</div>
-    <div class="connector" style="animation-delay:500ms"></div>
-    <div class="link" style="animation-delay:580ms"><b>seq 119</b>gate_requested</div>
-    <div class="connector" style="animation-delay:740ms"></div>
-    <div class="link verified" style="animation-delay:820ms">${icon("i-check",13)}<b style="color:#8ce68c">verified</b>chain intact</div>
-  </div>
-  <div style="margin-top:16px;font-size:11.5px;color:var(--muted);text-align:center;
-    opacity:0;animation:fadeIn 400ms 1000ms forwards">
-    edit one byte anywhere in the log → every entry after it fails to verify
-  </div></div>`;
-}
-
-function diagF5(){
-  return `<div class="viz-frame"><div class="seq">
-    <div class="step block"><div class="ic">${icon("i-hand",16)}</div>
-      <div class="txt"><b>cursor → rotate_key() on provider_keys.py</b><span>BLOCKED — Payment provider credentials is gated</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step wait" style="animation-delay:240ms"><div class="ic">${icon("i-clock",16)}</div>
-      <div class="txt"><b>$ chronos gates approve &lt;gate_id&gt;</b><span>run by a human with repo access</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step ok" style="animation-delay:480ms"><div class="ic">${icon("i-check",16)}</div>
-      <div class="txt"><b>Retry → acquired: true, renewed: true</b><span>same lock request, now let through</span></div></div>
-  </div></div>`;
-}
-
-function diagF6(sessions){
-  const data = sessions && sessions.length ? sessions : Array.from({length:9},(_,i)=>({calls: i===8?40:4}));
-  const max = Math.max(...data.map(d=>d.calls));
-  return `<div class="viz-frame"><div class="chip-label" style="margin-bottom:10px">intern-bot · calls per session, last 9 sessions</div>
-  <div class="barchart">${data.map((d,i) => {
-    const isOutlier = d.calls > (data[0]?.calls || 4) * 3;
-    const h = Math.max(6, (d.calls/max)*100);
-    return `<div class="bar-col">
-      <div class="bar-n">${d.calls}</div>
-      <div class="bar ${isOutlier?"outlier":""}" style="height:${h}%;animation-delay:${i*55}ms"></div>
-      <div class="bar-l">${isOutlier?"OUTLIER":"day "+(i+1)}</div>
-    </div>`;
-  }).join("")}</div>
-  <div class="sev-row" style="margin-top:16px">
-    <div class="sev-chip" style="animation-delay:600ms"><span class="d" style="background:var(--warning)"></span>HIGH_VOLUME flagged</div>
-  </div></div>`;
-}
-
-function diagF7(){
-  return `<div class="viz-frame"><div class="seq">
-    <div class="step" style="border:none"><div class="ic">${icon("i-eye",16)}</div>
-      <div class="txt"><b>cursor reads src/payments/secrets/.env</b><span>PROVIDER_API_KEY</span></div></div>
-    <div class="connector-v"></div>
-    <div class="step ok" style="animation-delay:240ms"><div class="ic">${icon("i-check",16)}</div>
-      <div class="txt"><b>Logged: label=secrets, severity=high</b>
-      <span>value = <span class="redact">[REDACTED]&nbsp;never&nbsp;stored]</span></span></div></div>
-  </div></div>`;
-}
-
-function icon(id, size){
-  return `<svg viewBox="0 0 24 24" style="width:${size}px;height:${size}px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><use href="#${id}"/></svg>`;
-}
-
-/* ═══════════════════════════ SLIDE DATA ═══════════════════════════ */
-
-const SLIDES = [
-  { id:"title", accent:"var(--cat-1)", noProof:true,
-    render: () => `
-      <div class="brand">Chronos</div>
-      <div class="tagline">Version control tells you <i>what</i> changed. Chronos tells your agents
-        <i>what was true, who's touching it right now, and who's allowed to.</i></div>
-      <div class="hint">${icon("i-arrow-r",13)} press <kbd>&rarr;</kbd> or click to begin</div>`,
-  },
-  { id:"wedge1", accent:"var(--cat-1)", eyebrow:"The core product · 01",
-    headline:"A codebase that remembers every version of itself.",
-    dek:"Chronos indexes your repo's full git history into a bi-temporal graph. Agents can ask “who called this function <i>before</i> the refactor?” and get a real, timestamped answer — not a guess from the current file.",
-    visual: diagWedge1,
-    proof: () => D.stats ? {label:"nodes indexed right now", value: D.stats.total_nodes?.toLocaleString?.() ?? "—"} : null,
-  },
-  { id:"wedge2", accent:"var(--cat-4)", eyebrow:"The core product · 02",
-    headline:"Rules the codebase teaches itself.",
-    dek:"When an agent's action fails review, Chronos captures the lesson and proposes a rule. A human approves it once; after that it's enforced automatically.",
-    visual: diagWedge2,
-    proof: () => D.stats ? {label:"rules live right now", value: D.stats.rules_blocking + D.stats.rules_warn_only} : null,
-  },
-  { id:"wedge3", accent:"var(--cat-3)", eyebrow:"The core product · 03",
-    headline:"Agents that don't collide with each other.",
-    dek:"Before an agent touches a function, it takes an intent lock on that exact node — not the whole file. Every read and write is logged to a provenance ledger.",
-    visual: diagWedge3,
-    proof: () => D.stats ? {label:"locks held right now", value: D.stats.active_locks} : null,
-  },
-  { id:"wedge4", accent:"var(--cat-2)", eyebrow:"The core product · 04",
-    headline:"Enforcement that actually blocks the merge.",
-    dek:"Playbook rules aren't suggestions — chronos-enforce runs them against every diff. A blocking rule fails CI with the exact match, the file, and the fix.",
-    visual: diagWedge4,
-    proof: () => D.stats ? {label:"enforced this week", value: D.stats.enforced_this_week} : null,
-  },
-  { id:"f1", accent:"var(--cat-1)", eyebrow:"Governance · F1",
-    headline:"Every agent has a real identity.",
-    dek:"Agents authenticate with an API key, same as any service account. Turn on strict mode and an unrecognized caller is rejected outright.",
-    visual: diagF1,
-    proof: () => D.stats ? {label:"active agents registered", value: D.stats.active_agents} : null,
-  },
-  { id:"f2", accent:"var(--cat-4)", eyebrow:"Governance · F2",
-    headline:"What an agent can touch is a policy, not a hope.",
-    dek:"Every agent can carry a manifest: read-only, scoped to specific paths, denied specific paths. intern-bot literally cannot write outside src/payments/**.",
-    visual: diagF2,
-    proof: () => (D.agents && D.agents.length) ? {label:"agents with a permission manifest", value: D.agents.filter(a=>a.permissions).length} : null,
-  },
-  { id:"f3", accent:"var(--cat-3)", eyebrow:"Governance · F3",
-    headline:"Locks that expire, and priorities that mean something.",
-    dek:"Every lock carries a TTL, so a crashed agent can't wedge a node forever. An emergency request posts a preemption notice instead of failing silently.",
-    visual: diagF3,
-    proof: () => D.stats ? {label:"locks currently held", value: D.stats.active_locks} : null,
-  },
-  { id:"f4", accent:"var(--cat-2)", eyebrow:"Governance · F4",
-    headline:"An audit log you can hand to a regulator.",
-    dek:"Every governed action is hash-chained into an append-only log. Edit one byte anywhere in the history and verification fails at that exact line.",
-    visual: diagF4,
-    proof: () => D.audit ? {label: D.audit.valid ? "chain verified — entries" : "CHAIN BROKEN", value: D.audit.valid ? (D.audit.total_entries ?? D.audit.checked ?? 0) : "!", bad: !D.audit.valid} : null,
-  },
-  { id:"f5", accent:"var(--serious)", eyebrow:"Governance · F5",
-    headline:"Some code needs a human in the loop.",
-    dek:"Mark a path as protected and any lock request against it parks for approval instead of going straight through. One CLI command unblocks the retry.",
-    visual: diagF5,
-    proof: () => D.stats ? {label:"gates awaiting approval", value: D.stats.pending_gates, warn: D.stats.pending_gates > 0} : null,
-  },
-  { id:"f6", accent:"var(--warning)", eyebrow:"Governance · F6",
-    headline:"It notices when an agent stops acting like itself.",
-    dek:"Chronos learns each agent's normal session shape after 7+ days of history. A session 3x louder than normal gets flagged automatically.",
-    visual: () => diagF6(D.f6sessions),
-    proof: () => D.anomalies ? {label:"anomalies flagged (7d)", value: D.anomalies.anomalies?.length ?? 0} : null,
-  },
-  { id:"f7", accent:"var(--cat-1)", eyebrow:"Governance · F7",
-    headline:"Every read of a sensitive file, tracked — never the content.",
-    dek:".env files, credentials, private keys — any path matching your sensitive patterns gets its access logged. The file's actual contents never touch this pipeline.",
-    visual: diagF7,
-    proof: () => (D.sensitive) ? {label:"sensitive reads tracked (7d)", value: D.sensitive.length} : null,
-  },
-  { id:"closing", accent:"var(--cat-1)", noProof:true,
-    render: () => `
-      <div class="eyebrow"><span class="bar"></span>Recap<span class="n">13 / 13</span></div>
-      <h2 class="headline">Eleven features. One running system.</h2>
-      <div class="dek">Everything on this deck is live — pulled from the same chronos.db the dashboard reads. Nothing here was staged for the pitch.</div>
-      <div class="grid-recap" id="recap-grid"></div>
-      <div class="proof" style="margin-top:26px"><span class="dot"></span>
-        <span class="v"><a href="/" style="color:#fff;text-decoration:none">Open the live dashboard →</a></span></div>`,
-  },
-];
-
-const RECAP = [
-  ["Bi-temporal graph","ask what was true, when"], ["Self-improving playbook","rules learned from failures"],
-  ["Intent ledger","agents don't collide"], ["CI enforcement","rules that block the merge"],
-  ["Agent identity","every caller is known"], ["Permission scoping","access is policy, not hope"],
-  ["Lock TTL + recovery","crashes don't wedge a node"], ["Tamper-evident audit","hash-chained, exportable"],
-  ["Human-in-the-loop gates","sensitive paths need a person"], ["Anomaly detection","notices off-pattern behavior"],
-  ["Sensitive read tracking","paper trail, never content"],
-];
-
-let cur = -1;
-const deck = $("#deck");
-const progress = $("#progress");
-
-function buildSlide(s, i){
-  const el = document.createElement("div");
-  el.className = "slide"; el.id = "s-" + i;
-  if(s.render){
-    el.innerHTML = `<div class="slide-inner">${s.render()}</div>`;
-  } else {
-    el.innerHTML = `<div class="slide-inner wide">
-      <div class="eyebrow"><span class="bar"></span>${esc(s.eyebrow||"")}<span class="n">${String(i+1).padStart(2,"0")} / ${String(SLIDES.length).padStart(2,"0")}</span></div>
-      <div class="split-viz">
+      const w = wedgeData[num - 1];
+      const container = document.getElementById('wedge-display');
+      container.innerHTML = `
         <div>
-          <h2 class="headline">${s.headline||""}</h2>
-          <div class="dek">${s.dek||""}</div>
-          ${s.noProof ? "" : `<div class="proof" id="proof-${i}"><span class="dot"></span><span class="v">—</span><span class="l">loading…</span></div>`}
+          <span class="badge badge-cyan">WEDGE ${w.num}</span>
+          <h3 style="font-size: 1.6rem; color: #fff; margin: 12px 0;">${w.title}</h3>
+          
+          <div style="margin-top: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-cyan); text-transform: uppercase;">What It Does</h4>
+            <p style="color: var(--text-dim); font-size: 0.95rem; margin-top: 4px;">${w.what}</p>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-emerald); text-transform: uppercase;">Why It Matters</h4>
+            <p style="color: var(--text-dim); font-size: 0.95rem; margin-top: 4px;">${w.why}</p>
+          </div>
         </div>
-        <div class="visual">${s.visual ? s.visual() : ""}</div>
-      </div>
-    </div>`;
-  }
-  return el;
-}
 
-function fillRecap(){
-  const grid = $("#recap-grid");
-  if(!grid) return;
-  grid.innerHTML = RECAP.map((r,i) => `
-    <div class="recap-chip" style="animation-delay:${i*45}ms"><b>${esc(r[0])}</b>${esc(r[1])}</div>`).join("");
-}
+        <div style="background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 24px; border: 1px solid var(--border-subtle);">
+          <div style="margin-bottom: 20px;">
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-amber); text-transform: uppercase;">What Conventional Systems Do Instead</h4>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">${w.instead}</p>
+          </div>
 
-function updateProof(i){
-  const s = SLIDES[i];
-  if(!s || s.noProof || !s.proof) return;
-  const box = document.querySelector(`#proof-${i}`);
-  if(!box) return;
-  const p = s.proof();
-  if(!p){
-    box.classList.add("stale");
-    box.querySelector(".v").textContent = "—";
-    box.querySelector(".l").textContent = "waiting for live data…";
-    return;
-  }
-  box.classList.remove("stale");
-  box.querySelector(".v").textContent = p.value;
-  box.querySelector(".v").style.color = p.bad ? "var(--critical)" : (p.warn ? "var(--warning)" : "#fff");
-  box.querySelector(".dot").style.background = p.bad ? "var(--critical)" : (p.warn ? "var(--warning)" : "var(--good)");
-  box.querySelector(".l").textContent = p.label;
-}
+          <div>
+            <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-purple); text-transform: uppercase;">The Chronos Advantage</h4>
+            <p style="color: var(--text-main); font-size: 0.95rem; font-weight: 600; margin-top: 4px;">${w.advantage}</p>
+          </div>
+        </div>
+      `;
+    }
 
-function goTo(i){
-  i = Math.max(0, Math.min(SLIDES.length - 1, i));
-  if(i === cur) return;
-  const prevEl = deck.children[0];
-  const nextEl = buildSlide(SLIDES[i], i);
-  deck.appendChild(nextEl);
-  // Force a style flush BEFORE toggling .on, so the browser has committed the
-  // "opacity:0" starting state to a real paint before the transition target
-  // changes -- without this, insert+class-add can coalesce into one frame
-  // and the transition/animation never visibly runs (the classic
-  // insert-then-immediately-animate bug).
-  void nextEl.offsetHeight;
-  nextEl.classList.add("on");
-  if(prevEl){ prevEl.classList.add("leaving"); prevEl.classList.remove("on"); }
-  setTimeout(() => { if(prevEl) prevEl.remove(); }, RM ? 0 : 300);
-  cur = i;
-  setAccent(SLIDES[i].accent);
-  $$dots();
-  $("#counter").textContent = `${String(i+1).padStart(2,"0")} / ${String(SLIDES.length).padStart(2,"0")}`;
-  updateProof(i);
-  if(SLIDES[i].id === "closing") fillRecap();
-}
+    // Initialize Wedge 1
+    showWedge(1, document.querySelector('.wedge-btn'));
 
-function $$dots(){
-  progress.querySelectorAll(".pdot").forEach((d,idx) => d.classList.toggle("on", idx === cur));
-}
-function buildProgress(){
-  progress.innerHTML = SLIDES.map((_,i) => `<div class="pdot" data-i="${i}"></div>`).join("");
-  progress.querySelectorAll(".pdot").forEach(d => d.onclick = () => goTo(+d.dataset.i));
-}
-function next(){ goTo(cur + 1); }
-function prev(){ goTo(cur - 1); }
+    // --------------------------------------------------------------------------
+    // 5. Merge Gate Interactive Simulator
+    // --------------------------------------------------------------------------
+    function runSimulatedFix() {
+      const diffBox = document.getElementById('demo-diff-box');
+      const verdictBox = document.getElementById('demo-verdict-box');
+      const verdictTitle = document.getElementById('demo-verdict-title');
+      const verdictDetails = document.getElementById('demo-verdict-details');
 
-$("#btn-next").onclick = next;
-$("#btn-prev").onclick = prev;
-$("#edge-right").onclick = next;
-$("#edge-left").onclick = prev;
-document.addEventListener("keydown", e => {
-  if(["ArrowRight"," ","PageDown"].includes(e.key)){ e.preventDefault(); next(); }
-  if(["ArrowLeft","PageUp"].includes(e.key)){ e.preventDefault(); prev(); }
-  if(e.key === "Home") goTo(0);
-  if(e.key === "End") goTo(SLIDES.length - 1);
-});
-let touchX = null;
-document.addEventListener("touchstart", e => touchX = e.touches[0].clientX);
-document.addEventListener("touchend", e => {
-  if(touchX === null) return;
-  const dx = e.changedTouches[0].clientX - touchX;
-  if(Math.abs(dx) > 60) dx < 0 ? next() : prev();
-  touchX = null;
-});
+      diffBox.innerHTML = `
+        <span style="color: var(--text-muted);"> def create_user(username, email):</span>
+        <span class="diff-rem">-    db.execute("INSERT INTO users VALUES (?, ?)", (username, email))</span>
+        <span class="diff-add">+    return user_repo.create(username, email)</span>
+      `;
 
-async function loadData(){
-  const paths = {stats:"/api/stats", agents:"/api/agents", audit:"/api/audit",
-                 anomalies:"/api/anomalies", sensitive:"/api/sensitive-reads"};
-  await Promise.all(Object.entries(paths).map(async ([k,p]) => {
-    try{ D[k] = await (await fetch(API+p,{cache:"no-store"})).json(); }
-    catch(e){ /* leave undefined -- slides render the "waiting for live data" state */ }
-  }));
-  if(D.anomalies?.anomalies?.length){
-    const agentId = D.anomalies.anomalies[0].agent_id;
-    try{ D.f6sessions = await (await fetch(API+`/api/anomalies/${encodeURIComponent(agentId)}/sessions`,{cache:"no-store"})).json(); }
-    catch(e){}
-  }
-  SLIDES.forEach((_,i) => updateProof(i));
-  if(cur >= 0 && SLIDES[cur].id === "f6"){
-    // f6's chart needs the live session data that may have just arrived --
-    // rebuild only if we're currently sitting on that slide.
-    const vizBox = document.querySelector(`#s-${cur} .visual`);
-    if(vizBox) vizBox.innerHTML = diagF6(D.f6sessions);
-  }
-}
+      verdictBox.className = 'policy-verdict-box verdict-passed';
+      verdictTitle.innerHTML = '✓ MERGE GATE VERDICT: PASSED (0.04s)';
+      verdictDetails.innerHTML = `
+        <strong>Rule:</strong> POL-08 (No direct DB access in API handlers) — PASSED<br>
+        <strong>Affected Symbol:</strong> <code>api/users.py └── create_user()</code><br>
+        <strong>Status:</strong> Correctly uses <code>UserRepository</code> abstraction.<br>
+        <strong>Action:</strong> Approved for automated merge.
+      `;
+    }
 
-setAccent(SLIDES[0].accent);
-buildProgress();
-goTo(0);
-loadData();
-setInterval(loadData, 15000);
-</script>
+    function runSimulatedApproval() {
+      const verdictBox = document.getElementById('demo-verdict-box');
+      const verdictTitle = document.getElementById('demo-verdict-title');
+      const verdictDetails = document.getElementById('demo-verdict-details');
+
+      verdictBox.className = 'policy-verdict-box verdict-passed';
+      verdictTitle.innerHTML = '🛡️ HUMAN APPROVAL GATE SIGNED';
+      verdictDetails.innerHTML = `
+        <strong>Gate ID:</strong> GATE-9402<br>
+        <strong>Approved By:</strong> Lead Architect (Human Signoff)<br>
+        <strong>Hash Chain Digest:</strong> <code>sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code><br>
+        <strong>Action:</strong> Exemption logged in audit ledger. Merge unlocked.
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. Before / After Interactive Slider Drag
+    // --------------------------------------------------------------------------
+    const sliderContainer = document.getElementById('slider-container');
+    const paneAfter = document.getElementById('pane-after');
+    const sliderHandle = document.getElementById('slider-handle');
+    let isDragging = false;
+
+    sliderContainer.addEventListener('mousedown', () => isDragging = true);
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    sliderContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = sliderContainer.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      if (x < 0) x = 0;
+      if (x > rect.width) x = rect.width;
+      
+      const pct = (x / rect.width) * 100;
+      sliderHandle.style.left = pct + '%';
+      paneAfter.style.clipPath = `polygon(${pct}% 0, 100% 0, 100% 100%, ${pct}% 100%)`;
+    });
+  </script>
 </body>
 </html>

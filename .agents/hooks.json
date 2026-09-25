@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python verify_lock.py"
+            "command": "py verify_lock.py"
           }
         ]
       }
@@ -16,7 +16,7 @@
     "PreInvocation": [
       {
         "type": "command",
-        "command": "python inject_chronos_reminder.py"
+        "command": "py inject_chronos_reminder.py"
       }
     ]
   }

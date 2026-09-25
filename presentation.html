@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronos — AI Engineering Control Plane & Governance Layer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       CHRONOS ENTERPRISE DESIGN SYSTEM
+       Aesthetic: High-End Enterprise AI Infrastructure & Security Platform
+       ========================================================================== */
+    :root {
+      --bg-dark: #07090e;
+      --bg-surface: #0e111a;
+      --bg-card: #141824;
+      --bg-card-hover: #1a2030;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(0, 242, 255, 0.3);
+      --border-accent: rgba(0, 242, 255, 0.2);
+      
+      --text-main: #f3f4f6;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --accent-cyan: #00f2ff;
+      --accent-cyan-glow: rgba(0, 242, 255, 0.15);
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.15);
+      --accent-purple: #a855f7;
+      --accent-purple-glow: rgba(168, 85, 247, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', ui-monospace, monospace;
+      
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Grid Background Effect */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-radial {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(0, 242, 255, 0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Deck Viewport & Navigation */
+    #deck-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 80px;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.98);
+      transition: opacity 400ms var(--transition-smooth), transform 400ms var(--transition-smooth), visibility 400ms;
+      pointer-events: none;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .slide-content {
+      width: 100%;
+      max-width: 1380px;
+      height: 100%;
+      max-height: 820px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Top & Bottom Slide Bars */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 16px;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      color: var(--text-main);
+    }
+
+    .brand-logo-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 0.8rem;
+    }
+
+    .slide-category {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .deck-controls {
+      position: fixed;
+      bottom: 24px;
+      right: 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(14, 17, 26, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      padding: 8px 16px;
+      border-radius: 40px;
+      z-index: 100;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: var(--transition-fast);
+    }
+
+    .nav-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 12px var(--accent-cyan-glow);
+    }
+
+    .slide-counter {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+
+    .progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+      width: 0%;
+      transition: width 300ms ease;
+      z-index: 101;
+    }
+
+    /* Badges & Tags */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-current { background: rgba(0, 242, 255, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 255, 0.3); }
+    .badge-proposed { background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-market { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    /* Typography Utilities */
+    h1.hero-title {
+      font-size: 3.6rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, var(--text-dim) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    
+    h2.section-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    p.lead-text {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    /* Layout Components */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; height: 100%; align-items: center; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      transition: var(--transition-smooth);
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .code-block {
+      background: #05070a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #d1d5db;
+      line-height: 1.5;
+      overflow-x: auto;
+    }
+
+    /* Interactive Elements */
+    .interactive-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .sim-btn {
+      background: var(--accent-cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      transition: var(--transition-fast);
+    }
+    .sim-btn:hover { background: #fff; box-shadow: 0 0 16px var(--accent-cyan-glow); }
+
+    /* Tables */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+    .matrix-table th {
+      background: var(--bg-surface);
+      padding: 12px;
+      border-bottom: 2px solid var(--border-subtle);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+    .matrix-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-dim);
+    }
+    .matrix-table tr:hover td { background: var(--bg-card); color: #fff; }
+
+    /* Keyframe Animations */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    .glow-effect { animation: pulseGlow 3s infinite ease-in-out; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+
+  <div id="deck-container">
+
+    <!-- ==========================================================================
+         SLIDE 01: COVER
+         ========================================================================== -->
+    <section class="slide active" id="slide-01">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark">
+            <div class="brand-logo-icon">C</div> CHRONOS
+          </div>
+          <div class="slide-category">
+            <span class="badge badge-current">CURRENT</span> Enterprise Infrastructure Presentation
+          </div>
+        </div>
+
+        <div class="grid-2" style="grid-template-columns: 1.2fr 0.8fr;">
+          <div>
+            <div style="display:flex; gap:10px; margin-bottom: 16px;">
+              <span class="badge badge-current">Local-First</span>
+              <span class="badge badge-current">Bi-Temporal AST</span>
+              <span class="badge badge-current">Deterministic Governance</span>
+            </div>
+            <h1 class="hero-title">Govern the AI Engineer.</h1>
+            <p class="lead-text" style="margin-bottom: 24px;">
+              Chronos is a local-first AI Engineering Control Plane that enables autonomous coding agents to safely collaborate on evolving software systems through temporal code intelligence, fine-grained AST coordination, deterministic governance, continuous auditing, architectural recommendations and auditable provenance.
+            </p>
+            <div style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--accent-cyan); display: flex; gap: 24px;">
+              <span>Understand</span> • <span>Advise</span> • <span>Govern</span> • <span>Audit</span> • <span>Learn</span>
+            </div>
+          </div>
+
+          <div class="card glow-effect" style="border-color: var(--border-bright); background: radial-gradient(circle, #0f172a 0%, #08090e 100%); display:flex; flex-direction:column; justify-content:center; gap:16px;">
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); text-transform: uppercase;">System Architecture Overview</div>
+            <div class="code-block" style="font-size:0.8rem; background: rgba(0,0,0,0.6);">
+              <span style="color:var(--accent-purple);">AI CODING AGENTS</span> (Cursor, Claude, Devin)<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ [Intent Locks & OPA Policies]<br>
+              <span style="color:var(--accent-cyan); font-weight:bold;">CHRONOS CONTROL PLANE</span><br>
+              &nbsp;&nbsp;├── Bi-Temporal AST Graph (Kùzu)<br>
+              &nbsp;&nbsp;├── Fine-Grained AST Locking<br>
+              &nbsp;&nbsp;└── Engineering Audit Engine<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ [Verified & Attributable Diffs]<br>
+              <span style="color:var(--accent-emerald);">PRODUCTION CODEBASE & INFRA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Press <kbd style="background:var(--bg-card); padding:2px 6px; border-radius:4px; border:1px solid var(--border-subtle); color:#fff;">→</kbd> or <kbd style="background:var(--bg-card); padding:2px 6px; border-radius:4px; border:1px solid var(--border-subtle); color:#fff;">Space</kbd> to navigate deck</div>
+          <div>Canonical Reference v1.0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 02: THE AI ENGINEERING PROBLEM
+         ========================================================================== -->
+    <section class="slide" id="slide-02">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">02 / 22 • Core Industry Problem</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">The Multi-Agent Chaos Gap</h2>
+          <p class="lead-text">
+            Software engineering is shifting from single-human workflows to multi-agent autonomous execution. The critical problem is no longer <em>"Can AI write code?"</em> but <strong>"How do we safely govern multiple autonomous agents operating on complex systems?"</strong>
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top: 20px;">
+          <div class="card" style="border-color: rgba(239, 68, 68, 0.3);">
+            <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-red); margin-bottom: 8px;">TRADITIONAL WORKFLOW</div>
+            <div style="font-size:0.9rem; color: var(--text-dim); line-height: 1.8;">
+              Human Developer ➔ IDE ➔ Git Commit ➔ PR Code Review ➔ CI/CD ➔ Production<br>
+              <span style="color: var(--text-muted); font-size: 0.8rem;">• Synchronous, human-gated, file-level isolation</span>
+            </div>
+          </div>
+
+          <div class="card" style="border-color: var(--accent-cyan);">
+            <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 8px;">MULTI-AGENT PARALLELISM</div>
+            <div style="font-size:0.9rem; color: var(--text-dim); line-height: 1.8;">
+              Agents [A + B + C + D] ➔ Concurrent AST Mutations ➔ Infrastructure ➔ Production<br>
+              <span style="color: var(--accent-cyan); font-size: 0.8rem;">• Requires fine-grained AST coordination & deterministic control plane</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-4" style="margin-top: 20px;">
+          <div class="card" style="padding: 16px;">
+            <div style="color: var(--accent-red); font-weight:700; font-size:0.9rem;">Conflicting Edits</div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-top:4px;">Overlapping modifications breaking downstream functions silently.</p>
+          </div>
+          <div class="card" style="padding: 16px;">
+            <div style="color: var(--accent-amber); font-weight:700; font-size:0.9rem;">Policy Violations</div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-top:4px;">Bypassing architectural layers and security constraints.</p>
+          </div>
+          <div class="card" style="padding: 16px;">
+            <div style="color: var(--accent-purple); font-weight:700; font-size:0.9rem;">Zero Provenance</div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-top:4px;">Inability to trace why an AI agent introduced a technical regression.</p>
+          </div>
+          <div class="card" style="padding: 16px;">
+            <div style="color: var(--accent-cyan); font-weight:700; font-size:0.9rem;">Repeated Failures</div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-top:4px;">Agents looping on previously failed approaches without memory.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Industry Analysis</div>
+          <div>Multi-Agent Governance Challenge</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 03: WHY EXISTING GOVERNANCE BREAKS
+         ========================================================================== -->
+    <section class="slide" id="slide-03">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">03 / 22 • Governance Limitations</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Why Traditional Tools Fall Short</h2>
+          <p class="lead-text">
+            Legacy static analyzers, Git PR locks, and CI/CD pipelines were designed for human velocity. They fail when autonomous agents perform hundreds of fine-grained code mutations per minute.
+          </p>
+        </div>
+
+        <div class="grid-3" style="margin-top: 32px;">
+          <div class="card">
+            <h3 style="font-size: 1.1rem; color:#fff; margin-bottom:8px;">Coarse File Locks</h3>
+            <p style="font-size:0.85rem; color:var(--text-dim); line-height:1.5;">
+              Git file locking forces entire files to be locked. When Agent A edits line 10 and Agent B edits line 300 of `user_service.py`, coarse locking stalls parallel execution.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="font-size: 1.1rem; color:#fff; margin-bottom:8px;">Asynchronous CI/CD</h3>
+            <p style="font-size:0.85rem; color:var(--text-dim); line-height:1.5;">
+              CI runs minutes after code is committed. Agents need instant pre-commit AST-level policy evaluation before code touches shared branches.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="font-size: 1.1rem; color:#fff; margin-bottom:8px;">Stateless Static Scanners</h3>
+            <p style="font-size:0.85rem; color:var(--text-dim); line-height:1.5;">
+              Traditional linters analyze code as a static snapshot, lacking temporal awareness of how system state evolved over past incident cycles.
+            </p>
+          </div>
+        </div>
+
+        <div class="interactive-box" style="margin-top: 24px; display:flex; align-items:center; justify-size:space-between;">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan);">THE SOLUTION</div>
+            <div style="font-size:0.95rem; color:#fff; font-weight:600;">Shift from coarse file locking & post-hoc CI checks to fine-grained AST locks & deterministic pre-commit governance.</div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Architectural Breakdown</div>
+          <div>Legacy Limitations vs. Chronos Control Plane</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 04: WHAT IS CHRONOS?
+         ========================================================================== -->
+    <section class="slide" id="slide-04">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">04 / 22 • Canonical Definition</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <span class="badge badge-current" style="margin-bottom:12px;">CANONICAL DEFINITION</span>
+            <h2 class="section-title">The AI Engineering Control Plane</h2>
+            <p class="lead-text" style="font-size:1.05rem; margin-bottom:20px;">
+              Chronos is an independent, local-first control plane sitting directly between autonomous coding agents and your software codebase + infrastructure.
+            </p>
+            <div style="background:var(--bg-card); border-left:3px solid var(--accent-cyan); padding:16px; border-radius:4px; font-size:0.9rem; color:var(--text-main); margin-bottom:16px;">
+              "Chronos is NOT another AI coding assistant. It is the governance infrastructure that coordinates, advises, audits, and learns from all AI coding assistants."
+            </div>
+          </div>
+
+          <div class="card" style="background:#090d16; border-color:var(--border-bright);">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:16px;">CONTROL PLANE POSITIONING</div>
+            <div class="code-block" style="font-size:0.82rem; line-height:1.6;">
+              [ AI CODING AGENTS ]<br>
+              (Cursor, Devin, Claude Engineer, Auto-GPT)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼ (AST Intent Declarations)<br>
+              ┌──────────────────────────────────────┐<br>
+              │ <span style="color:var(--accent-cyan); font-weight:700;">CHRONOS AI CONTROL PLANE</span>             │<br>
+              │ ├── Fine-Grained AST Lock Manager   │<br>
+              │ ├── Bi-Temporal Graph (Kùzu Engine)  │<br>
+              │ ├── OPA + ast-grep Deterministic Gate│<br>
+              │ └── Engineering Assurance Audit      │<br>
+              └──────────────────────────────────────┘<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼ (Verified Safe Diffs)<br>
+              [ CODE BASE & CLOUD INFRASTRUCTURE ]
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Chronos Positioning</div>
+          <div>Control Plane Architecture</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 05: CHRONOS SYSTEM ARCHITECTURE
+         ========================================================================== -->
+    <section class="slide" id="slide-05">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">05 / 22 • Core Technical Architecture</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Local-First Technical Stack</h2>
+          <p class="lead-text">
+            Built on zero-network-egress principles to ensure complete enterprise data privacy and deterministic execution.
+          </p>
+        </div>
+
+        <div class="grid-3" style="margin-top:24px;">
+          <div class="card">
+            <span class="badge badge-current" style="margin-bottom:8px;">CURRENT</span>
+            <h3 style="font-size:1.05rem; color:#fff; margin-bottom:6px;">Kùzu Graph Engine</h3>
+            <p style="font-size:0.8rem; color:var(--text-dim);">
+              Embedded graph database storing files, AST nodes, symbols, and bi-temporal dependencies stored locally in `.chronos/graph.kz`.
+            </p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-current" style="margin-bottom:8px;">CURRENT</span>
+            <h3 style="font-size:1.05rem; color:#fff; margin-bottom:6px;">SQLite Intent Ledger</h3>
+            <p style="font-size:0.8rem; color:var(--text-dim);">
+              Stores agent intent locks, execution history, gate verdicts, and tamper-evident audit logs in `.chronos/chronos.db`.
+            </p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-current" style="margin-bottom:8px;">CURRENT</span>
+            <h3 style="font-size:1.05rem; color:#fff; margin-bottom:6px;">OPA & ast-grep Rules</h3>
+            <p style="font-size:0.8rem; color:var(--text-dim);">
+              Evaluates policies deterministically without LLM guesswork to verify structural syntax and organizational constraints.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:20px;">
+          <div class="card" style="padding:16px;">
+            <div style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-purple);">PROPOSED CAPABILITY</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin-top:2px;">Enterprise Assurance Audit Engine</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:4px;">Automated evaluation of Safety, Security, Operability, Reliability, and Maintainability metrics.</p>
+          </div>
+
+          <div class="card" style="padding:16px;">
+            <div style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-purple);">PROPOSED CAPABILITY</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin-top:2px;">Architecture Recommendation Engine</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:4px;">Evidence-backed system structural recommendations (Good / Improve / Block evaluation model).</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>System Architecture</div>
+          <div>Status Tags: CURRENT vs. PROPOSED</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 06: WEDGE 1 - BI-TEMPORAL KNOWLEDGE GRAPH
+         ========================================================================== -->
+    <section class="slide" id="slide-06">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">06 / 22 • Core Architectural Wedges</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <span class="badge badge-current" style="margin-bottom:12px;">WEDGE 1 — CURRENT</span>
+            <h2 class="section-title">Bi-Temporal AST Knowledge Graph</h2>
+            <p class="lead-text" style="font-size:0.95rem; margin-bottom:16px;">
+              Chronos tracks codebase evolution using a <strong>bi-temporal model</strong> powered by Kùzu Graph DB, storing exact relationships between AST functions, classes, modules, and dependencies across time.
+            </p>
+
+            <div class="card" style="margin-bottom:12px; padding:16px;">
+              <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); font-weight:700;">1. VALID TIME</div>
+              <div style="font-size:0.82rem; color:var(--text-dim);">The window in real world timeline when a specific code symbol or AST node was active in production.</div>
+            </div>
+
+            <div class="card" style="padding:16px;">
+              <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-purple); font-weight:700;">2. TRANSACTION TIME</div>
+              <div style="font-size:0.82rem; color:var(--text-dim);">The exact timestamp when Chronos recorded or learned that state in its local ledger.</div>
+            </div>
+          </div>
+
+          <div class="card" style="background:#06080d; border-color:var(--border-bright);">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:12px;">TEMPORAL CODE MEMORY</div>
+            <div class="code-block" style="font-size:0.78rem; line-height:1.5;">
+              CODEBASE SNAPSHOT<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ (Tree-Sitter AST Parse)<br>
+              AST GRAPH (Functions, Classes, Imports)<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ (Bi-Temporal Indexing)<br>
+              ┌─────────────────────────────────────┐<br>
+              │ KÙZU BI-TEMPORAL STORAGE            │<br>
+              │ ├── Node: process_payment()          │<br>
+              │ ├── Valid_From: 2026-01-15T08:00:00 │<br>
+              │ ├── Valid_To:   9999-12-31T23:59:59 │<br>
+              │ └── Transaction_Tx: 10482           │<br>
+              └─────────────────────────────────────┘
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Wedge 1 Breakdown</div>
+          <div>Bi-Temporal Kùzu Engine</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 07: WEDGE 2 - SELF-HEALING PLAYBOOK
+         ========================================================================== -->
+    <section class="slide" id="slide-07">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">07 / 22 • Core Architectural Wedges</div>
+        </div>
+
+        <div>
+          <span class="badge badge-current" style="margin-bottom:8px;">WEDGE 2 — CURRENT</span>
+          <h2 class="section-title">Self-Healing Policy Playbook</h2>
+          <p class="lead-text">
+            Chronos converts engineering incidents into permanent policy rules, ensuring AI agents never repeat the same architectural or security mistake twice.
+          </p>
+        </div>
+
+        <div class="grid-4" style="margin-top:32px;">
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-red);">1. INCIDENT</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin:6px 0;">Regression Introduced</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Agent bypasses database transaction lock in billing service.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-amber);">2. ANALYSIS</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin:6px 0;">Lesson Captured</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">`chronos_capture_lesson` logs root cause and affected AST nodes.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan);">3. RULE PROPOSAL</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin:6px 0;">OPA Policy Generated</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Generates rule POL-104 requiring explicit transaction blocks.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-emerald);">4. ENFORCEMENT</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem; margin:6px 0;">Permanent Prevention</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Deterministic merge gate blocks any future agent violating POL-104.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Wedge 2 Breakdown</div>
+          <div>Continuous Governance Feedback Loop</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 08: WEDGE 3 - SUB-FILE AST NODE LOCKING
+         ========================================================================== -->
+    <section class="slide" id="slide-08">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">08 / 22 • Core Architectural Wedges</div>
+        </div>
+
+        <div>
+          <span class="badge badge-current" style="margin-bottom:8px;">WEDGE 3 — CURRENT</span>
+          <h2 class="section-title">Sub-File AST Node Locking</h2>
+          <p class="lead-text">
+            Instead of locking entire files, Chronos locks specific AST nodes (functions/classes). This enables maximum safe agent parallelism on single files.
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card" style="background:#070a10;">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:12px;">FILE: auth_service.py</div>
+            
+            <div style="border:1px solid var(--accent-red); background:rgba(239, 68, 68, 0.1); padding:12px; border-radius:6px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-red);">
+                <span>def authenticate(user, pass):</span>
+                <span>LOCKED BY AGENT-A</span>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Node Lock ID: `ast_fn_auth_991`</div>
+            </div>
+
+            <div style="border:1px solid var(--accent-emerald); background:rgba(16, 185, 129, 0.1); padding:12px; border-radius:6px;">
+              <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-emerald);">
+                <span>def refresh_token(token):</span>
+                <span>LOCKED BY AGENT-B</span>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Node Lock ID: `ast_fn_reftok_992`</div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; justify-content:center; gap:16px;">
+            <div class="card">
+              <div style="font-weight:700; color:#fff; font-size:0.95rem;">Fine-Grained Coordination</div>
+              <p style="font-size:0.82rem; color:var(--text-dim); margin-top:4px;">Agent A updates authentication logic while Agent B refactors token handling simultaneously without merge conflicts.</p>
+            </div>
+            <div class="card">
+              <div style="font-weight:700; color:#fff; font-size:0.95rem;">Conflict Prevention API</div>
+              <p style="font-size:0.82rem; color:var(--text-dim); margin-top:4px;">Before editing, agents call `chronos_check_conflicts` & `chronos_acquire_lock`. Attempts to touch locked AST nodes return `gate_pending` status.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Wedge 3 Breakdown</div>
+          <div>AST Fine-Grained Locking vs. Coarse File Lock</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 09: WEDGE 4 - DETERMINISTIC MERGE GATE
+         ========================================================================== -->
+    <section class="slide" id="slide-09">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">09 / 22 • Core Architectural Wedges</div>
+        </div>
+
+        <div>
+          <span class="badge badge-current" style="margin-bottom:8px;">WEDGE 4 — CURRENT</span>
+          <h2 class="section-title">Deterministic Merge Gate</h2>
+          <p class="lead-text">
+            LLMs propose code changes; <strong>deterministic systems decide whether defined policies are satisfied.</strong>
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:12px;">POLICY EVALUATION PIPELINE</div>
+            <div class="code-block" style="font-size:0.8rem; line-height:1.6;">
+              Agent Proposed Diff<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ (AST Parsing via ast-grep)<br>
+              Pattern Matching & Structural Inspection<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ (OPA Rego Policy Engine)<br>
+              Policy Evaluation (POL-01 ... POL-88)<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;├── [ PASS ]  ➔ Merge Approved<br>
+              &nbsp;&nbsp;└── [ BLOCK ] ➔ Human Approval Gate Required
+            </div>
+          </div>
+
+          <div class="interactive-box">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:8px;">LIVE SIMULATOR DEMO</div>
+            <div id="sim-verdict-title" style="font-weight:700; color:var(--accent-red); font-size:0.95rem;">🚫 VERDICT: BLOCKED BY GATE (POL-08)</div>
+            <p id="sim-verdict-desc" style="font-size:0.8rem; color:var(--text-dim); margin:8px 0 16px 0;">Direct database query detected in API handler. Requires UserRepository abstraction.</p>
+            <button class="sim-btn" onclick="runSimulatedFix()">Apply Agent Refactor & Re-Evaluate</button>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Wedge 4 Breakdown</div>
+          <div>Deterministic OPA + ast-grep Verification</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 10: EXPANDED CONTROL PLANE (5-WORD LIFECYCLE)
+         ========================================================================== -->
+    <section class="slide" id="slide-10">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">10 / 22 • Expanded Control Plane</div>
+        </div>
+
+        <div>
+          <span class="badge badge-proposed" style="margin-bottom:8px;">EXPANDED MODEL — PROPOSED</span>
+          <h2 class="section-title">The 5-Word Engineering Lifecycle</h2>
+          <p class="lead-text">
+            Chronos expands from four core wedges into a complete enterprise control plane lifecycle.
+          </p>
+        </div>
+
+        <div class="grid-5" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; margin-top:32px;">
+          <div class="card" style="border-top:3px solid var(--accent-cyan);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-cyan); font-weight:700;">1. UNDERSTAND</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:8px;">Temporal AST graph, dependencies, and historical changes.</p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--accent-purple);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-purple); font-weight:700;">2. ADVISE</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:8px;">Architecture & infra recommendations (Good / Improve / Block).</p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--accent-blue);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-blue); font-weight:700;">3. GOVERN</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:8px;">AST node locks, OPA policy gates, and human approval limits.</p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--accent-amber);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-amber); font-weight:700;">4. AUDIT</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:8px;">Engineering assurance across Safety, Security & Operability.</p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--accent-emerald);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-emerald); font-weight:700;">5. LEARN</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:8px;">Self-healing playbook evolution from verified incidents.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Expanded Lifecycle</div>
+          <div>UNDERSTAND → ADVISE → GOVERN → AUDIT → LEARN</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 11: ENGINEERING AUDIT ENGINE
+         ========================================================================== -->
+    <section class="slide" id="slide-11">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">11 / 22 • Engineering Audit Engine</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <span class="badge badge-proposed" style="margin-bottom:12px;">PROPOSED CAPABILITY</span>
+            <h2 class="section-title">Engineering Assurance Audit</h2>
+            <p class="lead-text" style="font-size:0.95rem; margin-bottom:16px;">
+              Chronos does not rely on vague "AI safety scores". It produces structured, evidence-backed engineering assurance reports covering 5 critical pillars.
+            </p>
+
+            <div style="font-size:0.85rem; color:var(--text-dim); line-height:1.6;">
+              <strong style="color:#fff;">• Safety:</strong> Deadlocks, race conditions, transactional consistency.<br>
+              <strong style="color:#fff;">• Security:</strong> Secret scans, dependency vulnerabilities, auth checks.<br>
+              <strong style="color:#fff;">• Operability:</strong> Health metrics, structured logs, rollback paths.<br>
+              <strong style="color:#fff;">• Reliability:</strong> Circuit breakers, retries, single points of failure.<br>
+              <strong style="color:#fff;">• Maintainability:</strong> Complexity metrics, dependency cycles.
+            </div>
+          </div>
+
+          <div class="card" style="background:#05070c; border-color:var(--border-bright);">
+            <div style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-cyan); margin-bottom:8px;">SAMPLE ASSURANCE REPORT ARTIFACT</div>
+            <div class="code-block" style="font-size:0.75rem; line-height:1.4; color:#e5e7eb;">
+              CHRONOS ENGINEERING ASSURANCE REPORT<br>
+              System: Payment Gateway Service (v8f31a2c)<br>
+              ─────────────────────────────────────────<br>
+              SAFETY<br>
+              ✓ 142 deterministic checks passed<br>
+              ⚠ 2 untested async failure paths<br><br>
+              SECURITY<br>
+              ✓ Secret scan passed (0 leaks)<br>
+              ✓ Dependency vulnerability policy clean<br><br>
+              OPERABILITY<br>
+              ✓ Health check endpoint defined<br>
+              ⚠ No circuit breaker detected on DB connection<br><br>
+              BLOCKING ISSUES: 0
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Audit Engine</div>
+          <div>Evidence Over Assertions</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 12: ARCHITECTURE RECOMMENDATION ENGINE
+         ========================================================================== -->
+    <section class="slide" id="slide-12">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">12 / 22 • Architecture Recommendation Engine</div>
+        </div>
+
+        <div>
+          <span class="badge badge-proposed" style="margin-bottom:8px;">PROPOSED CAPABILITY</span>
+          <h2 class="section-title">Good / Improve / Block Evaluation Model</h2>
+          <p class="lead-text">
+            Chronos evaluates proposed infrastructure and code refactors against empirical structural evidence, categorizing findings into actionable tiers.
+          </p>
+        </div>
+
+        <div class="grid-3" style="margin-top:28px;">
+          <div class="card" style="border-left:4px solid var(--accent-emerald);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-emerald); font-weight:700;">🟢 GOOD</div>
+            <div style="font-size:0.9rem; font-weight:600; color:#fff; margin:6px 0;">Verified Architectural Best Practices</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Proper caching layers, service boundary isolation, stateless web nodes.</p>
+          </div>
+
+          <div class="card" style="border-left:4px solid var(--accent-amber);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-amber); font-weight:700;">🟡 IMPROVE</div>
+            <div style="font-size:0.9rem; font-weight:600; color:#fff; margin:6px 0;">Non-Blocking Engineering Risks</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Database is single failure domain; missing Redis HA cluster configuration.</p>
+          </div>
+
+          <div class="card" style="border-left:4px solid var(--accent-red);">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-red); font-weight:700;">🔴 BLOCK</div>
+            <div style="font-size:0.9rem; font-weight:600; color:#fff; margin:6px 0;">Strict Policy Violations</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Hardcoded secrets in infra code; unencrypted production DB connections.</p>
+          </div>
+        </div>
+
+        <div class="interactive-box" style="margin-top:20px; font-size:0.85rem; color:var(--text-dim);">
+          <strong style="color:var(--accent-cyan);">Evidence-Backed Principle:</strong> Chronos does not recommend trends (e.g. Kubernetes) without evidence. It uses the strict formula: <code style="color:#fff;">Observation ➔ Evidence ➔ Risk ➔ Recommendation ➔ Trade-off</code>.
+        </div>
+
+        <div class="slide-footer">
+          <div>Recommendation Engine</div>
+          <div>Empirical Recommendation Framework</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 13: AI AGENT ACCOUNTABILITY & PROVENANCE
+         ========================================================================== -->
+    <section class="slide" id="slide-13">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">13 / 22 • Accountability & Lineage</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <span class="badge badge-current" style="margin-bottom:12px;">CURRENT</span>
+            <h2 class="section-title">Auditable Agent Provenance</h2>
+            <p class="lead-text" style="font-size:0.95rem; margin-bottom:16px;">
+              Every code mutation performed by an autonomous agent is logged in Chronos's tamper-evident SQLite ledger with full metadata.
+            </p>
+
+            <div class="code-block" style="font-size:0.75rem; line-height:1.5;">
+              AGENT TRANSACTION ENTRY<br>
+              • Agent ID: `devin-worker-08`<br>
+              • Declared Intent: "Refactor auth handler to OAuth2"<br>
+              • AST Nodes Touched: `auth_service.py::authenticate`<br>
+              • SHA-256 Provenance Hash: `e3b0c44298fc1c14...`<br>
+              • Gate Verdict: `PASSED (OPA Rule POL-01)`<br>
+              • Human Approver: `Lead Architect (Sign-off ID #904)`
+            </div>
+          </div>
+
+          <div class="card" style="background:#07090e; border-color:var(--border-bright);">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:12px;">MUTATION LINEAGE GRAPH</div>
+            <div class="code-block" style="font-size:0.75rem; line-height:1.6;">
+              Legacy COBOL Module (`PAYMENT.CBL`)<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼ [Agent: Modernizer-07 | Intent Lock #482]<br>
+              AST Transformation #184<br>
+              &nbsp;&nbsp;├── Source AST Hash: `sha256:7f81a...`<br>
+              &nbsp;&nbsp;├── Target AST Hash: `sha256:9a32c...`<br>
+              &nbsp;&nbsp;├── OPA Gate Evaluation: PASSED<br>
+              &nbsp;&nbsp;└── Equivalence Test: 100% Passed<br>
+              &nbsp;&nbsp;│<br>
+              &nbsp;&nbsp;▼<br>
+              Modern Java Service (`PaymentService.java`)
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Provenance Engine</div>
+          <div>Tamper-Evident Ledger & Lineage</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 14: LEGACY MODERNIZATION
+         ========================================================================== -->
+    <section class="slide" id="slide-14">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">14 / 22 • Governed Legacy Modernization</div>
+        </div>
+
+        <div>
+          <span class="badge badge-proposed" style="margin-bottom:8px;">PROPOSED ROADMAP</span>
+          <h2 class="section-title">Governed Agentic Modernization</h2>
+          <p class="lead-text">
+            Chronos does not replace modernization tools (like AWS Transform or IBM watsonx); it acts as the <strong>governance control plane</strong> that coordinates AI agents performing legacy transformations.
+          </p>
+        </div>
+
+        <div class="card" style="margin-top:20px; padding:16px;">
+          <div style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-cyan); margin-bottom:8px;">POTENTIAL TARGET MODERNIZATION ROADMAP</div>
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Legacy Language</th>
+                <th>Potential Target Architecture</th>
+                <th>Major Enterprise Sectors</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>COBOL / PL/I</td>
+                <td>Java / Spring Boot Microservices</td>
+                <td>Banking, Insurance, Government</td>
+              </tr>
+              <tr>
+                <td>JCL (Job Control Language)</td>
+                <td>Groovy / Modern Orchestration</td>
+                <td>Mainframe Enterprises</td>
+              </tr>
+              <tr>
+                <td>RPG / RPGLE</td>
+                <td>Java / C# .NET</td>
+                <td>Manufacturing, IBM i Environments</td>
+              </tr>
+              <tr>
+                <td>Fortran / C</td>
+                <td>Modern C++ / Rust / Python</td>
+                <td>Scientific, Aerospace, Infra</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="slide-footer">
+          <div>Modernization Application</div>
+          <div>Control Plane for AI Modernization Agents</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 15: ENTERPRISE USE CASES
+         ========================================================================== -->
+    <section class="slide" id="slide-15">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">15 / 22 • Enterprise Use Cases</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Enterprise Deployment Sectors</h2>
+          <p class="lead-text">
+            Designed for high-compliance sectors where un-governed AI code generation introduces un-acceptable operational risk.
+          </p>
+        </div>
+
+        <div class="grid-3" style="margin-top:28px;">
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan);">BANKING & FINANCE</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:6px 0;">Core Banking Modernization</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Governing AI agents refactoring mainframe ledger code into modern Java microservices while enforcing PCI-DSS policy gates.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-purple);">HEALTHCARE</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:6px 0;">HIPAA & Sensitive Data Protection</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Preventing AI agents from exposing patient record endpoints or bypassing encryption policies.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-emerald);">LARGE SOFTWARE ORGS</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:6px 0;">Multi-Agent Repositories</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Coordinating 50+ developer AI agents working concurrently on monolithic repositories without AST collisions.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Enterprise Sectors</div>
+          <div>High-Compliance AI Agent Governance</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 16: COMPETITIVE LANDSCAPE POSITIONING
+         ========================================================================== -->
+    <section class="slide" id="slide-16">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">16 / 22 • Competitive Landscape</div>
+        </div>
+
+        <div>
+          <span class="badge badge-market" style="margin-bottom:8px;">MARKET ANALYSIS</span>
+          <h2 class="section-title">Capability-Based Differentiating Strategy</h2>
+          <p class="lead-text">
+            Chronos is designed to <strong>complement existing transformation platforms</strong> by providing an independent control plane for agent coordination and continuous auditing.
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-amber); margin-bottom:8px;">TRANSFORMATION ENGINES</div>
+            <div style="font-size:0.9rem; font-weight:700; color:#fff;">AWS Transform / IBM watsonx / Google Cloud</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:6px;">
+              Primary focus: High-volume code transformation, COBOL to Java translation, cloud migration, and ecosystem integration.
+            </p>
+          </div>
+
+          <div class="card" style="border-color:var(--border-bright); background:#0a0f1a;">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:8px;">INDEPENDENT CONTROL PLANE</div>
+            <div style="font-size:0.9rem; font-weight:700; color:#fff;">Chronos AI Engineering Control Plane</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:6px;">
+              Primary focus: Multi-agent AST locking, deterministic OPA policy gates, bi-temporal graph memory, and local-first auditing.
+            </p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Competitive Positioning</div>
+          <div>Complementary Control Plane Architecture</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 17: DETAILED COMPARISON TABLE
+         ========================================================================== -->
+    <section class="slide" id="slide-17">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">17 / 22 • Capability Matrix</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Capability Comparison Matrix</h2>
+          <p class="lead-text" style="font-size:0.9rem; margin-bottom:12px;">
+            Positioning breakdown against enterprise platforms based on published capabilities.
+          </p>
+        </div>
+
+        <div class="card" style="padding:12px; overflow-x:auto;">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>AWS Transform</th>
+                <th>IBM watsonx Z</th>
+                <th>Google Cloud</th>
+                <th>CAST Imaging</th>
+                <th>Chronos Control Plane</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Legacy Assessment</td>
+                <td>✓</td>
+                <td>✓</td>
+                <td>✓</td>
+                <td>✓</td>
+                <td><span class="badge badge-current">CURRENT</span></td>
+              </tr>
+              <tr>
+                <td>Code Transformation</td>
+                <td>✓</td>
+                <td>✓</td>
+                <td>✓</td>
+                <td>—</td>
+                <td><span class="badge badge-proposed">Planned / Extensible</span></td>
+              </tr>
+              <tr>
+                <td>Multi-Agent AST Locking</td>
+                <td>Not core focus</td>
+                <td>Not core focus</td>
+                <td>Not core focus</td>
+                <td>—</td>
+                <td><span class="badge badge-current">Core Focus</span></td>
+              </tr>
+              <tr>
+                <td>Bi-Temporal Graph Memory</td>
+                <td>Partial</td>
+                <td>Partial</td>
+                <td>Partial</td>
+                <td>Snapshot-based</td>
+                <td><span class="badge badge-current">Core Focus</span></td>
+              </tr>
+              <tr>
+                <td>Deterministic Policy Gate</td>
+                <td>CI Gated</td>
+                <td>CI Gated</td>
+                <td>CI Gated</td>
+                <td>Rules engine</td>
+                <td><span class="badge badge-current">Core Focus</span></td>
+              </tr>
+              <tr>
+                <td>Local-First Zero Egress</td>
+                <td>Cloud-oriented</td>
+                <td>Hybrid</td>
+                <td>Cloud-oriented</td>
+                <td>On-Premise</td>
+                <td><span class="badge badge-current">Core Principle</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="slide-footer">
+          <div>Capability Matrix</div>
+          <div>Enterprise Feature Comparison</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 18: KEY DIFFERENTIATION (FROM TRANSFORMATION TO CONTROL)
+         ========================================================================== -->
+    <section class="slide" id="slide-18">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">18 / 22 • Key Differentiating Paradigm</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">From Code Transformation to Engineering Control</h2>
+          <p class="lead-text">
+            The fundamental paradigm shift introduced by Chronos.
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card" style="border-color:var(--accent-amber);">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-amber); margin-bottom:8px;">TRADITIONAL MODERNIZATION PLATFORMS</div>
+            <div class="code-block" style="font-size:0.8rem; line-height:1.8;">
+              ASSESS ➔ TRANSFORM ➔ TEST ➔ DEPLOY<br>
+              <span style="color:var(--text-muted);">Focus: Translating syntax from Language A to Language B.</span>
+            </div>
+          </div>
+
+          <div class="card" style="border-color:var(--accent-cyan); background:#090e18;">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan); margin-bottom:8px;">CHRONOS CONTROL PLANE PARADIGM</div>
+            <div class="code-block" style="font-size:0.8rem; line-height:1.8; color:var(--accent-cyan);">
+              UNDERSTAND ➔ ADVISE ➔ DECLARE INTENT ➔ COORDINATE ➔ MODIFY ➔ VERIFY ➔ AUDIT ➔ GOVERN ➔ LEARN<br>
+              <span style="color:#fff;">Focus: Governing autonomous agent behavior & maintaining system integrity.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Paradigm Shift</div>
+          <div>Engineering Control Plane Paradigm</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 19: ENTERPRISE TRUST MODEL
+         ========================================================================== -->
+    <section class="slide" id="slide-19">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">19 / 22 • Enterprise Trust Model</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Why Enterprises Trust Chronos</h2>
+          <p class="lead-text" style="margin-bottom:20px;">
+            "Trust is produced by evidence, enforcement, and accountability — not by asking users to trust the model."
+          </p>
+        </div>
+
+        <div class="grid-4">
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan);">1. PROPOSE</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:4px 0;">AI Agents Recommend</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Agents analyze code and propose mutations or refactors.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-purple);">2. VERIFY</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:4px 0;">Deterministic Engine Verifies</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">OPA & ast-grep rules evaluate compliance with 100% precision.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-amber);">3. AUTHORIZE</div>
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-amber); font-weight:700;">Humans Sign High-Impact</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Destructive or high-risk mutations require human cryptographic approval.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-emerald);">4. AUDIT</div>
+            <div style="font-weight:700; color:#fff; font-size:0.95rem; margin:4px 0;">Complete Traceability</div>
+            <p style="font-size:0.78rem; color:var(--text-dim);">Every diff is signed and linked to agent identity and OPA gate hashes.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Trust Model</div>
+          <div>Deterministic Verification & Attributable Execution</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 20: REALISTIC ROADMAP
+         ========================================================================== -->
+    <section class="slide" id="slide-20">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">20 / 22 • Product Roadmap</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Strategic Architecture Roadmap</h2>
+          <p class="lead-text">
+            Phased execution plan distinguishing active capabilities from proposed roadmap items.
+          </p>
+        </div>
+
+        <div class="grid-5" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-top:24px;">
+          <div class="card">
+            <span class="badge badge-current" style="margin-bottom:6px;">PHASE 1 — ACTIVE</span>
+            <div style="font-weight:700; color:#fff; font-size:0.85rem;">Chronos Core</div>
+            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Temporal AST Graph (Kùzu), SQLite intent locks, OPA policy gates, provenance.</p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-proposed" style="margin-bottom:6px;">PHASE 2</span>
+            <div style="font-weight:700; color:#fff; font-size:0.85rem;">Engineering Audit</div>
+            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Automated Safety, Security, and Operability assurance reporting engine.</p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-proposed" style="margin-bottom:6px;">PHASE 3</span>
+            <div style="font-weight:700; color:#fff; font-size:0.85rem;">Multi-Agent Orchestration</div>
+            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Conflict resolution & automated cross-agent sync protocol.</p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-proposed" style="margin-bottom:6px;">PHASE 4</span>
+            <div style="font-weight:700; color:#fff; font-size:0.85rem;">Governed Modernization</div>
+            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">COBOL/PL/I transformation lineage & semantic equivalence verification.</p>
+          </div>
+
+          <div class="card">
+            <span class="badge badge-proposed" style="margin-bottom:6px;">PHASE 5</span>
+            <div style="font-weight:700; color:#fff; font-size:0.85rem;">Enterprise Control Plane</div>
+            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Org-wide agent policy management & cloud transformation integrations.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Product Roadmap</div>
+          <div>Phase 1 (Active) to Phase 5 (Enterprise Control Plane)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 21: NOT JUST ANOTHER AI TOOL
+         ========================================================================== -->
+    <section class="slide" id="slide-21">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">21 / 22 • Market Landscape Synergy</div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Chronos Connects the Landscape</h2>
+          <p class="lead-text">
+            While point solutions write code, transform syntax, or run linters, Chronos provides the unified governance layer.
+          </p>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card">
+            <div style="font-size:0.8rem; font-family:var(--font-mono); color:var(--text-dim);">EXISTING POINT TOOLS</div>
+            <div style="font-size:0.85rem; color:var(--text-main); line-height:1.7; margin-top:8px;">
+              • <strong>AI Coding Assistants:</strong> Write code (Cursor, Devin, Copilot)<br>
+              • <strong>Modernization Platforms:</strong> Translate syntax (AWS Transform, watsonx)<br>
+              • <strong>Static Analyzers:</strong> Find rule bugs (SonarQube, Semgrep)<br>
+              • <strong>CI/CD Pipelines:</strong> Block PRs (GitHub Actions, GitLab)
+            </div>
+          </div>
+
+          <div class="card" style="border-color:var(--accent-cyan); background:#0a0e17;">
+            <div style="font-size:0.8rem; font-family:var(--font-mono); color:var(--accent-cyan);">CHRONOS CONTROL PLANE</div>
+            <div style="font-size:0.9rem; font-weight:700; color:#fff; margin-top:8px;">COORDINATE + ADVISE + GOVERN + AUDIT + LEARN</div>
+            <p style="font-size:0.78rem; color:var(--text-dim); margin-top:6px;">
+              Chronos connects all tools into an integrated, auditable, and self-healing engineering control plane.
+            </p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Ecosystem Positioning</div>
+          <div>Unified Control Plane Layer</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SLIDE 22: FINAL VISION & RESEARCH CITATIONS
+         ========================================================================== -->
+    <section class="slide" id="slide-22">
+      <div class="slide-content">
+        <div class="slide-header">
+          <div class="brand-mark"><div class="brand-logo-icon">C</div> CHRONOS</div>
+          <div class="slide-category">22 / 22 • Vision & Research References</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-cyan); margin-bottom:8px;">FINAL VISION</div>
+            <h2 class="section-title" style="font-size:1.8rem; line-height:1.3;">
+              THE FUTURE OF SOFTWARE ENGINEERING IS NOT HUMAN OR AI.<br>
+              <span style="color:var(--accent-cyan);">IT IS GOVERNED HUMAN + AI ENGINEERING.</span>
+            </h2>
+            <p class="lead-text" style="font-size:0.95rem; margin-top:16px;">
+              Chronos is built to be the control plane for that future.
+            </p>
+          </div>
+
+          <div class="card" style="background:#07090e; font-size:0.75rem;">
+            <div style="font-family:var(--font-mono); color:var(--accent-cyan); font-weight:700; margin-bottom:8px;">RESEARCH & OFFICIAL VENDOR SOURCES</div>
+            <div style="color:var(--text-dim); line-height:1.6;">
+              1. <strong>AWS Transform & Mainframe Modernization:</strong><br>
+              &nbsp;&nbsp;<a href="https://docs.aws.amazon.com/transform/" target="_blank" style="color:var(--accent-cyan);">https://docs.aws.amazon.com/transform/</a><br><br>
+              2. <strong>IBM watsonx Code Assistant for Z:</strong><br>
+              &nbsp;&nbsp;<a href="https://www.ibm.com/products/watsonx-code-assistant-z" target="_blank" style="color:var(--accent-cyan);">https://www.ibm.com/products/watsonx-code-assistant-z</a><br><br>
+              3. <strong>Google Cloud Mainframe Modernization:</strong><br>
+              &nbsp;&nbsp;<a href="https://cloud.google.com/solutions/mainframe-modernization" target="_blank" style="color:var(--accent-cyan);">https://cloud.google.com/solutions/mainframe-modernization</a><br><br>
+              4. <strong>CAST Imaging System Analysis:</strong><br>
+              &nbsp;&nbsp;<a href="https://www.castsoftware.com/" target="_blank" style="color:var(--accent-cyan);">https://www.castsoftware.com/</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div>Chronos Executive Presentation</div>
+          <div>Official Repository: AdithyaK3106/Chronos</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Deck Floating Controls -->
+  <div class="deck-controls">
+    <button class="nav-btn" onclick="prevSlide()" title="Previous (Left Arrow / PageUp)">←</button>
+    <div class="slide-counter" id="slide-num">01 / 22</div>
+    <button class="nav-btn" onclick="nextSlide()" title="Next (Right Arrow / Space / PageDown)">→</button>
+  </div>
+
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <!-- Keyboard & Interactive Script -->
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+
+    function updateDeck() {
+      slides.forEach((s, idx) => {
+        if (idx === currentSlide) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      document.getElementById('slide-num').textContent = 
+        `${String(currentSlide + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+
+      const pct = ((currentSlide + 1) / totalSlides) * 100;
+      document.getElementById('progress-bar').style.width = pct + '%';
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateDeck();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateDeck();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) {
+        e.preventDefault();
+        nextSlide();
+      } else if (['ArrowLeft', 'PageUp'].includes(e.key)) {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        currentSlide = 0;
+        updateDeck();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        currentSlide = totalSlides - 1;
+        updateDeck();
+      }
+    });
+
+    function runSimulatedFix() {
+      const title = document.getElementById('sim-verdict-title');
+      const desc = document.getElementById('sim-verdict-desc');
+      title.style.color = 'var(--accent-emerald)';
+      title.textContent = '✓ VERDICT: PASSED (OPA Rule POL-08 Verified)';
+      desc.textContent = 'Agent refactored direct query into UserRepository pattern. Merge gate unlocked.';
+    }
+
+    updateDeck();
+  </script>
+</body>
+</html>

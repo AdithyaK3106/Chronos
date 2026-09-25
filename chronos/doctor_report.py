@@ -45,29 +45,25 @@ def _check_db() -> dict:
     return _row(OK, "chronos.db", str(p))
 
 
-def _check_graph() -> dict:
+async def _check_graph() -> dict:
     import asyncio
     from .store import GraphLocked, ensure_schema, open_driver
     from . import query, groups
 
-    async def _probe():
-        drv = await asyncio.wait_for(asyncio.to_thread(open_driver), timeout=5)
+    try:
+        drv = open_driver()
         try:
-            await asyncio.wait_for(ensure_schema(drv), timeout=5)
+            await ensure_schema(drv)
             grp = groups.resolve(None, str(_repo()))
-            h = await asyncio.wait_for(query.health(drv, grp), timeout=5)
-            return h
+            h = await query.health(drv, grp)
         finally:
             await drv.close()
-
-    try:
-        h = asyncio.run(asyncio.wait_for(_probe(), timeout=5))
     except GraphLocked:
         return _row(WARN, "graph store", "locked by another process (daemon holds it)")
     except (asyncio.TimeoutError, TimeoutError):
         return _row(ERROR, "graph store", "unreachable — check CHRONOS_DB path (timed out)")
     except Exception as e:
-        return _row(ERROR, "graph store", f"unreachable — check CHRONOS_DB path ({type(e).__name__})")
+        return _row(ERROR, "graph store", f"unreachable — check CHRONOS_DB path ({type(e).__name__}: {e})")
 
     last = h.get("last_sync")
     if not last:
@@ -242,13 +238,17 @@ _CHECKS = [
 ]
 
 
-def run_checks() -> list[dict]:
+async def run_checks() -> list[dict]:
     """Run every check in order, isolated: one exception never stops the rest."""
+    import asyncio
     rows = []
     for fn in _CHECKS:
         label = fn.__name__.removeprefix("_check_").replace("_", " ")
         try:
-            rows.append(fn())
+            res = fn()
+            if asyncio.iscoroutine(res):
+                res = await res
+            rows.append(res)
         except Exception as e:
             rows.append(_row(ERROR, label, f"check failed: {type(e).__name__}: {e}"))
     return rows
@@ -268,7 +268,8 @@ def exit_code(rows: list[dict]) -> int:
 
 
 def run(as_json: bool = False) -> int:
-    rows = run_checks()
+    import asyncio
+    rows = asyncio.run(run_checks())
     if as_json:
         import json
         print(json.dumps(rows, indent=2))

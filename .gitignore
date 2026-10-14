@@ -42,3 +42,20 @@ ai-governance-research.md
 demo-spec.md
 FINDINGS.md
 stress-report*
+
+# Scratch test scripts & secrets
+test_raw.py
+test_router.py
+test_spoof.py
+.env
+.env.*
+*.env
+*.local
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

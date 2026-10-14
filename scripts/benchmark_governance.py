@@ -4,6 +4,7 @@ import json
 import threading
 import os
 import sys
+import shutil
 
 # Ensure emojis print correctly in Windows terminals
 if sys.stdout.encoding.lower() != 'utf-8':
@@ -29,14 +30,18 @@ def run_rogue_agent(prompt):
     # We append instructions to force it to use MCP tools so Chronos can intercept it
     full_prompt = prompt + "\nUse the Chronos MCP tools to explore the workspace before making this change."
     
-    command = ["opencode", "--task", full_prompt]
+    opencode_path = shutil.which("opencode")
+    if not opencode_path:
+        raise FileNotFoundError("Could not find opencode executable in PATH.")
+        
+    command = [opencode_path, "run", "--auto", "--format", "json", full_prompt]
     
     result = subprocess.run(
         command,
         capture_output=True,
         text=True,
         timeout=300,
-        shell=os.name == 'nt'
+        shell=False
     )
     return result.stdout + "\n" + result.stderr
 
@@ -92,6 +97,7 @@ def main():
         "success_blocked": collision_blocked
     }
         
+    os.makedirs("reports", exist_ok=True)
     with open("reports/governance_results.json", "w") as f:
         json.dump(report, f, indent=2)
         

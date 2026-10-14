@@ -4,6 +4,8 @@ import time
 import json
 import re
 import sys
+import shutil
+import argparse
 
 # Ensure emojis print correctly in Windows terminals
 if sys.stdout.encoding.lower() != 'utf-8':
@@ -50,7 +52,12 @@ def run_agent(task_prompt, use_chronos=False):
     if use_chronos:
         prompt += "\n\nIMPORTANT: You are connected to the Chronos MCP server. You MUST use 'as_of_callers' and 'as_of_callees' to navigate the codebase instead of generic searches."
         
-    command = ["opencode", "--task", prompt]
+    # Using shutil.which to find the absolute path to the .cmd wrapper on Windows
+    opencode_path = shutil.which("opencode")
+    if not opencode_path:
+        raise FileNotFoundError("Could not find opencode executable in PATH.")
+        
+    command = [opencode_path, "run", "--auto", "--format", "json", prompt]
     
     try:
         # Run OpenCode as a subprocess and capture its terminal output
@@ -59,7 +66,7 @@ def run_agent(task_prompt, use_chronos=False):
             capture_output=True,
             text=True,
             timeout=600, # 10 minute timeout per task
-            shell=os.name == 'nt' # Ensure Windows finds .cmd/.bat wrappers
+            shell=False # Disabled shell to prevent Windows timeout hangs
         )
         output = result.stdout + "\n" + result.stderr
     except subprocess.TimeoutExpired:
@@ -72,13 +79,18 @@ def run_agent(task_prompt, use_chronos=False):
     return metrics, output
 
 def main():
+    parser = argparse.ArgumentParser(description="Chronos Efficacy Benchmark (Powered by OpenCode)")
+    parser.add_argument("--smoke-test", action="store_true", help="Run only the first task as a quick verification")
+    args = parser.parse_args()
+
     print("==================================================")
     print(" Chronos Efficacy Benchmark (Powered by OpenCode) ")
     print("==================================================")
     
     results = []
+    tasks_to_run = TASKS[:1] if args.smoke_test else TASKS
     
-    for task in TASKS:
+    for task in tasks_to_run:
         print(f"\n[Running Task]: {task['id']}")
         
         print("  [Phase 1]: Baseline (Standard OpenCode)")
@@ -97,6 +109,7 @@ def main():
             "chronos": chronos_metrics
         })
         
+    os.makedirs("reports", exist_ok=True)
     with open("reports/efficacy_results.json", "w") as f:
         json.dump(results, f, indent=2)
         

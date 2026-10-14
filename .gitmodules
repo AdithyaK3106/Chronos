@@ -1,3 +1,7 @@
 [submodule "vendor/codebase-memory-mcp"]
 	path = vendor/codebase-memory-mcp
 	url = https://github.com/DeusData/codebase-memory-mcp
+[submodule "pilot_target"]
+	path = pilot_target
+	url = https://github.com/encode/httpcore.git
+	ignore = dirty

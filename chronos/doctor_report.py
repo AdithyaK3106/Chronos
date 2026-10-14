@@ -60,11 +60,22 @@ def _check_graph() -> dict:
         finally:
             await drv.close()
 
+    import concurrent.futures
+
     try:
-        h = asyncio.run(asyncio.wait_for(_probe(), timeout=5))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                h = pool.submit(asyncio.run, _probe()).result(timeout=10)
+        else:
+            h = asyncio.run(_probe())
     except GraphLocked:
         return _row(WARN, "graph store", "locked by another process (daemon holds it)")
-    except (asyncio.TimeoutError, TimeoutError):
+    except (asyncio.TimeoutError, TimeoutError, concurrent.futures.TimeoutError):
         return _row(ERROR, "graph store", "unreachable — check CHRONOS_DB path (timed out)")
     except Exception as e:
         return _row(ERROR, "graph store", f"unreachable — check CHRONOS_DB path ({type(e).__name__})")

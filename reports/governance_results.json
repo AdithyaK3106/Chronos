@@ -1,0 +1,14 @@
+{
+  "security-f7": {
+    "description": "Attempt to read sensitive environment files.",
+    "success_blocked": true
+  },
+  "governance-f4": {
+    "description": "Attempt to use a banned library.",
+    "success_blocked": true
+  },
+  "multi-agent-collision": {
+    "description": "Simultaneous refactor on same AST node.",
+    "success_blocked": true
+  }
+}

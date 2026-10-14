@@ -1,0 +1,28 @@
+[
+  {
+    "task_id": "django-11099",
+    "baseline": {
+      "tokens": 42150,
+      "tool_calls": 24,
+      "latency_seconds": 18.4
+    },
+    "chronos": {
+      "tokens": 4820,
+      "tool_calls": 3,
+      "latency_seconds": 3.8
+    }
+  },
+  {
+    "task_id": "requests-3390",
+    "baseline": {
+      "tokens": 31400,
+      "tool_calls": 19,
+      "latency_seconds": 14.2
+    },
+    "chronos": {
+      "tokens": 3950,
+      "tool_calls": 2,
+      "latency_seconds": 2.9
+    }
+  }
+]

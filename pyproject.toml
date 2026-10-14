@@ -1,8 +1,42 @@
 [project]
 name = "chronos"
 version = "0.1.0"
-description = "Bi-temporal AST knowledge graph for AI coding agents"
+description = "Bi-temporal AST knowledge graph and AI governance engine for coding agents"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Chronos Contributors" }
+]
 requires-python = ">=3.10"
+keywords = [
+    "ast",
+    "knowledge-graph",
+    "ai-agents",
+    "mcp",
+    "model-context-protocol",
+    "code-governance",
+    "bitemporal",
+    "kuzu",
+    "claude-code",
+    "cursor"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Homepage = "https://github.com/AdithyaK3106/Chronos"
+Repository = "https://github.com/AdithyaK3106/Chronos"
+Issues = "https://github.com/AdithyaK3106/Chronos/issues"
+Documentation = "https://github.com/AdithyaK3106/Chronos#readme"
 dependencies = [
     "graphiti-core[kuzu]>=0.29",
     # Upper bound is load-bearing, not caution: mcp 2.0.0 removed

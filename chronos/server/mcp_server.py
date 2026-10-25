@@ -142,6 +142,25 @@ def chronos_assemble_context(symbols: list[str], token_budget: int = 4000) -> di
     finally:
         con.close()
 
+@mcp.tool()
+def chronos_resolve_zero_path_context(prompt: str, token_budget: int = 2000) -> dict[str, Any]:
+    """Deterministically resolve repository AST context, provenance, and tests from natural-language prompt."""
+    con = _get_con()
+    try:
+        from runtime.session import ChronosSessionBootstrap
+        boot = ChronosSessionBootstrap(repo_path=root, con=con)
+        res = boot.bootstrap_session(task_prompt=prompt, token_budget=token_budget)
+        return {
+            "resolved_files": res.get("resolved_files", []),
+            "resolved_symbols": res.get("resolved_symbols", []),
+            "test_files": res.get("test_files", []),
+            "provenance_summary": res.get("provenance_summary", ""),
+            "envelope_text": res.get("envelope_text", ""),
+            "token_count": res.get("token_count", 0),
+        }
+    finally:
+        con.close()
+
 def main():
     mcp.run()
 

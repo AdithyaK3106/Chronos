@@ -27,6 +27,19 @@ def main():
     p_sync = subparsers.add_parser("sync", help="Index repository AST into bi-temporal graph")
     p_sync.add_argument("--repo", default=".", help="Repository root path")
 
+    # run
+    p_run = subparsers.add_parser("run", help="Execute an autonomous task with Chronos governance & OpenHands agent")
+    p_run.add_argument("prompt", help="Natural-language task prompt")
+    p_run.add_argument("--repo", default=".", help="Repository root path")
+    p_run.add_argument("--model", default="gemini-3.8-flash-low", help="AGY model (gemini-3.8-flash-low, gemini-3.8-flash-high)")
+    p_run.add_argument("--agent-id", default="chronos_dev_agent", help="Agent identity ID")
+    p_run.add_argument("--max-iterations", type=int, default=20, help="Maximum agent turns")
+    p_run.add_argument("--timeout", type=int, default=300, help="Task timeout in seconds")
+
+    # serve
+    p_serve = subparsers.add_parser("serve", help="Start FastMCP server for IDE / external agent integration")
+    p_serve.add_argument("--repo", default=".", help="Repository root path")
+
     # audit verify
     p_audit = subparsers.add_parser("audit", help="Audit log commands")
     p_audit.add_argument("subcommand", choices=["verify"], help="Subcommand (verify)")
@@ -91,6 +104,105 @@ def main():
         store.ingest(nodes, edges)
         con.close()
         print(f"Successfully synced {len(nodes)} AST nodes and {len(edges)} relation edges.")
+        sys.exit(0)
+
+    elif args.command == "serve":
+        from chronos.server.mcp_server import main as run_mcp
+        print(f"Starting Chronos FastMCP Server for {repo_root}...")
+        run_mcp()
+
+    elif args.command == "run":
+        chronos_dir.mkdir(parents=True, exist_ok=True)
+        con = get_connection(db_file)
+
+        # 1. Sync / index repository AST
+        print(f"📦 Indexing repository: {repo_root}...")
+        store = SQLiteGraphStore(con)
+        nodes, edges = index_repository(repo_root)
+        store.ingest(nodes, edges)
+
+        # 2. Configure developer permissions
+        from chronos.security.permissions import set_permissions
+        set_permissions(
+            con,
+            agent_id=args.agent_id,
+            manifest={
+                "allowed_paths": ["**"],
+                "denied_paths": [".git/**", ".env*", "*secret*"],
+                "read_only": False,
+                "allowed_tools": ["file_editor", "finish", "think"],
+            },
+        )
+
+        # 3. Resolve Zero-Path Context
+        from runtime.openhands_adapter import ChronosAgentRuntime
+        from runtime.agy_llm import AgyLLM
+        from openhands.sdk import Tool, Conversation
+        from openhands.tools.file_editor import FileEditorTool
+
+        cfg = ChronosConfig(
+            repo_path=str(repo_root),
+            db_path=str(db_file),
+            audit_log_path=str(chronos_dir / "chronos-audit.log"),
+        )
+        runtime = ChronosAgentRuntime(config=cfg, db_con=con, graph_store=store)
+
+        print("\n⏳ Resolving Zero-Path Context Envelope...")
+        bootstrap_res = runtime.bootstrap.bootstrap_session(
+            task_prompt=args.prompt,
+            agent_id=args.agent_id,
+        )
+        resolved_files = bootstrap_res.get("resolved_files", [])
+        resolved_symbols = bootstrap_res.get("resolved_symbols", [])
+        test_files = bootstrap_res.get("test_files", [])
+
+        if resolved_files:
+            print(f"  Target Files   : {', '.join(resolved_files[:3])}")
+        if resolved_symbols:
+            print(f"  Target Symbols : {', '.join(resolved_symbols[:5])}")
+        if test_files:
+            print(f"  Related Tests  : {', '.join(test_files[:3])}")
+        print(f"  Injected Context: {bootstrap_res.get('token_count', 0)} tokens")
+
+        # 4. Instantiate OpenHands Agent with local AGY model
+        print(f"\n🚀 Booting Governed OpenHands Agent (AGY Model: {args.model})...\n")
+        llm = AgyLLM(model=args.model)
+        agent = runtime.create_agent(
+            llm=llm,
+            agent_id=args.agent_id,
+            tools=[Tool(name=FileEditorTool.name)],
+        )
+
+        # 5. Execute Conversation with iteration cap & watchdog
+        convo = Conversation(agent=agent, workspace=str(repo_root))
+        convo.max_iteration_per_run = args.max_iterations
+        convo.send_message(bootstrap_res["augmented_prompt"])
+
+        import threading
+        timed_out = False
+
+        def _watchdog():
+            nonlocal timed_out
+            if not done_event.wait(args.timeout):
+                timed_out = True
+                if hasattr(convo, "cancel_token") and convo.cancel_token:
+                    convo.cancel_token.cancel()
+                elif hasattr(convo, "pause"):
+                    convo.pause()
+
+        done_event = threading.Event()
+        watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
+        watchdog_thread.start()
+
+        try:
+            convo.run()
+        finally:
+            done_event.set()
+
+        con.close()
+        print("\n🏁 Task execution complete.")
+        if timed_out:
+            print(f"⚠️ Task reached timeout threshold ({args.timeout}s).")
         sys.exit(0)
 
     elif args.command == "audit" and args.subcommand == "verify":

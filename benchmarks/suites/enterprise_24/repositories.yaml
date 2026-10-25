@@ -3,7 +3,7 @@ repositories:
     name: "Chronos Bi-Temporal AST Engine"
     path: "${CHRONOS_REPO_PATH:-/data/Projects/chronos}"
     baseline_commit: "320f4a9c994a42e44b990b342639be261d08cb04"
-    default_test_command: ".venv/bin/pytest tests/ -q"
+    default_test_command: "pytest tests/ -q"
 
   - id: "cng"
     name: "CNG ANPR & Cylinder Compliance Backend"

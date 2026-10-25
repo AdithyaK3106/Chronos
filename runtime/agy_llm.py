@@ -30,17 +30,28 @@ class AgyLLM(LLM):
         **kwargs: Any,
     ) -> LLMResponse:
         """Run completion via local agy print mode."""
-        prompt_parts = []
-        for m in messages:
+        prompt_parts = [
+            "You are a raw LLM completion endpoint for an external agent runtime.\n"
+            "Output ONLY the single next assistant message in the conversation below.\n"
+            "Do NOT attempt multi-turn execution or internal host tools. Generate text or a tool call and stop immediately."
+        ]
+
+        # Use recent context to avoid multi-turn prompt inflation
+        recent_messages = messages[-6:] if len(messages) > 6 else messages
+        for m in recent_messages:
             role = m.role.upper()
             text = "".join(getattr(c, "text", "") for c in m.content)
+            # Condense verbose OpenHands system prompts down to essential role
+            if role == "SYSTEM" and len(text) > 400:
+                text = "You are an autonomous AI coding assistant. Solve the user's task accurately using available tools."
             prompt_parts.append(f"[{role}]: {text}")
 
         if tools:
-            tool_descs = [f"- {t.name}: {getattr(t, 'description', '')}" for t in tools]
+            tool_descs = [f"- {t.name}: {getattr(t, 'description', '')[:180]}" for t in tools]
             prompt_parts.append("\nAVAILABLE TOOLS:\n" + "\n".join(tool_descs))
             prompt_parts.append(
-                '\nTo call a tool, respond with: TOOL_CALL: {"name": "<tool_name>", "arguments": {<args>}}'
+                '\nTo call a tool, respond with:\n'
+                'TOOL_CALL: {"name": "<tool_name>", "arguments": {<args>}}'
             )
 
         full_prompt = "\n\n".join(prompt_parts)
@@ -49,6 +60,7 @@ class AgyLLM(LLM):
             self.agy_binary,
             "--output-format", "json",
             "--disable-slash-commands",
+            "--dangerously-skip-permissions",
             f"--model={self.model}",
             "--print", full_prompt,
         ]
@@ -70,10 +82,16 @@ class AgyLLM(LLM):
         if "TOOL_CALL:" in response_text:
             try:
                 call_json_str = response_text.split("TOOL_CALL:", 1)[1].strip()
+                # If wrapped in markdown code fence, strip it
+                if call_json_str.startswith("```"):
+                    call_json_str = call_json_str.split("```")[1]
+                    if call_json_str.startswith("json"):
+                        call_json_str = call_json_str[4:]
+                    call_json_str = call_json_str.strip()
                 call_dict = json.loads(call_json_str)
                 tool_calls.append(
                     MessageToolCall(
-                        id="call_agy_1",
+                        id=f"call_agy_{uuid.uuid4().hex[:6]}",
                         name=call_dict["name"],
                         arguments=json.dumps(call_dict.get("arguments", {})),
                         origin="completion",

@@ -255,7 +255,7 @@ def main() -> int:
     p_run.add_argument("--regression", default=None, help="Ad-hoc regression command")
     p_run.add_argument("--timeout", type=int, default=180, help="Task timeout in seconds")
     p_run.add_argument("--runs", type=int, default=3, help="Paired repetitions per task")
-    p_run.add_argument("--model", default="gemini-3.8-flash-high", help="Model name")
+    p_run.add_argument("--model", default="gemini-3.8-flash-medium", help="Model name")
     p_run.add_argument("--provider", default="agy", choices=["agy", "litellm", "mock"], help="Model provider")
     p_run.add_argument("--temperature", type=float, default=0.0, help="LLM temperature")
     p_run.add_argument("--tasks", default=None, help="Comma-separated task IDs to filter")

@@ -179,7 +179,17 @@ class ObjectiveEvaluator:
         timeout: int,
     ) -> Tuple[int, str, str, bool]:
         """Execute a shell command with environment inheritance."""
+        import sys
         env = dict(os.environ)
+
+        # Prepend active python virtualenv bin directory to PATH so tools like pytest always resolve
+        venv_bin = str(Path(sys.executable).parent)
+        env["PATH"] = f"{venv_bin}:{env.get('PATH', '')}"
+
+        # Expand relative .venv/bin/ references if worktree has no local .venv
+        if ".venv/bin/" in cmd and not (cwd / ".venv/bin").exists():
+            cmd = cmd.replace(".venv/bin/", f"{venv_bin}/")
+
         # Ensure project root is in PYTHONPATH if python command
         env["PYTHONPATH"] = f"{str(cwd)}:{env.get('PYTHONPATH', '')}"
 

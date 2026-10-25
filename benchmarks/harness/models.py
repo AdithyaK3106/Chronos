@@ -71,7 +71,7 @@ class BenchmarkTask(BaseModel):
 class ModelProviderConfig(BaseModel):
     """Execution model provider configuration."""
     name: str = "agy"  # "agy", "litellm", "mock"
-    model: str = "gemini-3.8-flash-high"
+    model: str = "gemini-3.8-flash-medium"
     temperature: float = 0.0
     max_output_tokens: int = 4096
     timeout_seconds: int = 120

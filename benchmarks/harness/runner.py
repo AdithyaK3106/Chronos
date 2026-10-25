@@ -366,6 +366,36 @@ class PairedRunner:
                 )
 
                 duration = time.time() - start_time
+
+                # Extract usage and tool calls from convo / llm
+                usage = RunUsageMetadata()
+                try:
+                    accum = getattr(llm.metrics, "accumulated_token_usage", None)
+                    if accum and (accum.prompt_tokens or accum.completion_tokens):
+                        usage = RunUsageMetadata(
+                            prompt_tokens=accum.prompt_tokens,
+                            completion_tokens=accum.completion_tokens,
+                            total_tokens=accum.prompt_tokens + accum.completion_tokens,
+                            cost_usd=llm.metrics.accumulated_cost if getattr(llm.metrics, "accumulated_cost", 0) > 0 else None,
+                        )
+                except Exception:
+                    pass
+
+                try:
+                    events = convo.state.active_branch() if hasattr(convo, "state") else []
+                    for ev in events:
+                        if hasattr(ev, "tool_calls") and ev.tool_calls:
+                            for tc in ev.tool_calls:
+                                tool_calls_count += 1
+                                name = getattr(tc, "name", "tool")
+                                tool_call_types[name] = tool_call_types.get(name, 0) + 1
+                        elif getattr(ev, "type", "") in ("tool_call", "action"):
+                            tool_calls_count += 1
+                            name = getattr(ev, "name", "action")
+                            tool_call_types[name] = tool_call_types.get(name, 0) + 1
+                except Exception:
+                    pass
+
                 result = TaskRunResult(
                     run_id=run_id,
                     task_id=task.id,
@@ -377,6 +407,7 @@ class PairedRunner:
                     duration_seconds=duration,
                     resolved_model_id=resolved_model_id,
                     provider_name=self.provider_config.name,
+                    usage=usage,
                     tool_calls_count=tool_calls_count,
                     tool_call_types=tool_call_types,
                     patch_diff=patch,

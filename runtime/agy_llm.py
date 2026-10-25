@@ -106,19 +106,36 @@ class AgyLLM(LLM):
             tool_calls=tool_calls if tool_calls else None,
         )
 
+        prompt_tokens = usage_data.get("input_tokens", 0) if isinstance(usage_data, dict) else 0
+        completion_tokens = usage_data.get("output_tokens", 0) if isinstance(usage_data, dict) else 0
+        cache_read_tokens = usage_data.get("cache_read_tokens", 0) if isinstance(usage_data, dict) else 0
+        thinking_tokens = usage_data.get("thinking_tokens", 0) if isinstance(usage_data, dict) else 0
+        conv_id = data.get("conversation_id", "agy_conv") if isinstance(data, dict) else "agy_conv"
+
+        if hasattr(self, "metrics") and self.metrics is not None:
+            self.metrics.add_token_usage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=0,
+                context_window=1000000,
+                response_id=conv_id,
+                reasoning_tokens=thinking_tokens,
+            )
+
         raw_response = ModelResponse(
-            id=data.get("conversation_id", "agy_conv") if isinstance(data, dict) else "agy_conv",
+            id=conv_id,
             choices=[Choices(message=LiteMessage(content=response_text, role="assistant"))],
             model=self.model,
             usage=Usage(
-                prompt_tokens=usage_data.get("input_tokens", 0) if isinstance(usage_data, dict) else 0,
-                completion_tokens=usage_data.get("output_tokens", 0) if isinstance(usage_data, dict) else 0,
-                total_tokens=usage_data.get("total_tokens", 0) if isinstance(usage_data, dict) else 0,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
             ),
         )
 
         return LLMResponse(
             message=assistant_msg,
-            metrics=MetricsSnapshot(model_name=self.model),
+            metrics=self.metrics.get_snapshot() if hasattr(self, "metrics") and self.metrics else MetricsSnapshot(model_name=self.model),
             raw_response=raw_response,
         )

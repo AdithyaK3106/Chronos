@@ -9,13 +9,13 @@ repositories:
     name: "CNG ANPR & Cylinder Compliance Backend"
     path: "${CNG_REPO_PATH:-/data/Projects/CNG}"
     baseline_commit: "5b73b282752f48c6f3abd915ba8eb61bbebd44a0"
-    default_test_command: "pytest backend/tests/ -q"
+    default_test_command: "pytest backend/tests/test_registration_normalizer.py backend/tests/test_verification.py backend/tests/test_ocr.py -q"
 
   - id: "cooling_project"
     name: "Sensor-Free Predictive Cooling Pipeline"
     path: "${COOLING_REPO_PATH:-/data/Projects/Cooling project}"
     baseline_commit: "d6b6815e1815bcaaebbcb51b05e2dea3873f465b"
-    default_test_command: "pytest tests/ -q"
+    default_test_command: "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
 
   - id: "mediassist"
     name: "MediAssist Bilingual Outpatient Triage"

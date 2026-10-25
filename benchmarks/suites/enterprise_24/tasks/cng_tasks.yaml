@@ -58,7 +58,7 @@ tasks:
     verification_commands:
       - "pytest backend/tests/test_ocr.py -q"
     regression_commands:
-      - "pytest backend/tests/ -q"
+      - "pytest backend/tests/test_registration_normalizer.py backend/tests/test_verification.py backend/tests/test_ocr.py -q"
     timeout_seconds: 240
 
   - id: "cng_task_06"

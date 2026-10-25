@@ -5,7 +5,7 @@
 **Total Paired Iterations:** `6`  
 
 ---
-
+/
 ## 1. Executive Summary & Paired Comparison
 
 ### Efficacy Suite (Software Engineering Tasks)

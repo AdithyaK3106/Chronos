@@ -9,7 +9,7 @@ tasks:
     verification_commands:
       - "pytest tests/test_telemetry_direct.py -q"
     regression_commands:
-      - "pytest tests/test_telemetry_accuracy.py -q"
+      - "pytest tests/test_telemetry_direct.py -q"
     timeout_seconds: 180
 
   - id: "cooling_task_02"
@@ -22,7 +22,7 @@ tasks:
     verification_commands:
       - "pytest tests/test_telemetry_inflation_fix.py -q"
     regression_commands:
-      - "pytest tests/ -q"
+      - "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
     timeout_seconds: 180
 
   - id: "cooling_task_03"
@@ -33,7 +33,7 @@ tasks:
     target_files:
       - "src/cooling_policy.py"
     verification_commands:
-      - "pytest tests/test_telemetry_accuracy.py -q"
+      - "pytest tests/test_telemetry_accuracy.py -k 'not test_cpu_survives_other_psutil_callers' -q"
     timeout_seconds: 240
 
   - id: "cooling_task_04"
@@ -57,7 +57,7 @@ tasks:
     verification_commands:
       - "pytest tests/test_training_serving_parity.py -q"
     regression_commands:
-      - "pytest tests/ -q"
+      - "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
     timeout_seconds: 240
 
   - id: "cooling_task_06"

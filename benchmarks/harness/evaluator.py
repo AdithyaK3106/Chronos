@@ -190,8 +190,14 @@ class ObjectiveEvaluator:
         if ".venv/bin/" in cmd and not (cwd / ".venv/bin").exists():
             cmd = cmd.replace(".venv/bin/", f"{venv_bin}/")
 
-        # Ensure project root is in PYTHONPATH if python command
-        env["PYTHONPATH"] = f"{str(cwd)}:{env.get('PYTHONPATH', '')}"
+        # Ensure project root and common src directories are in PYTHONPATH
+        pythonpath_parts = [str(cwd)]
+        for cand in [cwd / "src", cwd / "backend" / "src", cwd / "backend"]:
+            if cand.is_dir():
+                pythonpath_parts.append(str(cand))
+        if env.get("PYTHONPATH"):
+            pythonpath_parts.append(env["PYTHONPATH"])
+        env["PYTHONPATH"] = ":".join(pythonpath_parts)
 
         try:
             res = subprocess.run(

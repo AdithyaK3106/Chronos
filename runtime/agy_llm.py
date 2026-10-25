@@ -89,10 +89,15 @@ class AgyLLM(LLM):
                         call_json_str = call_json_str[4:]
                     call_json_str = call_json_str.strip()
                 call_dict = json.loads(call_json_str)
+                name = call_dict.get("name", "tool")
+                if not hasattr(self, "tool_call_types") or self.tool_call_types is None:
+                    self.tool_call_types = {}
+                self.tool_call_types[name] = self.tool_call_types.get(name, 0) + 1
+
                 tool_calls.append(
                     MessageToolCall(
                         id=f"call_agy_{uuid.uuid4().hex[:6]}",
-                        name=call_dict["name"],
+                        name=name,
                         arguments=json.dumps(call_dict.get("arguments", {})),
                         origin="completion",
                     )

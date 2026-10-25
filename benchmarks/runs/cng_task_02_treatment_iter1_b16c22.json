@@ -1,0 +1,28 @@
+{
+  "run_id": "cng_task_02_treatment_iter1_b16c22",
+  "task_id": "cng_task_02",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 13.92458724975586,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 7785,
+    "completion_tokens": 39,
+    "total_tokens": 7824,
+    "cost_usd": null
+  },
+  "tool_calls_count": 1,
+  "tool_call_types": {
+    "file_editor": 1
+  },
+  "patch_diff": "",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T11:47:45.141571+00:00"
+}

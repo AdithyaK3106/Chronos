@@ -101,13 +101,46 @@ class BenchmarkReporter:
                 "",
             ])
 
+        # Tool Usage & Agent Exploration Profile
+        base_tools: dict[str, int] = {}
+        treat_tools: dict[str, int] = {}
+        for t in trials:
+            if t.baseline_run and t.baseline_run.tool_call_types:
+                for k, v in t.baseline_run.tool_call_types.items():
+                    base_tools[k] = base_tools.get(k, 0) + v
+            if t.treatment_run and t.treatment_run.tool_call_types:
+                for k, v in t.treatment_run.tool_call_types.items():
+                    treat_tools[k] = treat_tools.get(k, 0) + v
+
+        all_tool_keys = sorted(set(base_tools.keys()) | set(treat_tools.keys()))
+        if all_tool_keys:
+            total_base_tools = sum(base_tools.values())
+            total_treat_tools = sum(treat_tools.values())
+            grand_total = total_base_tools + total_treat_tools
+            lines.extend([
+                "### Tool Usage & Agent Exploration Profile",
+                "",
+                "| Tool Name | Baseline Invocations | Treatment Invocations | Delta (Treat - Base) | Frequency Share |",
+                "| :--- | :--- | :--- | :--- | :--- |",
+            ])
+            for tk in all_tool_keys:
+                b_cnt = base_tools.get(tk, 0)
+                tr_cnt = treat_tools.get(tk, 0)
+                d_cnt = tr_cnt - b_cnt
+                share_pct = ((b_cnt + tr_cnt) / grand_total * 100.0) if grand_total > 0 else 0.0
+                lines.append(f"| `{tk}` | `{b_cnt}` | `{tr_cnt}` | `{d_cnt:+d}` | `{share_pct:.1f}%` |")
+            lines.extend([
+                f"| **Total Tool Invocations** | **`{total_base_tools}`** | **`{total_treat_tools}`** | **`{total_treat_tools - total_base_tools:+d}`** | **`100.0%`** |",
+                "",
+            ])
+
         lines.extend([
             "---",
             "",
             "## 2. Per-Task Execution Breakdown",
             "",
-            "| Task ID | Iteration | Baseline Status | Treatment Status | Latency (Base / Treat) | Diffs Captured |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- |",
+            "| Task ID | Iteration | Baseline Status | Treatment Status | Latency (Base / Treat) | Tokens (Base / Treat) | Tools Used (Base / Treat) | Diffs Captured |",
+            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
         ])
 
         for t in trials:
@@ -115,8 +148,24 @@ class BenchmarkReporter:
             tr_stat = t.treatment_run.status.value if t.treatment_run else "SKIPPED"
             b_dur = f"{t.baseline_run.duration_seconds:.1f}s" if t.baseline_run else "-"
             tr_dur = f"{t.treatment_run.duration_seconds:.1f}s" if t.treatment_run else "-"
+
+            # Tokens
+            b_tok = f"{t.baseline_run.usage.total_tokens:,}" if (t.baseline_run and t.baseline_run.usage.total_tokens is not None) else "N/A"
+            tr_tok = f"{t.treatment_run.usage.total_tokens:,}" if (t.treatment_run and t.treatment_run.usage.total_tokens is not None) else "N/A"
+
+            # Tools
+            def fmt_tools(run):
+                if not run or not run.tool_call_types:
+                    return f"{run.tool_calls_count}" if (run and run.tool_calls_count) else "None"
+                return ", ".join(f"{k} ({v})" for k, v in run.tool_call_types.items())
+
+            b_tools = fmt_tools(t.baseline_run)
+            tr_tools = fmt_tools(t.treatment_run)
+
             diff_flag = "Yes" if (t.treatment_run and t.treatment_run.patch_diff) else "No"
-            lines.append(f"| `{t.task_id}` | `{t.iteration}` | `{b_stat}` | `{tr_stat}` | `{b_dur}` / `{tr_dur}` | `{diff_flag}` |")
+            lines.append(
+                f"| `{t.task_id}` | `{t.iteration}` | `{b_stat}` | `{tr_stat}` | `{b_dur}` / `{tr_dur}` | `{b_tok}` / `{tr_tok}` | `{b_tools}` / `{tr_tools}` | `{diff_flag}` |"
+            )
 
         lines.extend([
             "",

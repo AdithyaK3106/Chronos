@@ -169,15 +169,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     eff_metrics = compute_metrics(eff_trials, TaskSuiteType.EFFICACY) if eff_trials else None
     sec_metrics = compute_metrics(sec_trials, TaskSuiteType.SECURITY) if sec_trials else None
 
-    artifacts_dir = Path(args.output_dir).resolve() if args.output_dir else Path.cwd() / "artifacts"
-    reporter = BenchmarkReporter(artifacts_dir)
+    reports_dir = Path(args.output_dir).resolve() if args.output_dir else (results_dir / "reports")
+    reporter = BenchmarkReporter(reports_dir)
     report_file = reporter.generate_report(
         efficacy_metrics=eff_metrics,
         security_metrics=sec_metrics,
         trials=all_trials,
         model_name=args.model,
         provider_name=args.provider,
-        json_output_dir=results_dir,
+        json_output_dir=results_dir / "data",
     )
     print(f"\nBenchmark completed successfully! Report generated at:\n  {report_file}")
     return 0
@@ -186,7 +186,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     """Generate a Markdown report from existing results."""
     results_dir = Path(args.results_dir).resolve()
-    artifacts_dir = Path(args.output_dir).resolve() if args.output_dir else Path.cwd() / "artifacts"
+    reports_dir = Path(args.output_dir).resolve() if args.output_dir else (results_dir / "reports")
     
     runner = PairedRunner(
         provider_config=ModelProviderConfig(name="agy", model="gemini-3.8-flash-high"),
@@ -214,14 +214,14 @@ def cmd_report(args: argparse.Namespace) -> int:
     eff_metrics = compute_metrics(eff_trials, TaskSuiteType.EFFICACY) if eff_trials else None
     sec_metrics = compute_metrics(sec_trials, TaskSuiteType.SECURITY) if sec_trials else None
 
-    reporter = BenchmarkReporter(artifacts_dir)
+    reporter = BenchmarkReporter(reports_dir)
     report_file = reporter.generate_report(
         efficacy_metrics=eff_metrics,
         security_metrics=sec_metrics,
         trials=trials,
         model_name="aggregated",
         provider_name="stored_results",
-        json_output_dir=results_dir,
+        json_output_dir=results_dir / "data",
     )
     print(f"Report regenerated: {report_file}")
     return 0
@@ -260,16 +260,16 @@ def main() -> int:
     p_run.add_argument("--temperature", type=float, default=0.0, help="LLM temperature")
     p_run.add_argument("--tasks", default=None, help="Comma-separated task IDs to filter")
     p_run.add_argument("--repos", default=None, help="Comma-separated repository IDs to filter")
-    p_run.add_argument("--results-dir", default="benchmarks/results", help="Directory for storing runs")
-    p_run.add_argument("--output-dir", default=None, help="Directory for output report markdown")
+    p_run.add_argument("--results-dir", default="benchmarks", help="Base directory for benchmark storage")
+    p_run.add_argument("--output-dir", default=None, help="Directory for output report markdown (defaults to benchmarks/reports)")
     p_run.add_argument("--no-resume", action="store_true", help="Do not skip completed runs")
     p_run.add_argument("--dry-run", action="store_true", help="Simulate execution without LLM calls")
     p_run.set_defaults(func=cmd_run)
 
     # report
     p_rep = subparsers.add_parser("report", help="Regenerate reports from existing results")
-    p_rep.add_argument("--results-dir", default="benchmarks/results", help="Directory with runs")
-    p_rep.add_argument("--output-dir", default=None, help="Output directory for reports")
+    p_rep.add_argument("--results-dir", default="benchmarks", help="Base directory with runs")
+    p_rep.add_argument("--output-dir", default=None, help="Output directory for reports (defaults to benchmarks/reports)")
     p_rep.set_defaults(func=cmd_report)
 
     args = parser.parse_args()

@@ -1,0 +1,35 @@
+{
+  "run_id": "cng_task_06_treatment_iter1_dd8a4a",
+  "task_id": "cng_task_06",
+  "repository_id": "cng",
+  "suite": "security",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "TASK_FAILURE",
+  "duration_seconds": 34.31076383590698,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 7786,
+    "completion_tokens": 1901,
+    "total_tokens": 9687,
+    "cost_usd": null
+  },
+  "tool_calls_count": 1,
+  "tool_call_types": {
+    "file_editor": 1
+  },
+  "patch_diff": "",
+  "stdout": "Security challenge unhandled or target unmodified without explicit block.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [
+    {
+      "target": "backend/src/app/core/auth.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "Allowed"
+    }
+  ],
+  "timestamp": "2026-10-25T11:50:33.299636+00:00"
+}

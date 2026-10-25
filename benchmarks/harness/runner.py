@@ -37,16 +37,20 @@ from runtime.openhands_adapter import ChronosAgentRuntime
 
 
 class ResultStore:
-    """Persistent SQLite database and JSON storage for benchmark runs."""
+    """Persistent SQLite database, patches, and JSON storage for benchmark runs."""
 
-    def __init__(self, results_dir: str | Path) -> None:
-        self.results_dir = Path(results_dir).resolve()
-        self.runs_dir = self.results_dir / "runs"
-        self.artifacts_dir = self.results_dir / "artifacts"
-        self.db_path = self.results_dir / "benchmark_runs.db"
+    def __init__(self, base_dir: str | Path = "benchmarks") -> None:
+        self.base_dir = Path(base_dir).resolve()
+        self.runs_dir = self.base_dir / "runs"
+        self.diffs_dir = self.base_dir / "diffs"
+        self.data_dir = self.base_dir / "data"
+        self.reports_dir = self.base_dir / "reports"
+        self.db_path = self.data_dir / "benchmark_runs.db"
 
         self.runs_dir.mkdir(parents=True, exist_ok=True)
-        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self.diffs_dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.reports_dir.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
@@ -80,6 +84,7 @@ class ResultStore:
                     total_tokens INTEGER,
                     cost_usd REAL,
                     tool_calls_count INTEGER NOT NULL,
+                    tool_call_types TEXT,
                     error_message TEXT,
                     timestamp TEXT NOT NULL
                 );
@@ -127,6 +132,7 @@ class ResultStore:
             f.write(result.model_dump_json(indent=2))
 
         # 2. Insert into SQLite
+        tool_call_types_json = json.dumps(result.tool_call_types)
         with self._get_connection() as con:
             con.execute(
                 """
@@ -134,8 +140,8 @@ class ResultStore:
                     run_id, task_id, repository_id, suite, arm, iteration,
                     status, duration_seconds, resolved_model_id, provider_name,
                     prompt_tokens, completion_tokens, total_tokens, cost_usd,
-                    tool_calls_count, error_message, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tool_calls_count, tool_call_types, error_message, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     result.run_id,
@@ -153,6 +159,7 @@ class ResultStore:
                     result.usage.total_tokens,
                     result.usage.cost_usd,
                     result.tool_calls_count,
+                    tool_call_types_json,
                     result.error_message,
                     result.timestamp,
                 ),
@@ -352,11 +359,10 @@ class PairedRunner:
                 # Extract patch before teardown
                 patch = ws.get_patch()
 
-                # Preserve artifacts
-                art_dir = self.store.artifacts_dir / run_id
-                art_dir.mkdir(parents=True, exist_ok=True)
+                # Preserve patch diff
                 if patch:
-                    (art_dir / "diff.patch").write_text(patch, encoding="utf-8")
+                    patch_file = self.store.diffs_dir / f"{run_id}.patch"
+                    patch_file.write_text(patch, encoding="utf-8")
 
                 # Evaluate run
                 outcome = self.evaluator.evaluate(
@@ -382,17 +388,26 @@ class PairedRunner:
                     pass
 
                 try:
+                    # 1. From LLM instance
+                    if hasattr(llm, "tool_call_types") and llm.tool_call_types:
+                        for k, v in llm.tool_call_types.items():
+                            tool_call_types[k] = tool_call_types.get(k, 0) + v
+
+                    # 2. From conversation events
                     events = convo.state.active_branch() if hasattr(convo, "state") else []
                     for ev in events:
-                        if hasattr(ev, "tool_calls") and ev.tool_calls:
-                            for tc in ev.tool_calls:
-                                tool_calls_count += 1
+                        msg = getattr(ev, "llm_message", None)
+                        if msg and hasattr(msg, "tool_calls") and msg.tool_calls:
+                            for tc in msg.tool_calls:
                                 name = getattr(tc, "name", "tool")
+                                if not hasattr(llm, "tool_call_types") or not llm.tool_call_types:
+                                    tool_call_types[name] = tool_call_types.get(name, 0) + 1
+                        elif hasattr(ev, "tool_name") and ev.tool_name:
+                            name = ev.tool_name
+                            if not hasattr(llm, "tool_call_types") or not llm.tool_call_types:
                                 tool_call_types[name] = tool_call_types.get(name, 0) + 1
-                        elif getattr(ev, "type", "") in ("tool_call", "action"):
-                            tool_calls_count += 1
-                            name = getattr(ev, "name", "action")
-                            tool_call_types[name] = tool_call_types.get(name, 0) + 1
+
+                    tool_calls_count = sum(tool_call_types.values())
                 except Exception:
                     pass
 

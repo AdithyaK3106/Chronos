@@ -85,7 +85,8 @@ class ChronosToolGateway:
                     tool_input = action
                 from runtime.hooks import _extract_target_path
                 target = _extract_target_path(tool_name, tool_input)
-                if target and (target.endswith(".py") or ".py" in target):
+                from chronos.context.indexer import is_supported_source_file
+                if target and is_supported_source_file(target):
                     full_path = (self.repo_root / target).resolve()
                     if full_path.is_file():
                         from chronos.context.graph import SQLiteGraphStore

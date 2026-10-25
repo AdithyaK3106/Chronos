@@ -67,7 +67,8 @@ class GovernedExecutorWrapper:
                 if self.t_name in ("file_editor", "edit_file", "write_file"):
                     from runtime.hooks import _extract_target_path
                     target = _extract_target_path(self.t_name, tool_input)
-                    if target and (target.endswith(".py") or ".py" in target):
+                    from chronos.context.indexer import is_supported_source_file
+                    if target and is_supported_source_file(target):
                         full_path = (self.repo_root / target).resolve()
                         if full_path.is_file():
                             from chronos.context.graph import SQLiteGraphStore

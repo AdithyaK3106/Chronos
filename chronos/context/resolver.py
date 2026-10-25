@@ -88,7 +88,7 @@ class DeterministicContextResolver:
 
     def harvest_features(self, prompt: str) -> HarvestedFeatures:
         """Extract deterministic features using regex patterns."""
-        explicit_paths = re.findall(r'(?:[\w\-./]+/)?[\w\-]+\.(?:py|json|yaml|yml|sql|sh)', prompt)
+        explicit_paths = re.findall(r'(?:[\w\-./]+/)?[\w\-]+\.(?:py|ts|tsx|js|jsx|mjs|cjs|go|json|yaml|yml|sql|sh)', prompt)
         stack_traces = re.findall(r'File\s+"([^"]+)",\s+line\s+(\d+)', prompt)
         st_files = [m[0] for m in stack_traces]
         dotted_symbols = re.findall(r'\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b', prompt)
@@ -237,25 +237,52 @@ class DeterministicContextResolver:
 
         # 6. Discover co-located / matching unit test files
         test_files_set: Set[str] = set()
+        test_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".go"}
         tests_dir = self.repo_root / "tests"
-        if tests_dir.is_dir():
-            for tf in target_files_set:
-                stem = Path(tf).stem
-                # Check for direct naming conventions or substring matching
-                for test_file in tests_dir.rglob("*.py"):
-                    t_stem = test_file.stem.lower()
-                    if (
-                        t_stem == f"test_{stem}"
-                        or t_stem == f"{stem}_test"
-                        or t_stem.startswith(f"test_{stem}_")
-                        or f"_{stem}" in t_stem
-                        or f"{stem}_" in t_stem
-                    ):
+
+        for tf in target_files_set:
+            tf_path = Path(tf)
+            stem = tf_path.stem.split(".")[0]
+
+            # Co-located tests (standard in Go and TypeScript/React)
+            parent_dir = (self.repo_root / tf_path.parent).resolve()
+            if parent_dir.is_dir():
+                for candidate_name in (
+                    f"{stem}_test.go",
+                    f"{stem}.test.ts",
+                    f"{stem}.test.tsx",
+                    f"{stem}.spec.ts",
+                    f"{stem}.spec.tsx",
+                    f"{stem}.test.js",
+                    f"{stem}.spec.js",
+                    f"test_{stem}.py",
+                ):
+                    co_test = parent_dir / candidate_name
+                    if co_test.is_file():
                         try:
-                            rel_p = test_file.relative_to(self.repo_root).as_posix()
-                            test_files_set.add(rel_p)
+                            test_files_set.add(co_test.relative_to(self.repo_root).as_posix())
                         except ValueError:
                             pass
+
+            # Centralized tests/ directory
+            if tests_dir.is_dir():
+                for test_file in tests_dir.rglob("*"):
+                    if test_file.is_file() and test_file.suffix.lower() in test_exts:
+                        t_stem = test_file.stem.lower()
+                        if (
+                            t_stem == f"test_{stem}"
+                            or t_stem == f"{stem}_test"
+                            or t_stem == f"{stem}.test"
+                            or t_stem == f"{stem}.spec"
+                            or t_stem.startswith(f"test_{stem}_")
+                            or f"_{stem}" in t_stem
+                            or f"{stem}_" in t_stem
+                        ):
+                            try:
+                                rel_p = test_file.relative_to(self.repo_root).as_posix()
+                                test_files_set.add(rel_p)
+                            except ValueError:
+                                pass
 
         # 7. Build provenance rationale summary
         provenance_lines = ["#### 🔍 Retrieval Provenance & Relevance Rationale:"]

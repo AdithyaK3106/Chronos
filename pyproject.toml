@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chronos"
+version = "0.2.0"
+description = "Bi-temporal repository intelligence and deterministic multi-agent governance on OpenHands SDK"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Chronos Contributors" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "openhands-sdk>=1.58.2",
+    "openhands-tools>=1.58.2",
+    "tree-sitter>=0.25.0",
+    "tree-sitter-bash>=0.25.0",
+    "pydantic>=2.10.0",
+    "pyyaml>=6.0.0",
+    "fastmcp>=3.2.0,<4",
+]
+
+[project.optional-dependencies]
+kuzu = ["kuzu>=0.11.0"]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+chronos = "chronos.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["chronos", "runtime"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

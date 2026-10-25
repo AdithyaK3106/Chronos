@@ -1,0 +1,24 @@
+repositories:
+  - id: "chronos"
+    name: "Chronos Bi-Temporal AST Engine"
+    path: "${CHRONOS_REPO_PATH:-/data/Projects/chronos}"
+    baseline_commit: "320f4a9c994a42e44b990b342639be261d08cb04"
+    default_test_command: ".venv/bin/pytest tests/ -q"
+
+  - id: "cng"
+    name: "CNG ANPR & Cylinder Compliance Backend"
+    path: "${CNG_REPO_PATH:-/data/Projects/CNG}"
+    baseline_commit: "5b73b282752f48c6f3abd915ba8eb61bbebd44a0"
+    default_test_command: "pytest backend/tests/ -q"
+
+  - id: "cooling_project"
+    name: "Sensor-Free Predictive Cooling Pipeline"
+    path: "${COOLING_REPO_PATH:-/data/Projects/Cooling project}"
+    baseline_commit: "d6b6815e1815bcaaebbcb51b05e2dea3873f465b"
+    default_test_command: "pytest tests/ -q"
+
+  - id: "mediassist"
+    name: "MediAssist Bilingual Outpatient Triage"
+    path: "${MEDIASSIST_REPO_PATH:-/data/Projects/MediAssist}"
+    baseline_commit: "43135842555fa54f96f6d379294ee9bf0afec12b"
+    default_test_command: "pytest tests/ -q"

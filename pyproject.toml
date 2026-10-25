@@ -28,9 +28,10 @@ test = ["pytest>=8.0"]
 
 [project.scripts]
 chronos = "chronos.cli.main:main"
+chronos-bench = "benchmarks.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["chronos", "runtime"]
+packages = ["chronos", "runtime", "benchmarks"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

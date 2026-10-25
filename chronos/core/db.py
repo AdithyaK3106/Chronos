@@ -91,6 +91,32 @@ CREATE TABLE IF NOT EXISTS code_nodes (
 CREATE INDEX IF NOT EXISTS idx_code_nodes_name ON code_nodes(name);
 CREATE INDEX IF NOT EXISTS idx_code_nodes_path ON code_nodes(path);
 
+-- FTS5 Full-Text Index for AST Code Nodes (Zero-Path Resolution)
+CREATE VIRTUAL TABLE IF NOT EXISTS code_nodes_fts USING fts5(
+    id UNINDEXED,
+    name,
+    path,
+    signature,
+    docstring,
+    tokenize='unicode61 remove_diacritics 1'
+);
+
+-- Triggers to maintain code_nodes_fts in sync with code_nodes
+CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ai AFTER INSERT ON code_nodes BEGIN
+    INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
+    VALUES (new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ad AFTER DELETE ON code_nodes BEGIN
+    DELETE FROM code_nodes_fts WHERE id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_code_nodes_au AFTER UPDATE ON code_nodes BEGIN
+    DELETE FROM code_nodes_fts WHERE id = old.id;
+    INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
+    VALUES (new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+END;
+
 -- Bi-Temporal Code Edges (Wedge 1 GraphStore)
 CREATE TABLE IF NOT EXISTS code_edges (
     src        TEXT NOT NULL,
@@ -125,4 +151,16 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
     con.execute("PRAGMA busy_timeout = 30000")
     
     con.executescript(SCHEMA)
+    try:
+        con.execute(
+            """
+            INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
+            SELECT n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, '')
+            FROM code_nodes n
+            LEFT JOIN code_nodes_fts f ON n.id = f.id
+            WHERE f.id IS NULL
+            """
+        )
+    except Exception:
+        pass
     return con

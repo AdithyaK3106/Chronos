@@ -167,6 +167,7 @@ class ChronosAgentRuntime:
         agent_id: str,
         task_prompt: str,
         workspace_dir: str | Path | None = None,
+        target_files: list[str] | None = None,
     ) -> tuple[Conversation, TaskTelemetry]:
         """Execute a task through an OpenHands Conversation with Chronos telemetry."""
         target_ws = str(Path(workspace_dir or self.repo_root).resolve())
@@ -177,14 +178,22 @@ class ChronosAgentRuntime:
         def event_callback(event: Event):
             conversation_events.append(event)
 
+        # Automatic pre-Turn-1 zero-path knowledge bootstrap & injection
+        bootstrap_res = self.bootstrap.bootstrap_session(
+            task_prompt=task_prompt,
+            target_files=target_files,
+            agent_id=agent_id,
+        )
+        augmented_prompt = bootstrap_res["augmented_prompt"]
+
         conversation = Conversation(
             agent=agent,
             callbacks=[event_callback],
             workspace=target_ws,
         )
 
-        # Submit initial user prompt
-        conversation.send_message(task_prompt)
+        # Submit initial user prompt with injected zero-path context envelope
+        conversation.send_message(augmented_prompt)
         conversation.run()
 
         telemetry.finish()

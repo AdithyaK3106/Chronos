@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from chronos.context.budgeter import assemble_context
 from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
+from chronos.context.resolver import DeterministicContextResolver, ResolutionResult
 from chronos.coordination.ledger import acquire_lock
 from chronos.security.gates import check_gate_approval
 from chronos.security.permissions import check_action_allowed
@@ -30,6 +31,7 @@ class ChronosSessionBootstrap:
         self.repo_path = Path(repo_path).resolve()
         self.con = con
         self.graph_store = SQLiteGraphStore(con)
+        self.resolver = DeterministicContextResolver(repo_root=self.repo_path, graph_store=self.graph_store)
 
     def bootstrap_session(
         self,
@@ -49,33 +51,40 @@ class ChronosSessionBootstrap:
         except Exception:
             nodes = []
 
-        # 2. Resolve target symbols from target files or prominent repo symbols
-        resolved_symbols: List[str] = []
-        target_nodes: List[str] = []
-        for n in nodes:
-            norm_node_path = Path(n.path).as_posix()
-            if any(Path(tf).as_posix() in norm_node_path or norm_node_path.endswith(Path(tf).as_posix()) for tf in target_files):
-                resolved_symbols.append(n.name)
-                target_nodes.append(n.id)
+        # 2. Deterministically resolve target files, symbols, and tests from prompt (Zero-Path)
+        resolution: ResolutionResult = self.resolver.resolve(
+            prompt=task_prompt,
+            explicit_target_files=target_files if target_files else None,
+            max_seeds=5,
+        )
 
-        # Fallback to top repo symbols if target files yielded none
-        if not resolved_symbols and nodes:
-            resolved_symbols = [n.name for n in nodes[:8]]
-            target_nodes = [n.id for n in nodes[:8]]
+        resolved_symbols: List[str] = list(resolution.seed_symbols)
+        resolved_files: List[str] = list(resolution.target_files)
+        target_nodes: List[str] = [c.node_id for c in resolution.candidates if c.kind != "File"]
+        test_files: List[str] = list(resolution.test_files)
+
+        # Fallback to direct path search if zero-path resolution returned empty and explicit target_files were provided
+        if not resolved_symbols and target_files:
+            for n in nodes:
+                norm_node_path = Path(n.path).as_posix()
+                if any(Path(tf).as_posix() in norm_node_path or norm_node_path.endswith(Path(tf).as_posix()) for tf in target_files):
+                    resolved_symbols.append(n.name)
+                    target_nodes.append(n.id)
 
         # Adaptive Injection: detect whether user task targets specific files/functions
-        is_targeted = bool(target_files) or any(
+        is_targeted = bool(resolved_files) or bool(target_files) or bool(resolved_symbols) or any(
             tok.endswith((".py", ".ts", ".js", ".go", ".rs", ".java")) or "/" in tok
             for tok in task_prompt.split()
         )
 
         # 3. Assemble ranked bi-temporal graph context under token budget
+        effective_targets = resolved_files or target_files
         ast_ctx = assemble_context(
             symbols=resolved_symbols[:12],
             graph_store=self.graph_store,
             token_budget=token_budget,
             is_targeted=is_targeted,
-            target_files=target_files,
+            target_files=effective_targets,
         )
 
         # 4. Retrieve active blocking rules
@@ -125,6 +134,8 @@ class ChronosSessionBootstrap:
         envelope_lines = [
             ast_ctx["text"],
             "",
+            resolution.provenance_summary,
+            "",
             "#### 🛡 Active Governance Invariants & Blocking Rules:",
         ]
         if rules:
@@ -150,4 +161,9 @@ class ChronosSessionBootstrap:
             "symbols": ast_ctx["included_symbols"],
             "leases": acquired_leases,
             "rules_count": len(rules),
+            "resolved_files": resolved_files,
+            "resolved_symbols": resolved_symbols,
+            "test_files": test_files,
+            "candidates": resolution.candidates,
+            "provenance_summary": resolution.provenance_summary,
         }

@@ -56,6 +56,10 @@ class GraphStore(ABC):
         """Return code nodes matching name or id."""
         return []
 
+    def query_symbols_lexical(self, query_terms: list[str], limit: int = 10) -> list[dict[str, Any]]:
+        """Search code_nodes using lexical full-text matching."""
+        return []
+
     def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
         """Incrementally update AST nodes and bi-temporal edges for a modified file."""
         return (0, 0)
@@ -192,6 +196,45 @@ class SQLiteGraphStore(GraphStore):
             (symbol_name, symbol_name),
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def query_symbols_lexical(self, query_terms: list[str], limit: int = 10) -> list[dict[str, Any]]:
+        """Search code_nodes using lexical full-text matching."""
+        if not query_terms:
+            return []
+        # Sanitize FTS5 query terms: wrap alphanumeric tokens in quotes to prevent FTS syntax injection
+        clean_terms = ['"' + t.replace('"', '""') + '"' for t in query_terms if t and (t.isalnum() or '_' in t)]
+        if not clean_terms:
+            return []
+        fts_query = " OR ".join(clean_terms)
+        try:
+            rows = self.con.execute(
+                """
+                SELECT n.id, n.name, n.path, n.kind, n.signature, n.docstring,
+                       bm25(code_nodes_fts) AS bm25_rank
+                FROM code_nodes_fts f
+                JOIN code_nodes n ON f.id = n.id
+                WHERE code_nodes_fts MATCH ?
+                ORDER BY bm25_rank ASC
+                LIMIT ?
+                """,
+                (fts_query, limit),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        except (sqlite3.OperationalError, Exception):
+            # Graceful fallback to LIKE query if FTS table query encounters any issue
+            valid_terms = [t for t in query_terms if t][:4]
+            if not valid_terms:
+                return []
+            placeholders = " OR ".join(["n.name LIKE ? OR n.path LIKE ?" for _ in valid_terms])
+            params = []
+            for t in valid_terms:
+                params.extend([f"%{t}%", f"%{t}%"])
+            params.append(limit)
+            rows = self.con.execute(
+                f"SELECT id, name, path, kind, signature, docstring, 0.0 AS bm25_rank FROM code_nodes n WHERE {placeholders} LIMIT ?",
+                params,
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
         """Incrementally update AST nodes and bi-temporal edges for a modified file."""

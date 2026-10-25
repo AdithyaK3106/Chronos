@@ -105,18 +105,18 @@ class SQLiteGraphStore(GraphStore):
 
     def as_of_callers(self, symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:
         t = _normalize_iso(as_of)
-        # Direct callers: edges where dst resolves to symbol_name
+        # Direct callers: edges where dst resolves to symbol_name or qualified node ID
         rows = self.con.execute(
             """
             SELECT n.id, n.name, n.path, n.kind, e.type, e.valid_at
             FROM code_edges e
             JOIN code_nodes n ON e.src = n.id
-            WHERE (e.dst = ? OR e.dst LIKE '%::' || ? || '::%')
+            WHERE (e.dst = ? OR e.dst LIKE '%::' || ? || '::%' OR e.dst LIKE '%::' || ?)
               AND e.valid_at <= ?
               AND (e.invalid_at IS NULL OR e.invalid_at > ?)
             ORDER BY n.name ASC
             """,
-            (symbol_name, symbol_name, t, t),
+            (symbol_name, symbol_name, symbol_name, t, t),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -124,13 +124,18 @@ class SQLiteGraphStore(GraphStore):
         t = _normalize_iso(as_of)
         rows = self.con.execute(
             """
-            SELECT e.dst AS name, e.type, e.valid_at
+            SELECT COALESCE(n2.name, e.dst) AS name,
+                   e.dst AS target_id,
+                   n2.path AS target_path,
+                   e.type,
+                   e.valid_at
             FROM code_edges e
             JOIN code_nodes n ON e.src = n.id
+            LEFT JOIN code_nodes n2 ON e.dst = n2.id
             WHERE (n.name = ? OR n.id = ?)
               AND e.valid_at <= ?
               AND (e.invalid_at IS NULL OR e.invalid_at > ?)
-            ORDER BY e.dst ASC
+            ORDER BY name ASC
             """,
             (symbol_name, symbol_name, t, t),
         ).fetchall()
@@ -238,7 +243,8 @@ class SQLiteGraphStore(GraphStore):
 
     def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
         """Incrementally update AST nodes and bi-temporal edges for a modified file."""
-        from chronos.context.indexer import index_file
+        from chronos.context.indexer import extract_file_ast
+        from chronos.context.linker import CrossFileLinker
         t = _normalize_iso(valid_at)
         p = Path(file_path).resolve()
         norm_path = p.as_posix()
@@ -254,14 +260,26 @@ class SQLiteGraphStore(GraphStore):
             (t, pattern, norm_path),
         )
 
-        # 2. Extract new nodes and edges from disk
-        nodes, edges = index_file(p, valid_at=t)
+        # 2. Extract new nodes, edges, and imports from disk
+        nodes, edges, imports = extract_file_ast(p, valid_at=t)
 
-        # 3. Upsert nodes and insert new edges with valid_at = t
-        if nodes or edges:
-            self.ingest(nodes, edges)
+        # 3. Disambiguate cross-file edges against the graph store
+        curr = p.parent
+        repo_root = curr
+        while curr != curr.parent:
+            if (curr / ".git").is_dir() or (curr / ".chronos").is_dir() or (curr / "pyproject.toml").is_file():
+                repo_root = curr
+                break
+            curr = curr.parent
 
-        return len(nodes), len(edges)
+        linker = CrossFileLinker(repo_root)
+        linked_nodes, linked_edges = linker.link_file(p, nodes, edges, imports, graph_store=self, valid_at=t)
+
+        # 4. Upsert nodes and insert new edges with valid_at = t
+        if linked_nodes or linked_edges:
+            self.ingest(linked_nodes, linked_edges)
+
+        return len(linked_nodes), len(linked_edges)
 
 def create_graph_store(con: sqlite3.Connection, backend: str = "sqlite", kuzu_dir: str | Path | None = None) -> GraphStore:
     """Factory creating the appropriate GraphStore with portability fallback."""

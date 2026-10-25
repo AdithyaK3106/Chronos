@@ -7,7 +7,15 @@ from .exceptions import (
     LockConflictError,
     LockOwnershipError,
 )
-from .models import ASTNode, ASTEdge, LockInfo, ProvenanceEvent, AuditEvent, PermissionManifest
+from .models import (
+    ASTNode,
+    ASTEdge,
+    ImportBinding,
+    LockInfo,
+    ProvenanceEvent,
+    AuditEvent,
+    PermissionManifest,
+)
 from .config import ChronosConfig
 from .db import get_connection
 
@@ -20,6 +28,7 @@ __all__ = [
     "LockOwnershipError",
     "ASTNode",
     "ASTEdge",
+    "ImportBinding",
     "LockInfo",
     "ProvenanceEvent",
     "AuditEvent",

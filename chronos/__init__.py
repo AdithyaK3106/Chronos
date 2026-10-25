@@ -12,7 +12,8 @@ __version__ = "0.2.0"
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
 from chronos.context.graph import GraphStore, SQLiteGraphStore, create_graph_store
-from chronos.context.indexer import index_repository, index_file
+from chronos.context.indexer import index_repository, index_file, extract_file_ast
+from chronos.context.linker import CrossFileLinker
 from chronos.context.budgeter import assemble_context, estimate_tokens
 from chronos.context.resolver import (
     DeterministicContextResolver,

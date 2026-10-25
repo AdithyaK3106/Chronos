@@ -23,6 +23,14 @@ class ASTEdge(BaseModel):
     valid_at: str
     invalid_at: str | None = None
 
+class ImportBinding(BaseModel):
+    source_file: str
+    source_module: str
+    imported_symbol: str
+    local_alias: str
+    is_type_only: bool = False
+    line_number: int = 1
+
 class LockInfo(BaseModel):
     node_id: str
     agent_id: str

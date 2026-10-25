@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from chronos.core.models import ASTEdge, ASTNode, utc_now_iso
+from chronos.core.models import ASTEdge, ASTNode, ImportBinding, utc_now_iso
 
 SUPPORTED_EXTENSIONS: set[str] = {
     ".py",
@@ -208,6 +208,7 @@ class PythonASTExtractor(ast.NodeVisitor):
         self.file_path = Path(file_path).as_posix()
         self.nodes: list[ASTNode] = []
         self.edges: list[ASTEdge] = []
+        self.imports: list[ImportBinding] = []
         self._scope_stack: list[str] = []
         self._current_function: str | None = None
 
@@ -281,7 +282,11 @@ class PythonASTExtractor(ast.NodeVisitor):
             if isinstance(node.func, ast.Name):
                 callee_name = node.func.id
             elif isinstance(node.func, ast.Attribute):
-                callee_name = node.func.attr
+                imported_aliases = {imp.local_alias for imp in self.imports}
+                if isinstance(node.func.value, ast.Name) and node.func.value.id in imported_aliases:
+                    callee_name = f"{node.func.value.id}.{node.func.attr}"
+                else:
+                    callee_name = node.func.attr
             
             if callee_name:
                 self.edges.append(
@@ -292,6 +297,38 @@ class PythonASTExtractor(ast.NodeVisitor):
                         valid_at=utc_now_iso(),
                     )
                 )
+        self.generic_visit(node)
+
+    def visit_Import(self, node: ast.Import):
+        for a in node.names:
+            alias = a.asname or a.name
+            self.imports.append(
+                ImportBinding(
+                    source_file=self.file_path,
+                    source_module=a.name,
+                    imported_symbol="*",
+                    local_alias=alias,
+                    line_number=node.lineno,
+                )
+            )
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        mod = node.module or ""
+        if node.level > 0:
+            dots = "." * node.level
+            mod = f"{dots}{mod}" if mod else dots
+        for a in node.names:
+            alias = a.asname or a.name
+            self.imports.append(
+                ImportBinding(
+                    source_file=self.file_path,
+                    source_module=mod,
+                    imported_symbol=a.name,
+                    local_alias=alias,
+                    line_number=node.lineno,
+                )
+            )
         self.generic_visit(node)
 
 
@@ -306,6 +343,7 @@ class TreeSitterExtractor:
         self.timestamp = valid_at or utc_now_iso()
         self.nodes: list[ASTNode] = []
         self.edges: list[ASTEdge] = []
+        self.imports: list[ImportBinding] = []
         self._scope_stack: list[str] = []
         self._current_function: str | None = None
 
@@ -322,7 +360,65 @@ class TreeSitterExtractor:
     def _visit_ts_js(self, node: Any):
         t = node.type
 
-        if t == "class_declaration":
+        if t == "import_statement":
+            src_node = node.child_by_field_name("source")
+            src_mod = src_node.text.decode("utf-8").strip("'\"") if src_node else ""
+            is_type = any(child.type == "type" for child in node.children)
+            clauses = [c for c in node.children if c.type == "import_clause"]
+            if not clauses:
+                self.imports.append(
+                    ImportBinding(
+                        source_file=self.file_path,
+                        source_module=src_mod,
+                        imported_symbol="",
+                        local_alias="",
+                        is_type_only=is_type,
+                    )
+                )
+            else:
+                for child in clauses[0].children:
+                    if child.type == "identifier":
+                        self.imports.append(
+                            ImportBinding(
+                                source_file=self.file_path,
+                                source_module=src_mod,
+                                imported_symbol="default",
+                                local_alias=child.text.decode("utf-8"),
+                                is_type_only=is_type,
+                            )
+                        )
+                    elif child.type == "namespace_import":
+                        id_nodes = [sub for sub in child.children if sub.type == "identifier"]
+                        alias = id_nodes[0].text.decode("utf-8") if id_nodes else "*"
+                        self.imports.append(
+                            ImportBinding(
+                                source_file=self.file_path,
+                                source_module=src_mod,
+                                imported_symbol="*",
+                                local_alias=alias,
+                                is_type_only=is_type,
+                            )
+                        )
+                    elif child.type == "named_imports":
+                        for spec in child.children:
+                            if spec.type == "import_specifier":
+                                name_node = spec.child_by_field_name("name")
+                                alias_node = spec.child_by_field_name("alias")
+                                orig = name_node.text.decode("utf-8") if name_node else ""
+                                alias = alias_node.text.decode("utf-8") if alias_node else orig
+                                spec_is_type = is_type or any(s.type == "type" for s in spec.children)
+                                self.imports.append(
+                                    ImportBinding(
+                                        source_file=self.file_path,
+                                        source_module=src_mod,
+                                        imported_symbol=orig,
+                                        local_alias=alias,
+                                        is_type_only=spec_is_type,
+                                    )
+                                )
+            return
+
+        elif t == "class_declaration":
             name_node = node.child_by_field_name("name")
             if name_node:
                 name = name_node.text.decode("utf-8")
@@ -527,6 +623,35 @@ class TreeSitterExtractor:
                         self._visit_ts_js(body)
                 self._current_function = prev_fn
                 return
+            elif val_node and val_node.type == "call_expression":
+                fn_node = val_node.child_by_field_name("function")
+                if fn_node and fn_node.text.decode("utf-8") == "require":
+                    args = val_node.child_by_field_name("arguments")
+                    if args and len(args.children) >= 2:
+                        raw_mod = args.children[1].text.decode("utf-8").strip("'\"")
+                        name_node = node.child_by_field_name("name")
+                        if name_node:
+                            if name_node.type == "identifier":
+                                self.imports.append(
+                                    ImportBinding(
+                                        source_file=self.file_path,
+                                        source_module=raw_mod,
+                                        imported_symbol="*",
+                                        local_alias=name_node.text.decode("utf-8"),
+                                    )
+                                )
+                            elif name_node.type == "object_pattern":
+                                for prop in name_node.children:
+                                    if prop.type in ("shorthand_property_identifier_pattern", "property_identifier"):
+                                        sym = prop.text.decode("utf-8")
+                                        self.imports.append(
+                                            ImportBinding(
+                                                source_file=self.file_path,
+                                                source_module=raw_mod,
+                                                imported_symbol=sym,
+                                                local_alias=sym,
+                                            )
+                                        )
 
         elif t == "call_expression":
             if self._current_function is not None:
@@ -536,8 +661,17 @@ class TreeSitterExtractor:
                     if fn_node.type == "identifier":
                         callee = fn_node.text.decode("utf-8")
                     elif fn_node.type == "member_expression":
+                        obj = fn_node.child_by_field_name("object")
                         prop = fn_node.child_by_field_name("property")
-                        callee = prop.text.decode("utf-8") if prop else fn_node.text.decode("utf-8")
+                        if obj and prop:
+                            obj_text = obj.text.decode("utf-8")
+                            prop_text = prop.text.decode("utf-8")
+                            imported_aliases = {imp.local_alias for imp in self.imports}
+                            callee = f"{obj_text}.{prop_text}" if obj_text in imported_aliases else prop_text
+                        elif prop:
+                            callee = prop.text.decode("utf-8")
+                        else:
+                            callee = fn_node.text.decode("utf-8")
                 if callee:
                     self.edges.append(
                         ASTEdge(
@@ -554,7 +688,34 @@ class TreeSitterExtractor:
     def _visit_go(self, node: Any):
         t = node.type
 
-        if t == "type_declaration":
+        if t == "import_declaration":
+            specs = []
+            for child in node.children:
+                if child.type == "import_spec_list":
+                    specs.extend([s for s in child.children if s.type == "import_spec"])
+                elif child.type == "import_spec":
+                    specs.append(child)
+            for spec in specs:
+                p_node = spec.child_by_field_name("path")
+                n_node = spec.child_by_field_name("name")
+                if not p_node:
+                    continue
+                path_s = p_node.text.decode("utf-8").strip('"')
+                if n_node:
+                    alias = n_node.text.decode("utf-8")
+                else:
+                    alias = path_s.split("/")[-1]
+                self.imports.append(
+                    ImportBinding(
+                        source_file=self.file_path,
+                        source_module=path_s,
+                        imported_symbol="*",
+                        local_alias=alias,
+                    )
+                )
+            return
+
+        elif t == "type_declaration":
             for spec in node.children:
                 if spec.type == "type_spec":
                     name_node = spec.child_by_field_name("name")
@@ -710,8 +871,17 @@ class TreeSitterExtractor:
                     if fn_node.type == "identifier":
                         callee = fn_node.text.decode("utf-8")
                     elif fn_node.type == "selector_expression":
+                        op = fn_node.child_by_field_name("operand")
                         field_node = fn_node.child_by_field_name("field")
-                        callee = field_node.text.decode("utf-8") if field_node else fn_node.text.decode("utf-8")
+                        if op and field_node:
+                            op_text = op.text.decode("utf-8")
+                            field_text = field_node.text.decode("utf-8")
+                            imported_aliases = {imp.local_alias for imp in self.imports}
+                            callee = f"{op_text}.{field_text}" if op_text in imported_aliases else field_text
+                        elif field_node:
+                            callee = field_node.text.decode("utf-8")
+                        else:
+                            callee = fn_node.text.decode("utf-8")
                 if callee:
                     self.edges.append(
                         ASTEdge(
@@ -728,7 +898,69 @@ class TreeSitterExtractor:
     def _visit_python(self, node: Any):
         t = node.type
 
-        if t == "class_definition":
+        if t == "import_statement":
+            for child in node.children:
+                if child.type == "dotted_name":
+                    mod_name = child.text.decode("utf-8")
+                    self.imports.append(
+                        ImportBinding(
+                            source_file=self.file_path,
+                            source_module=mod_name,
+                            imported_symbol="*",
+                            local_alias=mod_name.split(".")[-1],
+                        )
+                    )
+                elif child.type == "aliased_import":
+                    name_node = child.child_by_field_name("name")
+                    alias_node = child.child_by_field_name("alias")
+                    orig = name_node.text.decode("utf-8") if name_node else ""
+                    alias = alias_node.text.decode("utf-8") if alias_node else orig
+                    self.imports.append(
+                        ImportBinding(
+                            source_file=self.file_path,
+                            source_module=orig,
+                            imported_symbol="*",
+                            local_alias=alias,
+                        )
+                    )
+            return
+
+        elif t == "import_from_statement":
+            mod_node = node.child_by_field_name("module_name")
+            mod_name = mod_node.text.decode("utf-8") if mod_node else ""
+            dots = ""
+            for child in node.children:
+                if child.type == "relative_import":
+                    dots = child.text.decode("utf-8")
+                    break
+            full_mod = f"{dots}{mod_name}" if dots else mod_name
+            for child in node.children:
+                if child.type == "dotted_name" and child != mod_node:
+                    sym = child.text.decode("utf-8")
+                    self.imports.append(
+                        ImportBinding(
+                            source_file=self.file_path,
+                            source_module=full_mod,
+                            imported_symbol=sym,
+                            local_alias=sym,
+                        )
+                    )
+                elif child.type == "aliased_import":
+                    name_node = child.child_by_field_name("name")
+                    alias_node = child.child_by_field_name("alias")
+                    orig = name_node.text.decode("utf-8") if name_node else ""
+                    alias = alias_node.text.decode("utf-8") if alias_node else orig
+                    self.imports.append(
+                        ImportBinding(
+                            source_file=self.file_path,
+                            source_module=full_mod,
+                            imported_symbol=orig,
+                            local_alias=alias,
+                        )
+                    )
+            return
+
+        elif t == "class_definition":
             name_node = node.child_by_field_name("name")
             if name_node:
                 name = name_node.text.decode("utf-8")
@@ -827,20 +1059,22 @@ class TreeSitterExtractor:
 
 # --- Public Indexing API ---
 
-def index_file(file_path: str | Path, valid_at: str | None = None) -> tuple[list[ASTNode], list[ASTEdge]]:
-    """Parse and extract AST nodes and relation edges from a polyglot source file."""
+def extract_file_ast(
+    file_path: str | Path, valid_at: str | None = None
+) -> tuple[list[ASTNode], list[ASTEdge], list[ImportBinding]]:
+    """Parse and extract AST nodes, relation edges, and import bindings from a polyglot source file."""
     path = Path(file_path).resolve()
     if not path.is_file():
-        return [], []
+        return [], [], []
 
     posix_path = path.as_posix()
     timestamp = valid_at or utc_now_iso()
     suffix = path.suffix.lower()
 
     if suffix not in SUPPORTED_EXTENSIONS:
-        return [], []
+        return [], [], []
 
-    # 1. Native Python AST parser (fast, zero external dependency)
+    # 1. Native Python AST parser (fast path)
     if suffix in (".py", ".pyi"):
         try:
             content = path.read_text(encoding="utf-8")
@@ -849,12 +1083,11 @@ def index_file(file_path: str | Path, valid_at: str | None = None) -> tuple[list
             extractor.visit(tree)
             for e in extractor.edges:
                 e.valid_at = timestamp
-            return extractor.nodes, extractor.edges
+            return extractor.nodes, extractor.edges, extractor.imports
         except Exception:
-            # Fall through to Tree-Sitter fallback if Python AST fails
             pass
 
-    # 2. Tree-Sitter polyglot parser (TypeScript, TSX, JavaScript, Go, Python fallback)
+    # 2. Tree-Sitter polyglot parser
     lang_key = EXTENSION_TO_LANGUAGE.get(suffix)
     if lang_key and _check_tree_sitter():
         parser = get_tree_sitter_parser(lang_key)
@@ -863,17 +1096,28 @@ def index_file(file_path: str | Path, valid_at: str | None = None) -> tuple[list
                 content_bytes = path.read_bytes()
                 tree = parser.parse(content_bytes)
                 ts_extractor = TreeSitterExtractor(posix_path, lang_key, valid_at=timestamp)
-                return ts_extractor.extract(tree.root_node)
+                nodes, edges = ts_extractor.extract(tree.root_node)
+                return nodes, edges, ts_extractor.imports
             except Exception:
-                return [], []
+                return [], [], []
 
-    return [], []
+    return [], [], []
+
+def index_file(file_path: str | Path, valid_at: str | None = None) -> tuple[list[ASTNode], list[ASTEdge]]:
+    """Parse and extract AST nodes and relation edges from a polyglot source file."""
+    nodes, edges, _ = extract_file_ast(file_path, valid_at=valid_at)
+    return nodes, edges
 
 def index_repository(repo_path: str | Path, valid_at: str | None = None) -> tuple[list[ASTNode], list[ASTEdge]]:
-    """Index an entire repository walking valid polyglot source files, pruning noise directories."""
+    """Index an entire repository walking valid polyglot source files, pruning noise directories,
+    and running cross-file import linking to resolve and disambiguate call hierarchies.
+    """
+    from chronos.context.linker import CrossFileLinker
+
     root = Path(repo_path).resolve()
     all_nodes: list[ASTNode] = []
     all_edges: list[ASTEdge] = []
+    all_imports: list[ImportBinding] = []
     timestamp = valid_at or utc_now_iso()
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -884,8 +1128,10 @@ def index_repository(repo_path: str | Path, valid_at: str | None = None) -> tupl
             ext = os.path.splitext(fname)[1].lower()
             if ext in SUPPORTED_EXTENSIONS:
                 fpath = Path(dirpath) / fname
-                nodes, edges = index_file(fpath, valid_at=timestamp)
+                nodes, edges, imports = extract_file_ast(fpath, valid_at=timestamp)
                 all_nodes.extend(nodes)
                 all_edges.extend(edges)
+                all_imports.extend(imports)
 
-    return all_nodes, all_edges
+    linker = CrossFileLinker(root)
+    return linker.link_repository(all_nodes, all_edges, all_imports, valid_at=timestamp)

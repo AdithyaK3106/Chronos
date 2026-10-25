@@ -1,0 +1,93 @@
+diff --git a/src/features.py b/src/features.py
+index b608b0e..07017b1 100644
+--- a/src/features.py
++++ b/src/features.py
+@@ -36,6 +36,32 @@ def validate_raw_input(raw_point: dict) -> None:
+ # FEATURE PROCESSOR (Single Source of Truth)
+ # =============================================================================
+ 
++class WindowFeatureExtractor:
++    """
++    Reusable stateful extractor for rolling window feature aggregations.
++    """
++    def __init__(self, windows: List[int] = [5, 10], maxlen: int = 10):
++        self.windows = windows
++        self.maxlen = maxlen
++        self.buffers: Dict[str, deque] = {}
++
++    def reset(self):
++        for buf in self.buffers.values():
++            buf.clear()
++
++    def update(self, key: str, value: float):
++        if key not in self.buffers:
++            self.buffers[key] = deque(maxlen=self.maxlen)
++        self.buffers[key].append(value)
++
++    def get_rolling_mean(self, key: str, window: int) -> float:
++        buf = self.buffers.get(key)
++        if not buf:
++            return 0.0
++        vals = list(buf)[-window:]
++        return sum(vals) / len(vals)
++
++
+ class FeatureProcessor:
+     """
+     Production-grade stateful feature engineering engine.
+@@ -54,10 +80,8 @@ class FeatureProcessor:
+             'max_net_log': 1.0
+         }
+         
+-        # Stateful buffers for rolling windows and deltas
+-        self._buffer_cpu = deque(maxlen=10)
+-        self._buffer_gpu = deque(maxlen=10)
+-        self._buffer_heat = deque(maxlen=10)
++        # Stateful extractor for rolling windows and delta tracking
++        self.window_extractor = WindowFeatureExtractor(windows=[5, 10], maxlen=10)
+         
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+@@ -67,9 +91,7 @@ class FeatureProcessor:
+ 
+     def reset_state(self):
+         """Reset stateful buffers."""
+-        self._buffer_cpu.clear()
+-        self._buffer_gpu.clear()
+-        self._buffer_heat.clear()
++        self.window_extractor.reset()
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+         self._prev_heat = 0.0
+@@ -127,22 +149,18 @@ class FeatureProcessor:
+         heat_n = np.clip((cpu_n * 0.6) + (gpu_n * 0.4), 0.0, 1.0)
+         
+         # Update buffers
+-        self._buffer_cpu.append(cpu_n)
+-        self._buffer_gpu.append(gpu_n)
+-        self._buffer_heat.append(heat_n)
++        self.window_extractor.update('cpu', cpu_n)
++        self.window_extractor.update('gpu', gpu_n)
++        self.window_extractor.update('heat', heat_n)
+         
+         # 4. Rolling Windows [6-11]
+-        def get_roll(buffer, window):
+-            vals = list(buffer)[-window:]
+-            return sum(vals) / len(vals)
+-            
+-        cpu_roll_5 = get_roll(self._buffer_cpu, 5)
+-        gpu_roll_5 = get_roll(self._buffer_gpu, 5)
+-        heat_roll_5 = get_roll(self._buffer_heat, 5)
++        cpu_roll_5 = self.window_extractor.get_rolling_mean('cpu', 5)
++        gpu_roll_5 = self.window_extractor.get_rolling_mean('gpu', 5)
++        heat_roll_5 = self.window_extractor.get_rolling_mean('heat', 5)
+         
+-        cpu_roll_10 = get_roll(self._buffer_cpu, 10)
+-        gpu_roll_10 = get_roll(self._buffer_gpu, 10)
+-        heat_roll_10 = get_roll(self._buffer_heat, 10)
++        cpu_roll_10 = self.window_extractor.get_rolling_mean('cpu', 10)
++        gpu_roll_10 = self.window_extractor.get_rolling_mean('gpu', 10)
++        heat_roll_10 = self.window_extractor.get_rolling_mean('heat', 10)
+         
+         # 5. Deltas [12-14]
+         # On first sample, delta is 0

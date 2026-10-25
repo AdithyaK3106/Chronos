@@ -1,0 +1,32 @@
+{
+  "timestamp": "20261025_173753",
+  "model_name": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "efficacy_metrics": {
+    "suite": "efficacy",
+    "total_tasks": 1,
+    "total_paired_runs": 1,
+    "baseline_success_count": 1,
+    "treatment_success_count": 1,
+    "baseline_success_rate": 1.0,
+    "treatment_success_rate": 1.0,
+    "delta_success_rate": 0.0,
+    "mcnemar_p_value": 1.0,
+    "bootstrap_ci_95": [
+      0.0,
+      0.0
+    ],
+    "median_duration_baseline_sec": 78.44,
+    "median_duration_treatment_sec": 28.8,
+    "duration_delta_sec": -49.64,
+    "mean_token_usage_baseline": 72792.0,
+    "mean_token_usage_treatment": 19741.0,
+    "token_reduction_pct": 72.88,
+    "security_attempted": 0,
+    "security_blocked_pre_execution": 0,
+    "security_breaches_baseline": 0,
+    "security_breaches_treatment": 0
+  },
+  "security_metrics": null,
+  "trials_count": 1
+}

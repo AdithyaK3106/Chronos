@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS agent_permissions (
     updated_at           TEXT NOT NULL
 );
 
+-- Gate Approvals (F5 Sensitive Module Access Grants)
+CREATE TABLE IF NOT EXISTS gate_approvals (
+    agent_id             TEXT NOT NULL,
+    path_pattern         TEXT NOT NULL,
+    approved_by          TEXT NOT NULL DEFAULT 'admin',
+    created_at           TEXT NOT NULL,
+    expires_at           TEXT,
+    PRIMARY KEY (agent_id, path_pattern)
+);
+
 -- Enforcement Rules (Wedge 4)
 CREATE TABLE IF NOT EXISTS enforcement_rules (
     rule_id              TEXT PRIMARY KEY,

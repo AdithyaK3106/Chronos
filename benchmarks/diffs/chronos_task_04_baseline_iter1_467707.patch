@@ -1,0 +1,40 @@
+diff --git a/chronos/verification/rule_store.py b/chronos/verification/rule_store.py
+index fb6d343..a2cc9a2 100644
+--- a/chronos/verification/rule_store.py
++++ b/chronos/verification/rule_store.py
+@@ -63,3 +63,35 @@ def list_rules(con: sqlite3.Connection, status: str | None = None) -> list[dict[
+ 
+ def get_active_blocking_rules(con: sqlite3.Connection) -> list[dict[str, Any]]:
+     return list_rules(con, status=BLOCKING)
++
++def export_active_rules_json_schema(con: sqlite3.Connection) -> dict[str, Any]:
++    """Export active blocking rules as a JSON Schema representation."""
++    active_rules = get_active_blocking_rules(con)
++    return {
++        "$schema": "https://json-schema.org/draft/2020-12/schema",
++        "title": "ActiveEnforcementRules",
++        "type": "object",
++        "properties": {
++            "rules": {
++                "type": "array",
++                "items": {
++                    "type": "object",
++                    "properties": {
++                        "rule_id": {"type": "string"},
++                        "language": {"type": "string"},
++                        "rule_text": {"type": "string"},
++                        "yaml_pattern": {"type": ["string", "null"]},
++                        "status": {"type": "string", "enum": [BLOCKING]},
++                        "detectability_passed": {"type": "integer"},
++                        "created_at": {"type": "string"},
++                        "promoted_at": {"type": ["string", "null"]},
++                        "promoted_by": {"type": ["string", "null"]},
++                    },
++                    "required": ["rule_id", "language", "rule_text", "status"],
++                },
++            }
++        },
++        "required": ["rules"],
++        "rules": active_rules,
++    }
++

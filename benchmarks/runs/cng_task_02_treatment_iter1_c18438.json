@@ -1,0 +1,29 @@
+{
+  "run_id": "cng_task_02_treatment_iter1_c18438",
+  "task_id": "cng_task_02",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 60.24678659439087,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 48945,
+    "completion_tokens": 519,
+    "total_tokens": 49464,
+    "cost_usd": null
+  },
+  "tool_calls_count": 5,
+  "tool_call_types": {
+    "file_editor": 3,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/backend/src/app/services/verification_service.py b/backend/src/app/services/verification_service.py\nindex 75366c7..565ec0d 100644\n--- a/backend/src/app/services/verification_service.py\n+++ b/backend/src/app/services/verification_service.py\n@@ -108,11 +108,15 @@ class VerificationService:\n             return result\n \n         now = datetime.now(UTC)\n+        expires_at = record.expires_at\n+        if expires_at is not None and expires_at.tzinfo is None:\n+            expires_at = expires_at.replace(tzinfo=UTC)\n+\n         if record.is_valid is False:\n             status = ComplianceStatus.INVALID\n-        elif record.expires_at and record.expires_at < now:\n+        elif expires_at and expires_at < now:\n             status = ComplianceStatus.EXPIRED\n-        elif record.expires_at and (record.expires_at - now).days <= 30:\n+        elif expires_at and (expires_at - now).days <= 30:\n             status = ComplianceStatus.EXPIRING_SOON\n         else:\n             status = ComplianceStatus.VALID\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T14:00:37.023282+00:00"
+}

@@ -13,6 +13,7 @@ from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
+from chronos.security.gates import grant_gate_approval
 from chronos.security.permissions import set_permissions
 from runtime.openhands_adapter import ChronosAgentRuntime
 
@@ -73,6 +74,7 @@ def test_runnable_vertical_slice(tmp_path):
             "allowed_tools": ["file_editor"],
         },
     )
+    grant_gate_approval(con, agent_id=agent_id, path_pattern="src/auth.py", approved_by="admin")
 
     # 5. Create OpenHands Agent with TestLLM (zero paid API keys required)
     test_llm = TestLLM.from_messages([

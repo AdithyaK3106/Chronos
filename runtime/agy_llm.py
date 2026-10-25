@@ -6,6 +6,7 @@ by leveraging your active authenticated AGY session (Gemini 3.8 Flash, Claude 4.
 
 import json
 import subprocess
+import uuid
 from typing import Any, Sequence
 from litellm import Choices, Message as LiteMessage, ModelResponse, Usage
 from pydantic import ConfigDict, Field
@@ -20,6 +21,7 @@ class AgyLLM(LLM):
 
     model: str = Field(default="gemini-3.8-flash-high")
     agy_binary: str = Field(default="agy")
+    tool_call_types: dict[str, int] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
@@ -41,9 +43,6 @@ class AgyLLM(LLM):
         for m in recent_messages:
             role = m.role.upper()
             text = "".join(getattr(c, "text", "") for c in m.content)
-            # Condense verbose OpenHands system prompts down to essential role
-            if role == "SYSTEM" and len(text) > 400:
-                text = "You are an autonomous AI coding assistant. Solve the user's task accurately using available tools."
             prompt_parts.append(f"[{role}]: {text}")
 
         if tools:
@@ -81,27 +80,31 @@ class AgyLLM(LLM):
         tool_calls = []
         if "TOOL_CALL:" in response_text:
             try:
-                call_json_str = response_text.split("TOOL_CALL:", 1)[1].strip()
-                # If wrapped in markdown code fence, strip it
-                if call_json_str.startswith("```"):
-                    call_json_str = call_json_str.split("```")[1]
-                    if call_json_str.startswith("json"):
-                        call_json_str = call_json_str[4:]
-                    call_json_str = call_json_str.strip()
-                call_dict = json.loads(call_json_str)
-                name = call_dict.get("name", "tool")
-                if not hasattr(self, "tool_call_types") or self.tool_call_types is None:
-                    self.tool_call_types = {}
-                self.tool_call_types[name] = self.tool_call_types.get(name, 0) + 1
+                call_part = response_text.split("TOOL_CALL:", 1)[1].strip()
+                # Find first JSON object
+                call_dict = None
+                for i, ch in enumerate(call_part):
+                    if ch != "{":
+                        continue
+                    try:
+                        obj, _ = json.JSONDecoder().raw_decode(call_part[i:])
+                        if isinstance(obj, dict):
+                            call_dict = obj
+                            break
+                    except Exception:
+                        continue
 
-                tool_calls.append(
-                    MessageToolCall(
-                        id=f"call_agy_{uuid.uuid4().hex[:6]}",
-                        name=name,
-                        arguments=json.dumps(call_dict.get("arguments", {})),
-                        origin="completion",
+                if call_dict:
+                    name = call_dict.get("name", "tool")
+                    self.tool_call_types[name] = self.tool_call_types.get(name, 0) + 1
+                    tool_calls.append(
+                        MessageToolCall(
+                            id=f"call_agy_{uuid.uuid4().hex[:6]}",
+                            name=name,
+                            arguments=json.dumps(call_dict.get("arguments", {})),
+                            origin="completion",
+                        )
                     )
-                )
             except Exception:
                 pass
 

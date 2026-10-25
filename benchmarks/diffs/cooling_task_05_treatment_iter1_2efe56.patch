@@ -1,0 +1,107 @@
+diff --git a/.chronos/chronos.db b/.chronos/chronos.db
+index baa047f..8385d65 100644
+Binary files a/.chronos/chronos.db and b/.chronos/chronos.db differ
+diff --git a/src/features.py b/src/features.py
+index b608b0e..283700d 100644
+--- a/src/features.py
++++ b/src/features.py
+@@ -36,6 +36,42 @@ def validate_raw_input(raw_point: dict) -> None:
+ # FEATURE PROCESSOR (Single Source of Truth)
+ # =============================================================================
+ 
++class WindowFeatureExtractor:
++    """
++    Reusable extractor for rolling window aggregate features.
++    """
++    def __init__(self, maxlen: int = 10):
++        self.maxlen = maxlen
++        self._buffer_cpu = deque(maxlen=maxlen)
++        self._buffer_gpu = deque(maxlen=maxlen)
++        self._buffer_heat = deque(maxlen=maxlen)
++
++    def reset_state(self):
++        self._buffer_cpu.clear()
++        self._buffer_gpu.clear()
++        self._buffer_heat.clear()
++
++    def update(self, cpu_n: float, gpu_n: float, heat_n: float):
++        self._buffer_cpu.append(cpu_n)
++        self._buffer_gpu.append(gpu_n)
++        self._buffer_heat.append(heat_n)
++
++    @staticmethod
++    def _get_roll(buffer: deque, window: int) -> float:
++        vals = list(buffer)[-window:]
++        return sum(vals) / len(vals) if vals else 0.0
++
++    def extract_features(self) -> Dict[str, float]:
++        return {
++            'cpu_roll_5': self._get_roll(self._buffer_cpu, 5),
++            'gpu_roll_5': self._get_roll(self._buffer_gpu, 5),
++            'heat_roll_5': self._get_roll(self._buffer_heat, 5),
++            'cpu_roll_10': self._get_roll(self._buffer_cpu, 10),
++            'gpu_roll_10': self._get_roll(self._buffer_gpu, 10),
++            'heat_roll_10': self._get_roll(self._buffer_heat, 10),
++        }
++
++
+ class FeatureProcessor:
+     """
+     Production-grade stateful feature engineering engine.
+@@ -54,10 +90,8 @@ class FeatureProcessor:
+             'max_net_log': 1.0
+         }
+         
+-        # Stateful buffers for rolling windows and deltas
+-        self._buffer_cpu = deque(maxlen=10)
+-        self._buffer_gpu = deque(maxlen=10)
+-        self._buffer_heat = deque(maxlen=10)
++        # Reusable rolling window extractor
++        self.window_extractor = WindowFeatureExtractor(maxlen=10)
+         
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+@@ -67,9 +101,7 @@ class FeatureProcessor:
+ 
+     def reset_state(self):
+         """Reset stateful buffers."""
+-        self._buffer_cpu.clear()
+-        self._buffer_gpu.clear()
+-        self._buffer_heat.clear()
++        self.window_extractor.reset_state()
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+         self._prev_heat = 0.0
+@@ -126,23 +158,17 @@ class FeatureProcessor:
+         # 3. Heat Proxy [5]
+         heat_n = np.clip((cpu_n * 0.6) + (gpu_n * 0.4), 0.0, 1.0)
+         
+-        # Update buffers
+-        self._buffer_cpu.append(cpu_n)
+-        self._buffer_gpu.append(gpu_n)
+-        self._buffer_heat.append(heat_n)
++        # Update buffers and extract rolling window features [6-11]
++        self.window_extractor.update(cpu_n, gpu_n, heat_n)
++        win_feats = self.window_extractor.extract_features()
+         
+-        # 4. Rolling Windows [6-11]
+-        def get_roll(buffer, window):
+-            vals = list(buffer)[-window:]
+-            return sum(vals) / len(vals)
+-            
+-        cpu_roll_5 = get_roll(self._buffer_cpu, 5)
+-        gpu_roll_5 = get_roll(self._buffer_gpu, 5)
+-        heat_roll_5 = get_roll(self._buffer_heat, 5)
++        cpu_roll_5 = win_feats['cpu_roll_5']
++        gpu_roll_5 = win_feats['gpu_roll_5']
++        heat_roll_5 = win_feats['heat_roll_5']
+         
+-        cpu_roll_10 = get_roll(self._buffer_cpu, 10)
+-        gpu_roll_10 = get_roll(self._buffer_gpu, 10)
+-        heat_roll_10 = get_roll(self._buffer_heat, 10)
++        cpu_roll_10 = win_feats['cpu_roll_10']
++        gpu_roll_10 = win_feats['gpu_roll_10']
++        heat_roll_10 = win_feats['heat_roll_10']
+         
+         # 5. Deltas [12-14]
+         # On first sample, delta is 0

@@ -1,0 +1,111 @@
+diff --git a/backend/src/cng_compliance_backend.egg-info/PKG-INFO b/backend/src/cng_compliance_backend.egg-info/PKG-INFO
+index e2386b8..4a4f433 100644
+--- a/backend/src/cng_compliance_backend.egg-info/PKG-INFO
++++ b/backend/src/cng_compliance_backend.egg-info/PKG-INFO
+@@ -7,13 +7,21 @@ Requires-Dist: uvicorn[standard]<1.0,>=0.35
+ Requires-Dist: pydantic<3.0,>=2.11
+ Requires-Dist: pydantic-settings<3.0,>=2.10
+ Requires-Dist: structlog<26.0,>=25.4
+-Requires-Dist: sqlalchemy<3.0,>=2.0
++Requires-Dist: sqlalchemy[asyncio]<3.0,>=2.0
++Requires-Dist: greenlet>=3.0.0
+ Requires-Dist: alembic<2.0,>=1.13
+ Requires-Dist: asyncpg<1.0,>=0.29
+ Requires-Dist: aiosqlite<1.0,>=0.20
+ Requires-Dist: pillow<12.0,>=10.0
+ Requires-Dist: python-multipart<1.0,>=0.0.9
+ Requires-Dist: numpy<3.0,>=1.26
++Requires-Dist: prometheus-client<1.0,>=0.20
++Requires-Dist: opentelemetry-api<2.0,>=1.20
++Requires-Dist: opentelemetry-sdk<2.0,>=1.20
++Requires-Dist: pyjwt[crypto]<3.0,>=2.8.0
++Requires-Dist: opencv-python-headless<5.0,>=4.8
++Requires-Dist: ultralytics<9.0,>=8.0
++Requires-Dist: easyocr>=1.7.0
+ Provides-Extra: dev
+ Requires-Dist: pytest<9.0,>=8.4; extra == "dev"
+ Requires-Dist: pytest-asyncio<2.0,>=1.1; extra == "dev"
+diff --git a/backend/src/cng_compliance_backend.egg-info/SOURCES.txt b/backend/src/cng_compliance_backend.egg-info/SOURCES.txt
+index 9213d8a..f1828b4 100644
+--- a/backend/src/cng_compliance_backend.egg-info/SOURCES.txt
++++ b/backend/src/cng_compliance_backend.egg-info/SOURCES.txt
+@@ -6,22 +6,35 @@ src/app/adapters/__init__.py
+ src/app/adapters/mock_compliance_provider.py
+ src/app/adapters/db/idempotency_store_db.py
+ src/app/adapters/db/models.py
++src/app/adapters/db/system_config_repository_db.py
+ src/app/adapters/db/verification_repository_db.py
++src/app/adapters/ocr/paddle_ocr_adapter.py
++src/app/adapters/ocr/preprocessor.py
++src/app/adapters/plate_detection/__init__.py
++src/app/adapters/plate_detection/yolo_plate_detector.py
+ src/app/api/__init__.py
+ src/app/api/routes/__init__.py
++src/app/api/routes/config.py
+ src/app/api/routes/health.py
++src/app/api/routes/ocr.py
++src/app/api/routes/supervisor.py
+ src/app/api/routes/verification.py
+ src/app/core/__init__.py
++src/app/core/auth.py
+ src/app/core/config.py
+ src/app/core/database.py
+ src/app/core/logging.py
++src/app/core/metrics.py
++src/app/core/telemetry.py
+ src/app/domain/__init__.py
+ src/app/domain/exceptions.py
+ src/app/domain/models.py
++src/app/domain/registration_normalizer.py
+ src/app/ports/__init__.py
+ src/app/ports/compliance_provider.py
+ src/app/ports/idempotency_store.py
+ src/app/ports/ocr_provider.py
++src/app/ports/plate_detector.py
+ src/app/ports/verification_repository.py
+ src/app/services/__init__.py
+ src/app/services/verification_service.py
+@@ -31,6 +44,15 @@ src/cng_compliance_backend.egg-info/dependency_links.txt
+ src/cng_compliance_backend.egg-info/requires.txt
+ src/cng_compliance_backend.egg-info/top_level.txt
+ tests/test_api_verifications.py
++tests/test_auth.py
++tests/test_config.py
+ tests/test_health.py
++tests/test_metrics.py
++tests/test_migration_safety.py
++tests/test_ocr.py
+ tests/test_persistence.py
++tests/test_plate_detector.py
++tests/test_registration_normalizer.py
++tests/test_security_audit.py
++tests/test_supervisor_api.py
+ tests/test_verification.py
+\ No newline at end of file
+diff --git a/backend/src/cng_compliance_backend.egg-info/requires.txt b/backend/src/cng_compliance_backend.egg-info/requires.txt
+index cf65371..60a76d8 100644
+--- a/backend/src/cng_compliance_backend.egg-info/requires.txt
++++ b/backend/src/cng_compliance_backend.egg-info/requires.txt
+@@ -3,13 +3,21 @@ uvicorn[standard]<1.0,>=0.35
+ pydantic<3.0,>=2.11
+ pydantic-settings<3.0,>=2.10
+ structlog<26.0,>=25.4
+-sqlalchemy<3.0,>=2.0
++sqlalchemy[asyncio]<3.0,>=2.0
++greenlet>=3.0.0
+ alembic<2.0,>=1.13
+ asyncpg<1.0,>=0.29
+ aiosqlite<1.0,>=0.20
+ pillow<12.0,>=10.0
+ python-multipart<1.0,>=0.0.9
+ numpy<3.0,>=1.26
++prometheus-client<1.0,>=0.20
++opentelemetry-api<2.0,>=1.20
++opentelemetry-sdk<2.0,>=1.20
++pyjwt[crypto]<3.0,>=2.8.0
++opencv-python-headless<5.0,>=4.8
++ultralytics<9.0,>=8.0
++easyocr>=1.7.0
+ 
+ [dev]
+ pytest<9.0,>=8.4

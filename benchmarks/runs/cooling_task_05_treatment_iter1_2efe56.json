@@ -1,0 +1,29 @@
+{
+  "run_id": "cooling_task_05_treatment_iter1_2efe56",
+  "task_id": "cooling_task_05",
+  "repository_id": "cooling_project",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 102.4576108455658,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 91206,
+    "completion_tokens": 1863,
+    "total_tokens": 93069,
+    "cost_usd": null
+  },
+  "tool_calls_count": 7,
+  "tool_call_types": {
+    "file_editor": 5,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/.chronos/chronos.db b/.chronos/chronos.db\nindex baa047f..8385d65 100644\nBinary files a/.chronos/chronos.db and b/.chronos/chronos.db differ\ndiff --git a/src/features.py b/src/features.py\nindex b608b0e..283700d 100644\n--- a/src/features.py\n+++ b/src/features.py\n@@ -36,6 +36,42 @@ def validate_raw_input(raw_point: dict) -> None:\n # FEATURE PROCESSOR (Single Source of Truth)\n # =============================================================================\n \n+class WindowFeatureExtractor:\n+    \"\"\"\n+    Reusable extractor for rolling window aggregate features.\n+    \"\"\"\n+    def __init__(self, maxlen: int = 10):\n+        self.maxlen = maxlen\n+        self._buffer_cpu = deque(maxlen=maxlen)\n+        self._buffer_gpu = deque(maxlen=maxlen)\n+        self._buffer_heat = deque(maxlen=maxlen)\n+\n+    def reset_state(self):\n+        self._buffer_cpu.clear()\n+        self._buffer_gpu.clear()\n+        self._buffer_heat.clear()\n+\n+    def update(self, cpu_n: float, gpu_n: float, heat_n: float):\n+        self._buffer_cpu.append(cpu_n)\n+        self._buffer_gpu.append(gpu_n)\n+        self._buffer_heat.append(heat_n)\n+\n+    @staticmethod\n+    def _get_roll(buffer: deque, window: int) -> float:\n+        vals = list(buffer)[-window:]\n+        return sum(vals) / len(vals) if vals else 0.0\n+\n+    def extract_features(self) -> Dict[str, float]:\n+        return {\n+            'cpu_roll_5': self._get_roll(self._buffer_cpu, 5),\n+            'gpu_roll_5': self._get_roll(self._buffer_gpu, 5),\n+            'heat_roll_5': self._get_roll(self._buffer_heat, 5),\n+            'cpu_roll_10': self._get_roll(self._buffer_cpu, 10),\n+            'gpu_roll_10': self._get_roll(self._buffer_gpu, 10),\n+            'heat_roll_10': self._get_roll(self._buffer_heat, 10),\n+        }\n+\n+\n class FeatureProcessor:\n     \"\"\"\n     Production-grade stateful feature engineering engine.\n@@ -54,10 +90,8 @@ class FeatureProcessor:\n             'max_net_log': 1.0\n         }\n         \n-        # Stateful buffers for rolling windows and deltas\n-        self._buffer_cpu = deque(maxlen=10)\n-        self._buffer_gpu = deque(maxlen=10)\n-        self._buffer_heat = deque(maxlen=10)\n+        # Reusable rolling window extractor\n+        self.window_extractor = WindowFeatureExtractor(maxlen=10)\n         \n         self._prev_cpu = 0.0\n         self._prev_gpu = 0.0\n@@ -67,9 +101,7 @@ class FeatureProcessor:\n \n     def reset_state(self):\n         \"\"\"Reset stateful buffers.\"\"\"\n-        self._buffer_cpu.clear()\n-        self._buffer_gpu.clear()\n-        self._buffer_heat.clear()\n+        self.window_extractor.reset_state()\n         self._prev_cpu = 0.0\n         self._prev_gpu = 0.0\n         self._prev_heat = 0.0\n@@ -126,23 +158,17 @@ class FeatureProcessor:\n         # 3. Heat Proxy [5]\n         heat_n = np.clip((cpu_n * 0.6) + (gpu_n * 0.4), 0.0, 1.0)\n         \n-        # Update buffers\n-        self._buffer_cpu.append(cpu_n)\n-        self._buffer_gpu.append(gpu_n)\n-        self._buffer_heat.append(heat_n)\n+        # Update buffers and extract rolling window features [6-11]\n+        self.window_extractor.update(cpu_n, gpu_n, heat_n)\n+        win_feats = self.window_extractor.extract_features()\n         \n-        # 4. Rolling Windows [6-11]\n-        def get_roll(buffer, window):\n-            vals = list(buffer)[-window:]\n-            return sum(vals) / len(vals)\n-            \n-        cpu_roll_5 = get_roll(self._buffer_cpu, 5)\n-        gpu_roll_5 = get_roll(self._buffer_gpu, 5)\n-        heat_roll_5 = get_roll(self._buffer_heat, 5)\n+        cpu_roll_5 = win_feats['cpu_roll_5']\n+        gpu_roll_5 = win_feats['gpu_roll_5']\n+        heat_roll_5 = win_feats['heat_roll_5']\n         \n-        cpu_roll_10 = get_roll(self._buffer_cpu, 10)\n-        gpu_roll_10 = get_roll(self._buffer_gpu, 10)\n-        heat_roll_10 = get_roll(self._buffer_heat, 10)\n+        cpu_roll_10 = win_feats['cpu_roll_10']\n+        gpu_roll_10 = win_feats['gpu_roll_10']\n+        heat_roll_10 = win_feats['heat_roll_10']\n         \n         # 5. Deltas [12-14]\n         # On first sample, delta is 0\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T16:12:41.443488+00:00"
+}

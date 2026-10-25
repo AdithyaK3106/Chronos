@@ -1,0 +1,29 @@
+{
+  "run_id": "mediassist_task_02_treatment_iter1_f03bd5",
+  "task_id": "mediassist_task_02",
+  "repository_id": "mediassist",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 55.4277081489563,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 43500,
+    "completion_tokens": 429,
+    "total_tokens": 43929,
+    "cost_usd": null
+  },
+  "tool_calls_count": 5,
+  "tool_call_types": {
+    "file_editor": 3,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/src/preprocessing/symptom_processor.py b/src/preprocessing/symptom_processor.py\nindex de01766..971e858 100644\n--- a/src/preprocessing/symptom_processor.py\n+++ b/src/preprocessing/symptom_processor.py\n@@ -12,11 +12,12 @@ def normalize_symptom(symptom: str) -> str:\n     # Lowercase\n     symptom = symptom.lower().strip()\n     \n-    # Replace spaces and hyphens with underscores\n-    symptom = re.sub(r'[\\s\\-]+', '_', symptom)\n+    # Replace spaces, hyphens, and punctuation with underscores\n+    # Note: \\u0964 (।) and \\u0965 (॥) are Devanagari danda and double danda punctuation marks\n+    symptom = re.sub(r'[\\s\\-\\u0964\\u0965]+', '_', symptom)\n     \n-    # Remove special characters\n-    symptom = re.sub(r'[^\\w]', '', symptom)\n+    # Remove special characters except alphanumeric, Devanagari characters, and underscore\n+    symptom = re.sub(r'[^\\w\\u0900-\\u097F]', '', symptom)\n     \n     return symptom\n \n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T16:25:55.019840+00:00"
+}

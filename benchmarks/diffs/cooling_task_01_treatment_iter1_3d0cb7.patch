@@ -1,0 +1,16 @@
+diff --git a/.chronos/chronos.db b/.chronos/chronos.db
+index baa047f..86a52c5 100644
+Binary files a/.chronos/chronos.db and b/.chronos/chronos.db differ
+diff --git a/src/telemetry_logger.py b/src/telemetry_logger.py
+index 709ac83..e8d27ee 100644
+--- a/src/telemetry_logger.py
++++ b/src/telemetry_logger.py
+@@ -113,7 +113,7 @@ logger = setup_logging()
+ def collect_cpu_usage() -> float:
+     """Return CPU utilisation % (non-blocking, 0.1s interval)."""
+     try:
+-        return psutil.cpu_percent(interval=None)
++        return max(0.0, float(psutil.cpu_percent(interval=None)))
+     except Exception as exc:
+         logger.warning("CPU usage collection failed: %s", exc)
+         return 0.0

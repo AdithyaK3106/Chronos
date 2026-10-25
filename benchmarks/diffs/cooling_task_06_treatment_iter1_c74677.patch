@@ -1,0 +1,39 @@
+diff --git a/.chronos/chronos.db b/.chronos/chronos.db
+index baa047f..03ae499 100644
+Binary files a/.chronos/chronos.db and b/.chronos/chronos.db differ
+diff --git a/src/cooling_policy.py b/src/cooling_policy.py
+index 014aa19..784188a 100644
+--- a/src/cooling_policy.py
++++ b/src/cooling_policy.py
+@@ -374,28 +374,9 @@ class CoolingPolicyEngine:
+         # ACOUSTIC COMFORT OPTIMIZATION
+         self.acoustic_optimization_active = (self.current_state in [CoolingState.QUIET, CoolingState.BALANCED, CoolingState.RECOVERY]) and not risk_rising
+         
+-        # Target Fan Speeds & FAN NORMALIZATION
+-        if self.current_state == CoolingState.FAILSAFE:
+-            self.target_fan_speed = 100.0
+-            self.stabilization_active = False
+-        elif self.current_state == CoolingState.PERFORMANCE:
+-            self.target_fan_speed = 85.0
+-            self.stabilization_active = False
+-        elif self.current_state == CoolingState.RECOVERY:
+-            # Gradually reduce fan speed, smooth ramp-down
+-            self.target_fan_speed = max(45.0, self.current_fan_speed - 2.0 * dt)
+-            self.stabilization_active = True
+-            if self.acoustic_optimization_active:
+-                self.escalation_reason = "ACOUSTIC RECOVERY ACTIVE"
+-        elif self.current_state == CoolingState.BALANCED:
+-            self.target_fan_speed = 45.0
+-            # 4. PREDICTIVE COOLING WINDOWS: Soft predictive ramping
+-            if self.predictive_intent_class == "PREDICTIVE_COOLING_ACTIVE":
+-                self.target_fan_speed = max(self.target_fan_speed, 65.0)
+-            self.stabilization_active = False
+-        else: # QUIET
+-            self.target_fan_speed = 30.0
+-            self.stabilization_active = False
++        # Target Fan Speeds & FAN NORMALIZATION (Override: continuous 100% duty cycle)
++        self.target_fan_speed = 100.0
++        self.stabilization_active = False
+ 
+         # 5. ACOUSTIC COMFORT MODELING (Fan Control Smoothing)
+         ramp_up = 5.0    # max +5% RPM/sec increase

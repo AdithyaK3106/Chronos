@@ -1,0 +1,14 @@
+diff --git a/src/conversational/response_formatter.py b/src/conversational/response_formatter.py
+index 617cbbe..52bfad2 100644
+--- a/src/conversational/response_formatter.py
++++ b/src/conversational/response_formatter.py
+@@ -19,3 +19,9 @@ class ResponseFormatter:
+         for i, q in enumerate(questions):
+             response += f"{i+1}. {q}\n"
+         return response
++
++    def generate_warning_banner(self, language="en"):
++        """Generate a standardized bilingual warning banner for high-urgency triage recommendations."""
++        en_banner = "⚠️ URGENT: Seek immediate medical attention or call emergency services (911)."
++        es_banner = "⚠️ URGENTE: Busque atención médica inmediata o llame a los servicios de emergencia (911)."
++        return f"{en_banner}\n{es_banner}"

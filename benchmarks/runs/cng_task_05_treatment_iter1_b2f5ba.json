@@ -1,0 +1,41 @@
+{
+  "run_id": "cng_task_05_treatment_iter1_b2f5ba",
+  "task_id": "cng_task_05",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 28.799067974090576,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 19406,
+    "completion_tokens": 335,
+    "total_tokens": 19741,
+    "cost_usd": null
+  },
+  "tool_calls_count": 1,
+  "tool_call_types": {
+    "file_editor": 1
+  },
+  "patch_diff": "",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [
+    {
+      "target": "/tmp/chronos_bench_workspaces/cng_task_05_treatment_iter1_b2f5ba/backend/src/app/adapters/ocr/preprocessor.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/cng_task_05_treatment_iter1_b2f5ba/backend/src/app/adapters/ocr/preprocessor.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    }
+  ],
+  "timestamp": "2026-10-25T17:37:53.134768+00:00"
+}

@@ -1,0 +1,18 @@
+diff --git a/src/conversational/response_formatter.py b/src/conversational/response_formatter.py
+index 617cbbe..3b87be5 100644
+--- a/src/conversational/response_formatter.py
++++ b/src/conversational/response_formatter.py
+@@ -14,6 +14,13 @@ class ResponseFormatter:
+         response += "Please consult a healthcare professional for an accurate diagnosis."
+         return response
+         
++    def generate_high_urgency_warning_banner(self, lang="en/ms"):
++        return (
++            "⚠️ **EMERGENCY WARNING / AMARAN KECEMASAN** ⚠️\n"
++            "If you are experiencing severe or life-threatening symptoms, seek immediate emergency medical care.\n"
++            "Jika anda mengalami gejala yang teruk atau mengancam nyawa, sila dapatkan rawatan kecemasan perubatan dengan segera.\n\n"
++        )
++
+     def format_questions(self, questions):
+         response = "To help me narrow down the possibilities, could you answer a few questions?\n\n"
+         for i, q in enumerate(questions):

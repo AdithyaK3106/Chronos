@@ -1,0 +1,22 @@
+diff --git a/backend/src/app/services/verification_service.py b/backend/src/app/services/verification_service.py
+index 75366c7..565ec0d 100644
+--- a/backend/src/app/services/verification_service.py
++++ b/backend/src/app/services/verification_service.py
+@@ -108,11 +108,15 @@ class VerificationService:
+             return result
+ 
+         now = datetime.now(UTC)
++        expires_at = record.expires_at
++        if expires_at is not None and expires_at.tzinfo is None:
++            expires_at = expires_at.replace(tzinfo=UTC)
++
+         if record.is_valid is False:
+             status = ComplianceStatus.INVALID
+-        elif record.expires_at and record.expires_at < now:
++        elif expires_at and expires_at < now:
+             status = ComplianceStatus.EXPIRED
+-        elif record.expires_at and (record.expires_at - now).days <= 30:
++        elif expires_at and (expires_at - now).days <= 30:
+             status = ComplianceStatus.EXPIRING_SOON
+         else:
+             status = ComplianceStatus.VALID

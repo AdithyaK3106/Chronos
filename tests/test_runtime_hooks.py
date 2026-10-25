@@ -78,3 +78,20 @@ def test_hook_blocks_ast_rule_violation(memory_db, tmp_path):
     )
     assert allowed is False
     assert "Violated blocking rule" in reason
+
+def test_hook_blocks_inferred_locked_node(memory_db, tmp_path):
+    log_file = tmp_path / "chronos-audit.log"
+    node_id = "src/api.py::checkout::Function"
+    acquire_lock(memory_db, node_id, agent_id="agent_2", session_id="s2", intent="fix bug")
+
+    # Agent 1 attempts edit without providing node_id
+    allowed, reason = evaluate_tool_security(
+        con=memory_db,
+        agent_id="agent_1",
+        tool_name="file_editor",
+        tool_input={"command": "str_replace", "path": "src/api.py", "old_str": "a", "new_str": "b"},
+        repo_root=tmp_path,
+        log_path=log_file,
+    )
+    assert allowed is False
+    assert "locked by agent 'agent_2'" in reason

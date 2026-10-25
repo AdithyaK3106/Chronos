@@ -1,0 +1,30 @@
+{
+  "run_id": "cng_task_04_treatment_iter1_67bfc5",
+  "task_id": "cng_task_04",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 904.6032915115356,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 876371,
+    "completion_tokens": 7084,
+    "total_tokens": 883455,
+    "cost_usd": null
+  },
+  "tool_calls_count": 63,
+  "tool_call_types": {
+    "file_editor": 52,
+    "think": 10,
+    "finish": 1
+  },
+  "patch_diff": "diff --git a/backend/src/cng_compliance_backend.egg-info/PKG-INFO b/backend/src/cng_compliance_backend.egg-info/PKG-INFO\nindex e2386b8..4a4f433 100644\n--- a/backend/src/cng_compliance_backend.egg-info/PKG-INFO\n+++ b/backend/src/cng_compliance_backend.egg-info/PKG-INFO\n@@ -7,13 +7,21 @@ Requires-Dist: uvicorn[standard]<1.0,>=0.35\n Requires-Dist: pydantic<3.0,>=2.11\n Requires-Dist: pydantic-settings<3.0,>=2.10\n Requires-Dist: structlog<26.0,>=25.4\n-Requires-Dist: sqlalchemy<3.0,>=2.0\n+Requires-Dist: sqlalchemy[asyncio]<3.0,>=2.0\n+Requires-Dist: greenlet>=3.0.0\n Requires-Dist: alembic<2.0,>=1.13\n Requires-Dist: asyncpg<1.0,>=0.29\n Requires-Dist: aiosqlite<1.0,>=0.20\n Requires-Dist: pillow<12.0,>=10.0\n Requires-Dist: python-multipart<1.0,>=0.0.9\n Requires-Dist: numpy<3.0,>=1.26\n+Requires-Dist: prometheus-client<1.0,>=0.20\n+Requires-Dist: opentelemetry-api<2.0,>=1.20\n+Requires-Dist: opentelemetry-sdk<2.0,>=1.20\n+Requires-Dist: pyjwt[crypto]<3.0,>=2.8.0\n+Requires-Dist: opencv-python-headless<5.0,>=4.8\n+Requires-Dist: ultralytics<9.0,>=8.0\n+Requires-Dist: easyocr>=1.7.0\n Provides-Extra: dev\n Requires-Dist: pytest<9.0,>=8.4; extra == \"dev\"\n Requires-Dist: pytest-asyncio<2.0,>=1.1; extra == \"dev\"\ndiff --git a/backend/src/cng_compliance_backend.egg-info/SOURCES.txt b/backend/src/cng_compliance_backend.egg-info/SOURCES.txt\nindex 9213d8a..f1828b4 100644\n--- a/backend/src/cng_compliance_backend.egg-info/SOURCES.txt\n+++ b/backend/src/cng_compliance_backend.egg-info/SOURCES.txt\n@@ -6,22 +6,35 @@ src/app/adapters/__init__.py\n src/app/adapters/mock_compliance_provider.py\n src/app/adapters/db/idempotency_store_db.py\n src/app/adapters/db/models.py\n+src/app/adapters/db/system_config_repository_db.py\n src/app/adapters/db/verification_repository_db.py\n+src/app/adapters/ocr/paddle_ocr_adapter.py\n+src/app/adapters/ocr/preprocessor.py\n+src/app/adapters/plate_detection/__init__.py\n+src/app/adapters/plate_detection/yolo_plate_detector.py\n src/app/api/__init__.py\n src/app/api/routes/__init__.py\n+src/app/api/routes/config.py\n src/app/api/routes/health.py\n+src/app/api/routes/ocr.py\n+src/app/api/routes/supervisor.py\n src/app/api/routes/verification.py\n src/app/core/__init__.py\n+src/app/core/auth.py\n src/app/core/config.py\n src/app/core/database.py\n src/app/core/logging.py\n+src/app/core/metrics.py\n+src/app/core/telemetry.py\n src/app/domain/__init__.py\n src/app/domain/exceptions.py\n src/app/domain/models.py\n+src/app/domain/registration_normalizer.py\n src/app/ports/__init__.py\n src/app/ports/compliance_provider.py\n src/app/ports/idempotency_store.py\n src/app/ports/ocr_provider.py\n+src/app/ports/plate_detector.py\n src/app/ports/verification_repository.py\n src/app/services/__init__.py\n src/app/services/verification_service.py\n@@ -31,6 +44,15 @@ src/cng_compliance_backend.egg-info/dependency_links.txt\n src/cng_compliance_backend.egg-info/requires.txt\n src/cng_compliance_backend.egg-info/top_level.txt\n tests/test_api_verifications.py\n+tests/test_auth.py\n+tests/test_config.py\n tests/test_health.py\n+tests/test_metrics.py\n+tests/test_migration_safety.py\n+tests/test_ocr.py\n tests/test_persistence.py\n+tests/test_plate_detector.py\n+tests/test_registration_normalizer.py\n+tests/test_security_audit.py\n+tests/test_supervisor_api.py\n tests/test_verification.py\n\\ No newline at end of file\ndiff --git a/backend/src/cng_compliance_backend.egg-info/requires.txt b/backend/src/cng_compliance_backend.egg-info/requires.txt\nindex cf65371..60a76d8 100644\n--- a/backend/src/cng_compliance_backend.egg-info/requires.txt\n+++ b/backend/src/cng_compliance_backend.egg-info/requires.txt\n@@ -3,13 +3,21 @@ uvicorn[standard]<1.0,>=0.35\n pydantic<3.0,>=2.11\n pydantic-settings<3.0,>=2.10\n structlog<26.0,>=25.4\n-sqlalchemy<3.0,>=2.0\n+sqlalchemy[asyncio]<3.0,>=2.0\n+greenlet>=3.0.0\n alembic<2.0,>=1.13\n asyncpg<1.0,>=0.29\n aiosqlite<1.0,>=0.20\n pillow<12.0,>=10.0\n python-multipart<1.0,>=0.0.9\n numpy<3.0,>=1.26\n+prometheus-client<1.0,>=0.20\n+opentelemetry-api<2.0,>=1.20\n+opentelemetry-sdk<2.0,>=1.20\n+pyjwt[crypto]<3.0,>=2.8.0\n+opencv-python-headless<5.0,>=4.8\n+ultralytics<9.0,>=8.0\n+easyocr>=1.7.0\n \n [dev]\n pytest<9.0,>=8.4\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T14:40:12.551549+00:00"
+}

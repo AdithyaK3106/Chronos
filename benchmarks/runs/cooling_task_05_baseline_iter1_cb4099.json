@@ -1,0 +1,29 @@
+{
+  "run_id": "cooling_task_05_baseline_iter1_cb4099",
+  "task_id": "cooling_task_05",
+  "repository_id": "cooling_project",
+  "suite": "efficacy",
+  "arm": "baseline",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 105.29523277282715,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 96372,
+    "completion_tokens": 1753,
+    "total_tokens": 98125,
+    "cost_usd": null
+  },
+  "tool_calls_count": 7,
+  "tool_call_types": {
+    "file_editor": 5,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/src/features.py b/src/features.py\nindex b608b0e..07017b1 100644\n--- a/src/features.py\n+++ b/src/features.py\n@@ -36,6 +36,32 @@ def validate_raw_input(raw_point: dict) -> None:\n # FEATURE PROCESSOR (Single Source of Truth)\n # =============================================================================\n \n+class WindowFeatureExtractor:\n+    \"\"\"\n+    Reusable stateful extractor for rolling window feature aggregations.\n+    \"\"\"\n+    def __init__(self, windows: List[int] = [5, 10], maxlen: int = 10):\n+        self.windows = windows\n+        self.maxlen = maxlen\n+        self.buffers: Dict[str, deque] = {}\n+\n+    def reset(self):\n+        for buf in self.buffers.values():\n+            buf.clear()\n+\n+    def update(self, key: str, value: float):\n+        if key not in self.buffers:\n+            self.buffers[key] = deque(maxlen=self.maxlen)\n+        self.buffers[key].append(value)\n+\n+    def get_rolling_mean(self, key: str, window: int) -> float:\n+        buf = self.buffers.get(key)\n+        if not buf:\n+            return 0.0\n+        vals = list(buf)[-window:]\n+        return sum(vals) / len(vals)\n+\n+\n class FeatureProcessor:\n     \"\"\"\n     Production-grade stateful feature engineering engine.\n@@ -54,10 +80,8 @@ class FeatureProcessor:\n             'max_net_log': 1.0\n         }\n         \n-        # Stateful buffers for rolling windows and deltas\n-        self._buffer_cpu = deque(maxlen=10)\n-        self._buffer_gpu = deque(maxlen=10)\n-        self._buffer_heat = deque(maxlen=10)\n+        # Stateful extractor for rolling windows and delta tracking\n+        self.window_extractor = WindowFeatureExtractor(windows=[5, 10], maxlen=10)\n         \n         self._prev_cpu = 0.0\n         self._prev_gpu = 0.0\n@@ -67,9 +91,7 @@ class FeatureProcessor:\n \n     def reset_state(self):\n         \"\"\"Reset stateful buffers.\"\"\"\n-        self._buffer_cpu.clear()\n-        self._buffer_gpu.clear()\n-        self._buffer_heat.clear()\n+        self.window_extractor.reset()\n         self._prev_cpu = 0.0\n         self._prev_gpu = 0.0\n         self._prev_heat = 0.0\n@@ -127,22 +149,18 @@ class FeatureProcessor:\n         heat_n = np.clip((cpu_n * 0.6) + (gpu_n * 0.4), 0.0, 1.0)\n         \n         # Update buffers\n-        self._buffer_cpu.append(cpu_n)\n-        self._buffer_gpu.append(gpu_n)\n-        self._buffer_heat.append(heat_n)\n+        self.window_extractor.update('cpu', cpu_n)\n+        self.window_extractor.update('gpu', gpu_n)\n+        self.window_extractor.update('heat', heat_n)\n         \n         # 4. Rolling Windows [6-11]\n-        def get_roll(buffer, window):\n-            vals = list(buffer)[-window:]\n-            return sum(vals) / len(vals)\n-            \n-        cpu_roll_5 = get_roll(self._buffer_cpu, 5)\n-        gpu_roll_5 = get_roll(self._buffer_gpu, 5)\n-        heat_roll_5 = get_roll(self._buffer_heat, 5)\n+        cpu_roll_5 = self.window_extractor.get_rolling_mean('cpu', 5)\n+        gpu_roll_5 = self.window_extractor.get_rolling_mean('gpu', 5)\n+        heat_roll_5 = self.window_extractor.get_rolling_mean('heat', 5)\n         \n-        cpu_roll_10 = get_roll(self._buffer_cpu, 10)\n-        gpu_roll_10 = get_roll(self._buffer_gpu, 10)\n-        heat_roll_10 = get_roll(self._buffer_heat, 10)\n+        cpu_roll_10 = self.window_extractor.get_rolling_mean('cpu', 10)\n+        gpu_roll_10 = self.window_extractor.get_rolling_mean('gpu', 10)\n+        heat_roll_10 = self.window_extractor.get_rolling_mean('heat', 10)\n         \n         # 5. Deltas [12-14]\n         # On first sample, delta is 0\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T16:10:58.803118+00:00"
+}

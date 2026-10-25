@@ -1,0 +1,22 @@
+diff --git a/chronos/context/graph.py b/chronos/context/graph.py
+index c04d254..6138533 100644
+--- a/chronos/context/graph.py
++++ b/chronos/context/graph.py
+@@ -128,13 +128,14 @@ class SQLiteGraphStore(GraphStore):
+         t = _normalize_iso(as_of)
+         rows = self.con.execute(
+             """
+-            WITH RECURSIVE impact_tree(node_id, depth) AS (
+-                SELECT id, 0 FROM code_nodes WHERE name = ? OR id = ?
++            WITH RECURSIVE impact_tree(node_id, depth, path) AS (
++                SELECT id, 0, ',' || id || ',' FROM code_nodes WHERE name = ? OR id = ?
+                 UNION
+-                SELECT e.src, it.depth + 1
++                SELECT e.src, it.depth + 1, it.path || e.src || ','
+                 FROM code_edges e
+                 JOIN impact_tree it ON (e.dst = it.node_id OR e.dst LIKE '%::' || it.node_id || '::%')
+                 WHERE it.depth < ?
++                  AND instr(it.path, ',' || e.src || ',') = 0
+                   AND e.valid_at <= ?
+                   AND (e.invalid_at IS NULL OR e.invalid_at > ?)
+             )

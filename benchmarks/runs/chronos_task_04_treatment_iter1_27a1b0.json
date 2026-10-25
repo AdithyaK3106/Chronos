@@ -1,0 +1,29 @@
+{
+  "run_id": "chronos_task_04_treatment_iter1_27a1b0",
+  "task_id": "chronos_task_04",
+  "repository_id": "chronos",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 57.54523754119873,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 47542,
+    "completion_tokens": 688,
+    "total_tokens": 48230,
+    "cost_usd": null
+  },
+  "tool_calls_count": 5,
+  "tool_call_types": {
+    "file_editor": 3,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/chronos/verification/rule_store.py b/chronos/verification/rule_store.py\nindex fb6d343..0da0be2 100644\n--- a/chronos/verification/rule_store.py\n+++ b/chronos/verification/rule_store.py\n@@ -63,3 +63,33 @@ def list_rules(con: sqlite3.Connection, status: str | None = None) -> list[dict[\n \n def get_active_blocking_rules(con: sqlite3.Connection) -> list[dict[str, Any]]:\n     return list_rules(con, status=BLOCKING)\n+\n+def export_active_rules_json_schema(con: sqlite3.Connection) -> dict[str, Any]:\n+    \"\"\"Export active blocking security rules formatted as JSON Schema.\"\"\"\n+    active_rules = get_active_blocking_rules(con)\n+    return {\n+        \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n+        \"title\": \"ActiveEnforcementRules\",\n+        \"type\": \"object\",\n+        \"properties\": {\n+            \"rules\": {\n+                \"type\": \"array\",\n+                \"items\": {\n+                    \"type\": \"object\",\n+                    \"properties\": {\n+                        \"rule_id\": {\"type\": \"string\"},\n+                        \"language\": {\"type\": \"string\"},\n+                        \"rule_text\": {\"type\": \"string\"},\n+                        \"yaml_pattern\": {\"type\": [\"string\", \"null\"]},\n+                        \"status\": {\"type\": \"string\", \"const\": BLOCKING},\n+                        \"detectability_passed\": {\"type\": \"boolean\"},\n+                        \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"},\n+                        \"promoted_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"},\n+                        \"promoted_by\": {\"type\": [\"string\", \"null\"]}\n+                    },\n+                    \"required\": [\"rule_id\", \"language\", \"rule_text\", \"status\"]\n+                }\n+            }\n+        },\n+        \"rules\": active_rules\n+    }\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T13:47:57.486166+00:00"
+}

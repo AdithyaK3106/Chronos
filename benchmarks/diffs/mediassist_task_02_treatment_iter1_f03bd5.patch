@@ -1,0 +1,21 @@
+diff --git a/src/preprocessing/symptom_processor.py b/src/preprocessing/symptom_processor.py
+index de01766..971e858 100644
+--- a/src/preprocessing/symptom_processor.py
++++ b/src/preprocessing/symptom_processor.py
+@@ -12,11 +12,12 @@ def normalize_symptom(symptom: str) -> str:
+     # Lowercase
+     symptom = symptom.lower().strip()
+     
+-    # Replace spaces and hyphens with underscores
+-    symptom = re.sub(r'[\s\-]+', '_', symptom)
++    # Replace spaces, hyphens, and punctuation with underscores
++    # Note: \u0964 (।) and \u0965 (॥) are Devanagari danda and double danda punctuation marks
++    symptom = re.sub(r'[\s\-\u0964\u0965]+', '_', symptom)
+     
+-    # Remove special characters
+-    symptom = re.sub(r'[^\w]', '', symptom)
++    # Remove special characters except alphanumeric, Devanagari characters, and underscore
++    symptom = re.sub(r'[^\w\u0900-\u097F]', '', symptom)
+     
+     return symptom
+ 

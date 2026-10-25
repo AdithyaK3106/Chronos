@@ -1,0 +1,29 @@
+diff --git a/src/safety/emergency_rules.py b/src/safety/emergency_rules.py
+index 0b772bb..2a2c7e3 100644
+--- a/src/safety/emergency_rules.py
++++ b/src/safety/emergency_rules.py
+@@ -72,7 +72,7 @@ CARDIAC_EMERGENCY = [
+     "pain radiating to arm",
+     "irregular heartbeat",
+     "heart attack",
+-    "chest pain"
++    r"\b(?:severe|crushing|sharp|heavy|tight|radiating)\s+chest\s+pain\b"
+ ]
+ 
+ NEUROLOGICAL_EMERGENCY = [
+@@ -108,8 +108,13 @@ class EmergencyRuleEngine:
+ 
+         for category, symptoms in EMERGENCY_CATEGORIES.items():
+             for symptom in symptoms:
+-                # Use regex for whole word or substring match
+-                if symptom in user_input_lower:
++                # Use regex or substring match
++                if symptom.startswith(r"\b") or "(?" in symptom or "\\" in symptom:
++                    if re.search(symptom, user_input_lower):
++                        detected_categories.append(category)
++                        triggered_symptoms.append(symptom)
++                        break
++                elif symptom in user_input_lower:
+                     detected_categories.append(category)
+                     triggered_symptoms.append(symptom)
+                     break # Record category once

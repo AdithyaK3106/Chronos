@@ -1,0 +1,13 @@
+diff --git a/training/xgboost_model.py b/training/xgboost_model.py
+index b08cf88..d33f32f 100644
+--- a/training/xgboost_model.py
++++ b/training/xgboost_model.py
+@@ -43,7 +43,7 @@ _SRC_PATH  = os.path.abspath(os.path.join(_TRAIN_DIR, '..', 'src'))
+ if _SRC_PATH not in sys.path:
+     sys.path.insert(0, _SRC_PATH)
+ 
+-from features import FEATURE_NAMES, FEATURE_DIM  # single source of truth
++from constants import FEATURE_NAMES, FEATURE_DIM  # single source of truth
+ 
+ 
+ # =============================================================================

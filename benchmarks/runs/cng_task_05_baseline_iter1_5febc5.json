@@ -1,0 +1,29 @@
+{
+  "run_id": "cng_task_05_baseline_iter1_5febc5",
+  "task_id": "cng_task_05",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "baseline",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 78.43973898887634,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 71041,
+    "completion_tokens": 1751,
+    "total_tokens": 72792,
+    "cost_usd": null
+  },
+  "tool_calls_count": 6,
+  "tool_call_types": {
+    "file_editor": 4,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/backend/src/app/adapters/ocr/preprocessor.py b/backend/src/app/adapters/ocr/preprocessor.py\nindex a34b6ff..b336827 100644\n--- a/backend/src/app/adapters/ocr/preprocessor.py\n+++ b/backend/src/app/adapters/ocr/preprocessor.py\n@@ -1,6 +1,7 @@\n import io\n \n from PIL import Image, ImageEnhance, ImageOps\n+from pydantic.dataclasses import dataclass\n \n from app.domain.exceptions import InvalidImageError\n \n@@ -9,11 +10,31 @@ ALLOWED_FORMATS = {\"JPEG\", \"PNG\", \"WEBP\"}\n ALLOWED_MIME_TYPES = {\"image/jpeg\", \"image/png\", \"image/webp\"}\n \n \n+@dataclass\n+class ThresholdConfig:\n+    \"\"\"Typed configuration parameters for image thresholding and binarization.\"\"\"\n+\n+    max_value: float = 255.0\n+    adaptive_method: int = 1  # cv2.ADAPTIVE_THRESH_GAUSSIAN_C\n+    threshold_type: int = 0  # cv2.THRESH_BINARY\n+    block_size: int = 11\n+    c: float = 2.0\n+    gaussian_blur_ksize: tuple[int, int] = (3, 3)\n+    gaussian_blur_sigma: float = 0.0\n+    clahe_clip_limit: float = 3.0\n+    clahe_tile_grid_size: tuple[int, int] = (8, 8)\n+\n+\n class ImagePreprocessor:\n     \"\"\"Robust image validation and preprocessing pipeline for OCR/ANPR.\"\"\"\n \n-    def __init__(self, max_size_bytes: int = MAX_IMAGE_SIZE_BYTES) -> None:\n+    def __init__(\n+        self,\n+        max_size_bytes: int = MAX_IMAGE_SIZE_BYTES,\n+        threshold_config: ThresholdConfig | None = None,\n+    ) -> None:\n         self.max_size_bytes = max_size_bytes\n+        self.threshold_config = threshold_config or ThresholdConfig()\n \n     def validate_and_preprocess(self, image_bytes: bytes) -> bytes:\n         \"\"\"\n@@ -110,7 +131,10 @@ class ImagePreprocessor:\n                 gray_resized = gray\n \n             # Variant 2: CLAHE Contrast Equalization\n-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))\n+            clahe = cv2.createCLAHE(\n+                clipLimit=self.threshold_config.clahe_clip_limit,\n+                tileGridSize=self.threshold_config.clahe_tile_grid_size,\n+            )\n             clahe_img = clahe.apply(gray_resized)\n \n             buf_clahe = io.BytesIO()\n@@ -118,9 +142,18 @@ class ImagePreprocessor:\n             variants.append((\"clahe_contrast\", buf_clahe.getvalue()))\n \n             # Variant 3: Adaptive Binarization Thresholding\n-            blurred = cv2.GaussianBlur(gray_resized, (3, 3), 0)\n+            blurred = cv2.GaussianBlur(\n+                gray_resized,\n+                self.threshold_config.gaussian_blur_ksize,\n+                self.threshold_config.gaussian_blur_sigma,\n+            )\n             thresh_img = cv2.adaptiveThreshold(\n-                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2\n+                blurred,\n+                self.threshold_config.max_value,\n+                self.threshold_config.adaptive_method,\n+                self.threshold_config.threshold_type,\n+                self.threshold_config.block_size,\n+                self.threshold_config.c,\n             )\n             buf_thresh = io.BytesIO()\n             Image.fromarray(thresh_img).save(buf_thresh, format=\"PNG\")\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T17:37:24.194001+00:00"
+}

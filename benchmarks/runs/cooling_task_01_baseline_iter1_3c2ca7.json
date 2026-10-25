@@ -1,0 +1,31 @@
+{
+  "run_id": "cooling_task_01_baseline_iter1_3c2ca7",
+  "task_id": "cooling_task_01",
+  "repository_id": "cooling_project",
+  "suite": "efficacy",
+  "arm": "baseline",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 341.07374691963196,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 326874,
+    "completion_tokens": 2043,
+    "total_tokens": 328917,
+    "cost_usd": null
+  },
+  "tool_calls_count": 30,
+  "tool_call_types": {
+    "file_editor": 17,
+    "think": 10,
+    "command_runner": 1,
+    "finish": 2
+  },
+  "patch_diff": "",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T14:49:41.038544+00:00"
+}

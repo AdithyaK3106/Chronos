@@ -52,6 +52,14 @@ class GraphStore(ABC):
         """Compute structural edge differences between two timestamps."""
         pass
 
+    def get_nodes_by_name(self, symbol_name: str) -> list[dict[str, Any]]:
+        """Return code nodes matching name or id."""
+        return []
+
+    def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
+        """Incrementally update AST nodes and bi-temporal edges for a modified file."""
+        return (0, 0)
+
 class SQLiteGraphStore(GraphStore):
     """SQLite WAL implementation using recursive CTEs for transitive graph traversal."""
 
@@ -171,6 +179,46 @@ class SQLiteGraphStore(GraphStore):
             "removed_edges": removed,
             "unchanged_count": unchanged,
         }
+
+    def get_nodes_by_name(self, symbol_name: str) -> list[dict[str, Any]]:
+        """Return code nodes matching name or id."""
+        rows = self.con.execute(
+            """
+            SELECT id, name, path, kind, language, signature, docstring
+            FROM code_nodes
+            WHERE name = ? OR id = ?
+            ORDER BY id ASC
+            """,
+            (symbol_name, symbol_name),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
+        """Incrementally update AST nodes and bi-temporal edges for a modified file."""
+        from chronos.context.indexer import index_file
+        t = _normalize_iso(valid_at)
+        p = Path(file_path).resolve()
+        norm_path = p.as_posix()
+
+        # 1. Invalidate active outgoing edges from previous version of this file
+        pattern = f"{norm_path}::%"
+        self.con.execute(
+            """
+            UPDATE code_edges
+            SET invalid_at = ?
+            WHERE (src LIKE ? OR src = ?) AND invalid_at IS NULL
+            """,
+            (t, pattern, norm_path),
+        )
+
+        # 2. Extract new nodes and edges from disk
+        nodes, edges = index_file(p, valid_at=t)
+
+        # 3. Upsert nodes and insert new edges with valid_at = t
+        if nodes or edges:
+            self.ingest(nodes, edges)
+
+        return len(nodes), len(edges)
 
 def create_graph_store(con: sqlite3.Connection, backend: str = "sqlite", kuzu_dir: str | Path | None = None) -> GraphStore:
     """Factory creating the appropriate GraphStore with portability fallback."""

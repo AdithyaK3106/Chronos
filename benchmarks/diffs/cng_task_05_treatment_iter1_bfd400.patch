@@ -1,0 +1,60 @@
+diff --git a/backend/src/app/adapters/ocr/preprocessor.py b/backend/src/app/adapters/ocr/preprocessor.py
+index a34b6ff..3c1089a 100644
+--- a/backend/src/app/adapters/ocr/preprocessor.py
++++ b/backend/src/app/adapters/ocr/preprocessor.py
+@@ -2,8 +2,19 @@ import io
+ 
+ from PIL import Image, ImageEnhance, ImageOps
+ 
++from pydantic.dataclasses import dataclass
++
+ from app.domain.exceptions import InvalidImageError
+ 
++
++@dataclass
++class ThresholdConfig:
++    max_value: int = 255
++    block_size: int = 11
++    c: int = 2
++    gaussian_kernel_size: tuple[int, int] = (3, 3)
++    gaussian_sigma: float = 0.0
++
+ MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+ ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+ ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+@@ -12,8 +23,13 @@ ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ class ImagePreprocessor:
+     """Robust image validation and preprocessing pipeline for OCR/ANPR."""
+ 
+-    def __init__(self, max_size_bytes: int = MAX_IMAGE_SIZE_BYTES) -> None:
++    def __init__(
++        self,
++        max_size_bytes: int = MAX_IMAGE_SIZE_BYTES,
++        threshold_config: ThresholdConfig | None = None,
++    ) -> None:
+         self.max_size_bytes = max_size_bytes
++        self.threshold_config = threshold_config or ThresholdConfig()
+ 
+     def validate_and_preprocess(self, image_bytes: bytes) -> bytes:
+         """
+@@ -118,9 +134,18 @@ class ImagePreprocessor:
+             variants.append(("clahe_contrast", buf_clahe.getvalue()))
+ 
+             # Variant 3: Adaptive Binarization Thresholding
+-            blurred = cv2.GaussianBlur(gray_resized, (3, 3), 0)
++            blurred = cv2.GaussianBlur(
++                gray_resized,
++                self.threshold_config.gaussian_kernel_size,
++                self.threshold_config.gaussian_sigma,
++            )
+             thresh_img = cv2.adaptiveThreshold(
+-                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
++                blurred,
++                self.threshold_config.max_value,
++                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
++                cv2.THRESH_BINARY,
++                self.threshold_config.block_size,
++                self.threshold_config.c,
+             )
+             buf_thresh = io.BytesIO()
+             Image.fromarray(thresh_img).save(buf_thresh, format="PNG")

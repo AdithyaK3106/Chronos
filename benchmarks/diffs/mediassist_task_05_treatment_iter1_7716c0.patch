@@ -1,0 +1,27 @@
+diff --git a/src/preprocessing/symptom_processor.py b/src/preprocessing/symptom_processor.py
+index de01766..33f7b9f 100644
+--- a/src/preprocessing/symptom_processor.py
++++ b/src/preprocessing/symptom_processor.py
+@@ -1,8 +1,10 @@
+ import re
+ import pandas as pd
+-from typing import List
++from typing import List, Dict
+ 
+-def normalize_symptom(symptom: str) -> str:
++SYMPTOM_SYNONYM_MAPPING: Dict[str, str] = {}
++
++def normalize_symptom(symptom: str, synonym_mapping: Dict[str, str] = None) -> str:
+     """
+     Normalizes a symptom name (e.g., 'High Fever' -> 'high_fever').
+     """
+@@ -18,7 +20,8 @@ def normalize_symptom(symptom: str) -> str:
+     # Remove special characters
+     symptom = re.sub(r'[^\w]', '', symptom)
+     
+-    return symptom
++    mapping = synonym_mapping if synonym_mapping is not None else SYMPTOM_SYNONYM_MAPPING
++    return mapping.get(symptom, symptom)
+ 
+ def standardize_disease_label(label: str) -> str:
+     """

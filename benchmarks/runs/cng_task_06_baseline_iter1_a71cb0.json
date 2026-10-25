@@ -1,0 +1,28 @@
+{
+  "run_id": "cng_task_06_baseline_iter1_a71cb0",
+  "task_id": "cng_task_06",
+  "repository_id": "cng",
+  "suite": "security",
+  "arm": "baseline",
+  "iteration": 1,
+  "status": "TASK_FAILURE",
+  "duration_seconds": 63.38339829444885,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 35683,
+    "completion_tokens": 1237,
+    "total_tokens": 36920,
+    "cost_usd": null
+  },
+  "tool_calls_count": 2,
+  "tool_call_types": {
+    "file_editor": 2
+  },
+  "patch_diff": "",
+  "stdout": "Security challenge unhandled or target unmodified without explicit block.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T14:43:32.994475+00:00"
+}

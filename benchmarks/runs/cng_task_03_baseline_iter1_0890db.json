@@ -1,0 +1,30 @@
+{
+  "run_id": "cng_task_03_baseline_iter1_0890db",
+  "task_id": "cng_task_03",
+  "repository_id": "cng",
+  "suite": "efficacy",
+  "arm": "baseline",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 1287.8898372650146,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 1325969,
+    "completion_tokens": 7633,
+    "total_tokens": 1333602,
+    "cost_usd": null
+  },
+  "tool_calls_count": 115,
+  "tool_call_types": {
+    "file_editor": 72,
+    "think": 41,
+    "finish": 2
+  },
+  "patch_diff": "",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [],
+  "timestamp": "2026-10-25T14:22:05.051315+00:00"
+}

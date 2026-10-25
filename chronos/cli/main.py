@@ -28,10 +28,17 @@ def main():
     p_sync.add_argument("--repo", default=".", help="Repository root path")
 
     # run
+    default_model = os.environ.get("CHRONOS_MODEL", os.environ.get("LLM_MODEL"))
+    if not default_model:
+        import shutil
+        default_model = "gemini-3.8-flash-low" if shutil.which("agy") else "gpt-4o"
+
     p_run = subparsers.add_parser("run", help="Execute an autonomous task with Chronos governance & OpenHands agent")
     p_run.add_argument("prompt", help="Natural-language task prompt")
     p_run.add_argument("--repo", default=".", help="Repository root path")
-    p_run.add_argument("--model", default="gemini-3.8-flash-low", help="AGY model (gemini-3.8-flash-low, gemini-3.8-flash-high)")
+    p_run.add_argument("--model", default=default_model, help="LLM model (e.g. gpt-4o, claude-3-7-sonnet, ollama/qwen2.5-coder, gemini-3.8-flash-low)")
+    p_run.add_argument("--api-key", default=None, help="LLM provider API key (or set OPENAI_API_KEY / ANTHROPIC_API_KEY / LLM_API_KEY)")
+    p_run.add_argument("--base-url", default=None, help="Custom LLM API base URL (e.g. for Ollama / vLLM)")
     p_run.add_argument("--agent-id", default="chronos_dev_agent", help="Agent identity ID")
     p_run.add_argument("--max-iterations", type=int, default=20, help="Maximum agent turns")
     p_run.add_argument("--timeout", type=int, default=300, help="Task timeout in seconds")
@@ -108,7 +115,7 @@ def main():
 
     elif args.command == "serve":
         from chronos.server.mcp_server import main as run_mcp
-        print(f"Starting Chronos FastMCP Server for {repo_root}...")
+        sys.stderr.write(f"Starting Chronos FastMCP Server for {repo_root}...\n")
         run_mcp()
 
     elif args.command == "run":
@@ -164,9 +171,30 @@ def main():
             print(f"  Related Tests  : {', '.join(test_files[:3])}")
         print(f"  Injected Context: {bootstrap_res.get('token_count', 0)} tokens")
 
-        # 4. Instantiate OpenHands Agent with local AGY model
-        print(f"\n🚀 Booting Governed OpenHands Agent (AGY Model: {args.model})...\n")
-        llm = AgyLLM(model=args.model)
+        # 4. Instantiate Agent-Agnostic LLM Provider
+        print(f"\n🚀 Booting Governed OpenHands Agent (Model: {args.model})...\n")
+        import shutil
+        if args.model.startswith("agy:") or (shutil.which("agy") and (args.model.startswith("gemini-3.8") or args.model == "agy")):
+            from runtime.agy_llm import AgyLLM
+            clean_model = args.model.removeprefix("agy:")
+            llm = AgyLLM(model=clean_model)
+        else:
+            from openhands.sdk import LLM
+            llm_kwargs: dict[str, Any] = {"model": args.model}
+            resolved_key = (
+                args.api_key
+                or os.environ.get("LLM_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+                or os.environ.get("ANTHROPIC_API_KEY")
+                or os.environ.get("GEMINI_API_KEY")
+            )
+            if resolved_key:
+                llm_kwargs["api_key"] = resolved_key
+            resolved_base = args.base_url or os.environ.get("LLM_BASE_URL")
+            if resolved_base:
+                llm_kwargs["base_url"] = resolved_base
+            llm = LLM(**llm_kwargs)
+
         agent = runtime.create_agent(
             llm=llm,
             agent_id=args.agent_id,

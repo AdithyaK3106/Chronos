@@ -17,14 +17,20 @@ from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
 
 cfg = ChronosConfig.load()
-root = Path(cfg.repo_path).resolve()
-db_file = root / cfg.db_path
-audit_log = root / cfg.audit_log_path
 
 mcp = FastMCP("chronos")
 
+def _get_root() -> Path:
+    return Path(cfg.repo_path).resolve()
+
 def _get_con():
+    root = _get_root()
+    db_file = root / cfg.db_path
     return get_connection(db_file)
+
+def _get_audit_log() -> Path:
+    root = _get_root()
+    return root / cfg.audit_log_path
 
 @mcp.tool()
 def as_of_callers(symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:
@@ -79,7 +85,7 @@ def chronos_acquire_lock(
     try:
         result = acquire_lock(con, node_id, agent_id, session_id, intent, ttl=ttl)
         append_audit_event(
-            log_path=audit_log,
+            log_path=_get_audit_log(),
             event_type="lock_acquire",
             agent_id=agent_id,
             action="acquire_lock",
@@ -102,7 +108,7 @@ def chronos_release_lock(
     try:
         result = release_lock(con, node_id, agent_id, session_id)
         append_audit_event(
-            log_path=audit_log,
+            log_path=_get_audit_log(),
             event_type="lock_release",
             agent_id=agent_id,
             action="release_lock",
@@ -148,7 +154,7 @@ def chronos_resolve_zero_path_context(prompt: str, token_budget: int = 2000) -> 
     con = _get_con()
     try:
         from runtime.session import ChronosSessionBootstrap
-        boot = ChronosSessionBootstrap(repo_path=root, con=con)
+        boot = ChronosSessionBootstrap(repo_path=_get_root(), con=con)
         res = boot.bootstrap_session(task_prompt=prompt, token_budget=token_budget)
         return {
             "resolved_files": res.get("resolved_files", []),

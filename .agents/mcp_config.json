@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "chronos": {
+      "command": "/data/Projects/chronos/.venv/bin/chronos",
+      "args": ["serve"]
+    }
+  }
+}

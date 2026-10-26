@@ -163,6 +163,89 @@ def chronos_resolve_zero_path_context(prompt: str, token_budget: int = 2000) -> 
             "provenance_summary": res.get("provenance_summary", ""),
             "envelope_text": res.get("envelope_text", ""),
             "token_count": res.get("token_count", 0),
+            "memories_count": res.get("memories_count", 0),
+        }
+    finally:
+        con.close()
+
+@mcp.tool()
+def chronos_remember(
+    content: str,
+    tier: str = "learned",
+    repo_namespace: str = "",
+    tags: list[str] | None = None,
+    importance: float = 0.5,
+) -> dict[str, Any]:
+    """Store an epistemic memory record (advisory only)."""
+    con = _get_con()
+    try:
+        from chronos.memory.store import ChronosMemoryStore
+        from chronos.memory.models import MemoryTier
+        ns = repo_namespace or _get_root().name
+        store = ChronosMemoryStore(con=con)
+        mid = store.remember(
+            content=content,
+            repo_namespace=ns,
+            tier=MemoryTier(tier),
+            importance=importance,
+            tags=tags or [],
+            source="mcp",
+        )
+        return {"id": mid, "status": "stored", "repo_namespace": ns}
+    finally:
+        con.close()
+
+@mcp.tool()
+def chronos_recall(query: str, repo_namespace: str = "", limit: int = 5) -> list[dict[str, Any]]:
+    """Search and retrieve past lessons, invariants, and postmortems (advisory only)."""
+    con = _get_con()
+    try:
+        from chronos.memory.store import ChronosMemoryStore
+        ns = repo_namespace or _get_root().name
+        store = ChronosMemoryStore(con=con)
+        results = store.recall(query=query, repo_namespace=ns, limit=limit)
+        return [
+            {
+                "id": r.id,
+                "content": r.content,
+                "summary": r.summary,
+                "tier": r.tier.value,
+                "score": r.score,
+                "verification_status": r.verification_status.value,
+                "outcome": r.outcome.value,
+            }
+            for r in results
+        ]
+    finally:
+        con.close()
+
+@mcp.tool()
+def chronos_get_procedures(repo_namespace: str = "") -> list[str]:
+    """Retrieve active procedural behavioral rules and coding invariants."""
+    con = _get_con()
+    try:
+        from chronos.memory.store import ChronosMemoryStore
+        ns = repo_namespace or _get_root().name
+        store = ChronosMemoryStore(con=con)
+        return store.get_procedures(repo_namespace=ns)
+    finally:
+        con.close()
+
+@mcp.tool()
+def chronos_memory_stats(repo_namespace: str = "") -> dict[str, Any]:
+    """Get aggregated statistics on stored epistemic memories."""
+    con = _get_con()
+    try:
+        from chronos.memory.store import ChronosMemoryStore
+        ns = repo_namespace or _get_root().name
+        store = ChronosMemoryStore(con=con)
+        stats = store.stats(repo_namespace=ns)
+        return {
+            "total_memories": stats.total_memories,
+            "archived_count": stats.archived_count,
+            "by_tier": stats.by_tier,
+            "by_outcome": stats.by_outcome,
+            "namespaces": stats.namespaces,
         }
     finally:
         con.close()

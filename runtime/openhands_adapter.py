@@ -194,8 +194,46 @@ class ChronosAgentRuntime:
         )
 
         # Submit initial user prompt with injected zero-path context envelope
-        conversation.send_message(augmented_prompt)
-        conversation.run()
+        task_outcome = "success"
+        task_error = None
+        try:
+            conversation.send_message(augmented_prompt)
+            conversation.run()
+            status = getattr(getattr(conversation, "state", None), "execution_status", None)
+            if status is not None:
+                status_str = str(status.value if hasattr(status, "value") else status).lower()
+                if "error" in status_str or "stuck" in status_str:
+                    task_outcome = "failure"
+        except Exception as exc:
+            task_outcome = "failure"
+            task_error = str(exc)
+            raise
+        finally:
+            telemetry.finish()
+            # Post-task epistemic distillation hook (idempotent, safe, resilient)
+            try:
+                from chronos.memory.hooks import on_task_completed
+                modified_files = list(target_files or bootstrap_res.get("resolved_files") or [])
+                raw_messages = []
+                for ev in conversation_events:
+                    if hasattr(ev, "llm_message") and hasattr(ev.llm_message, "content"):
+                        raw_messages.append({"role": getattr(ev.llm_message, "role", "assistant"), "content": str(ev.llm_message.content)})
+                    elif hasattr(ev, "content") and isinstance(ev.content, str):
+                        raw_messages.append({"role": getattr(ev, "source", "assistant"), "content": ev.content})
 
-        telemetry.finish()
+                on_task_completed(
+                    con=self.con,
+                    task_id=telemetry.task_id,
+                    task_prompt=task_prompt,
+                    agent_id=agent_id,
+                    repo_namespace=self.repo_root.name,
+                    outcome=task_outcome,
+                    files_modified=modified_files,
+                    conversation_messages=raw_messages,
+                    error_message=task_error,
+                    audit_log_path=self.audit_log_path,
+                )
+            except Exception:
+                pass
+
         return conversation, telemetry

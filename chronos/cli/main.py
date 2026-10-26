@@ -52,6 +52,40 @@ def main():
     p_audit.add_argument("subcommand", choices=["verify"], help="Subcommand (verify)")
     p_audit.add_argument("--repo", default=".", help="Repository root path")
 
+    # memory
+    p_mem = subparsers.add_parser("memory", help="Epistemic living memory operations")
+    p_mem_sub = p_mem.add_subparsers(dest="action")
+
+    p_mem_rem = p_mem_sub.add_parser("remember", help="Store a memory")
+    p_mem_rem.add_argument("content", help="Memory content / invariant / lesson")
+    p_mem_rem.add_argument("--tier", choices=["core", "learned", "episodic", "working", "procedural"], default="learned")
+    p_mem_rem.add_argument("--importance", type=float, default=0.5)
+    p_mem_rem.add_argument("--tags", default="", help="Comma-separated tags")
+    p_mem_rem.add_argument("--namespace", default=None, help="Repository namespace (defaults to repo name)")
+    p_mem_rem.add_argument("--repo", default=".", help="Repository root path")
+
+    p_mem_rec = p_mem_sub.add_parser("recall", help="Search and rank relevant memories")
+    p_mem_rec.add_argument("query", help="Search query")
+    p_mem_rec.add_argument("--limit", type=int, default=5, help="Maximum memories to return")
+    p_mem_rec.add_argument("--tier", default=None, help="Filter by tier")
+    p_mem_rec.add_argument("--namespace", default=None, help="Repository namespace")
+    p_mem_rec.add_argument("--repo", default=".", help="Repository root path")
+
+    p_mem_lst = p_mem_sub.add_parser("list", help="List stored memories")
+    p_mem_lst.add_argument("--tier", default=None, help="Filter by tier")
+    p_mem_lst.add_argument("--outcome", default=None, help="Filter by outcome")
+    p_mem_lst.add_argument("--limit", type=int, default=20, help="Maximum memories to list")
+    p_mem_lst.add_argument("--namespace", default=None, help="Repository namespace")
+    p_mem_lst.add_argument("--repo", default=".", help="Repository root path")
+
+    p_mem_stat = p_mem_sub.add_parser("stats", help="Show memory store statistics")
+    p_mem_stat.add_argument("--namespace", default=None, help="Repository namespace")
+    p_mem_stat.add_argument("--repo", default=".", help="Repository root path")
+
+    p_mem_proc = p_mem_sub.add_parser("procedures", help="List active procedural behavioral rules")
+    p_mem_proc.add_argument("--namespace", default=None, help="Repository namespace")
+    p_mem_proc.add_argument("--repo", default=".", help="Repository root path")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -239,6 +273,71 @@ def main():
         print(f"Audit Chain Verification: {'PASSED' if is_valid else 'FAILED'}")
         print(f"Details: {msg} (Records: {count})")
         sys.exit(0 if is_valid else 1)
+
+    elif args.command == "memory":
+        from chronos.memory.store import ChronosMemoryStore
+        from chronos.memory.models import MemoryTier, OutcomeType
+
+        con = get_connection(db_file)
+        store = ChronosMemoryStore(con=con)
+        ns = args.namespace if getattr(args, "namespace", None) else repo_root.name
+
+        if args.action == "remember":
+            tags_list = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
+            mid = store.remember(
+                content=args.content,
+                repo_namespace=ns,
+                tier=MemoryTier(args.tier),
+                importance=args.importance,
+                tags=tags_list,
+                source="cli",
+            )
+            print(f"Stored memory #{mid} [tier: {args.tier}, namespace: {ns}]")
+
+        elif args.action == "recall":
+            results = store.recall(
+                query=args.query,
+                repo_namespace=ns,
+                tier=args.tier,
+                limit=args.limit,
+            )
+            print(f"Recall results for '{args.query}' in [{ns}] ({len(results)} matches):")
+            for r in results:
+                print(f"  #{r.id} [{r.tier.value.upper()}] (score: {r.score:.3f}): {r.content}")
+                if r.evidence:
+                    print(f"     Evidence: {r.evidence[:100]}...")
+
+        elif args.action == "list":
+            records = store.list_memories(
+                repo_namespace=ns,
+                tier=args.tier,
+                outcome=args.outcome,
+                limit=args.limit,
+            )
+            print(f"Memories in [{ns}] ({len(records)} found):")
+            for r in records:
+                print(f"  #{r.id} [{r.tier.value}] [{r.outcome.value}]: {r.content[:100]}")
+
+        elif args.action == "procedures":
+            procs = store.get_procedures(repo_namespace=ns)
+            print(f"Active procedural rules in [{ns}] ({len(procs)} total):")
+            for p in procs:
+                print(f"  - {p}")
+
+        elif args.action == "stats":
+            stats = store.stats(repo_namespace=ns)
+            print("Chronos Memory Statistics:")
+            print(f"  Total Memories  : {stats.total_memories}")
+            print(f"  Archived        : {stats.archived_count}")
+            print(f"  By Tier         : {stats.by_tier}")
+            print(f"  By Outcome      : {stats.by_outcome}")
+            print(f"  Namespaces      : {', '.join(stats.namespaces) or 'None'}")
+
+        else:
+            p_mem.print_help()
+
+        con.close()
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

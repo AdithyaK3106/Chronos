@@ -128,18 +128,108 @@ CREATE TABLE IF NOT EXISTS code_edges (
 );
 CREATE INDEX IF NOT EXISTS idx_code_edges_dst ON code_edges(dst, valid_at, invalid_at);
 CREATE INDEX IF NOT EXISTS idx_code_edges_src ON code_edges(src, valid_at, invalid_at);
+
+-- Epistemic Living Memory (agentmem Integration)
+CREATE TABLE IF NOT EXISTS memories (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_namespace      TEXT NOT NULL DEFAULT '',
+    tier                TEXT NOT NULL DEFAULT 'learned',
+    content             TEXT NOT NULL,
+    summary             TEXT NOT NULL DEFAULT '',
+    source              TEXT NOT NULL DEFAULT '',
+    task_id             TEXT NOT NULL DEFAULT '',
+    agent_id            TEXT NOT NULL DEFAULT '',
+    outcome             TEXT NOT NULL DEFAULT 'success',
+    verification_status TEXT NOT NULL DEFAULT 'unverified',
+    confidence          REAL NOT NULL DEFAULT 0.8,
+    importance          REAL NOT NULL DEFAULT 0.5,
+    evidence            TEXT NOT NULL DEFAULT '',
+    tags                TEXT NOT NULL DEFAULT '[]',
+    metadata            TEXT NOT NULL DEFAULT '{}',
+    supersedes          INTEGER DEFAULT NULL,
+    archived            INTEGER NOT NULL DEFAULT 0,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memories_lookup ON memories(repo_namespace, tier, archived);
+CREATE INDEX IF NOT EXISTS idx_memories_task ON memories(task_id);
+CREATE INDEX IF NOT EXISTS idx_memories_supersedes ON memories(supersedes);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+    id UNINDEXED,
+    content,
+    summary,
+    tags,
+    evidence,
+    tokenize='unicode61 remove_diacritics 1'
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_memories_ai AFTER INSERT ON memories BEGIN
+    INSERT INTO memories_fts(id, content, summary, tags, evidence)
+    VALUES (new.id, new.content, new.summary, new.tags, new.evidence);
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_memories_ad AFTER DELETE ON memories BEGIN
+    DELETE FROM memories_fts WHERE id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_memories_au AFTER UPDATE ON memories BEGIN
+    DELETE FROM memories_fts WHERE id = old.id;
+    INSERT INTO memories_fts(id, content, summary, tags, evidence)
+    VALUES (new.id, new.content, new.summary, new.tags, new.evidence);
+END;
+
+CREATE TABLE IF NOT EXISTS entities (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    memory_id  INTEGER NOT NULL,
+    FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);
+CREATE INDEX IF NOT EXISTS idx_entities_memory ON entities(memory_id);
 """
 
 _local = threading.local()
 
+def _migrate_memories_schema(con: sqlite3.Connection) -> None:
+    """Ensure all expected columns exist on memories table across schema upgrades."""
+    try:
+        cols = {row[1] for row in con.execute("PRAGMA table_info(memories)").fetchall()}
+        if cols:
+            expected = {
+                "repo_namespace": "TEXT NOT NULL DEFAULT ''",
+                "tier": "TEXT NOT NULL DEFAULT 'learned'",
+                "summary": "TEXT NOT NULL DEFAULT ''",
+                "source": "TEXT NOT NULL DEFAULT ''",
+                "task_id": "TEXT NOT NULL DEFAULT ''",
+                "agent_id": "TEXT NOT NULL DEFAULT ''",
+                "outcome": "TEXT NOT NULL DEFAULT 'success'",
+                "verification_status": "TEXT NOT NULL DEFAULT 'unverified'",
+                "confidence": "REAL NOT NULL DEFAULT 0.8",
+                "importance": "REAL NOT NULL DEFAULT 0.5",
+                "evidence": "TEXT NOT NULL DEFAULT ''",
+                "tags": "TEXT NOT NULL DEFAULT '[]'",
+                "metadata": "TEXT NOT NULL DEFAULT '{}'",
+                "supersedes": "INTEGER DEFAULT NULL",
+                "archived": "INTEGER NOT NULL DEFAULT 0",
+                "created_at": "TEXT NOT NULL DEFAULT ''",
+                "updated_at": "TEXT NOT NULL DEFAULT ''",
+            }
+            for col_name, col_def in expected.items():
+                if col_name not in cols:
+                    con.execute(f"ALTER TABLE memories ADD COLUMN {col_name} {col_def}")
+    except Exception:
+        pass
+
 def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection:
     """Returns a configured SQLite connection with WAL mode and robust pragmas."""
-    if isinstance(db_path, str) and db_path != ":memory:":
+    if str(db_path) != ":memory:":
         p = Path(db_path).resolve()
         p.parent.mkdir(parents=True, exist_ok=True)
         path_str = str(p)
     else:
-        path_str = str(db_path)
+        path_str = ":memory:"
 
     con = sqlite3.connect(path_str, isolation_level=None, check_same_thread=False, timeout=30.0)
     con.row_factory = sqlite3.Row
@@ -151,6 +241,7 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
     con.execute("PRAGMA busy_timeout = 30000")
     
     con.executescript(SCHEMA)
+    _migrate_memories_schema(con)
     try:
         con.execute(
             """
@@ -158,6 +249,18 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
             SELECT n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, '')
             FROM code_nodes n
             LEFT JOIN code_nodes_fts f ON n.id = f.id
+            WHERE f.id IS NULL
+            """
+        )
+    except Exception:
+        pass
+    try:
+        con.execute(
+            """
+            INSERT INTO memories_fts(id, content, summary, tags, evidence)
+            SELECT m.id, m.content, m.summary, m.tags, m.evidence
+            FROM memories m
+            LEFT JOIN memories_fts f ON m.id = f.id
             WHERE f.id IS NULL
             """
         )

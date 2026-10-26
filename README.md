@@ -3,7 +3,7 @@
 **Bi-Temporal Repository Intelligence, Autonomous Context Resolution & Multi-Agent Governance Engine**  
 *Agent-agnostic platform supporting OpenHands SDK, Model Context Protocol (MCP), Cursor, Claude Code, Windsurf, LangGraph, AutoGen, and custom AI agents.*
 
-[![Tests](https://img.shields.io/badge/tests-66%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-83%20passed-brightgreen.svg)](tests/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Protocol](https://img.shields.io/badge/MCP-FastMCP%203.x-purple.svg)](chronos/server/mcp_server.py)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -16,11 +16,13 @@ Current AI coding agents suffer from three critical production problems:
 1. **Context Blindness & Exploration Loops:** Agents spend dozens of costly tool turns blindly browsing directories and reading files to locate relevant code, blowing through token budgets and triggering multi-minute delays.
 2. **Security & Policy Hallucinations:** Agents modify safety-critical modules, bypass access controls, leak environment secrets, and clobber protected configs without deterministic pre-execution guardrails.
 3. **Multi-Agent Collision & Merge Conflicts:** When multiple agents work on the same repository in parallel, they overwrite each other's edits, lacking atomic sub-file AST locking.
+4. **Agent Amnesia:** Agents start every session with zero memory. Lessons learned from fixing subtle bugs or repository invariants evaporate at task termination, repeating the same exploratory mistakes.
 
-**Chronos solves all three:**
+**Chronos solves all four:**
 - 🔍 **Zero-Path Context Resolution (< 15ms):** Deterministically discovers, ranks, and injects exact AST symbols, call hierarchies, signatures, and matching test files from natural-language prompts *before Turn 1 inference*.
 - 🌐 **Polyglot Tree-Sitter AST Indexing:** Out-of-the-box bi-temporal AST indexing across **TypeScript (`.ts`, `.tsx`)**, **JavaScript (`.js`, `.jsx`)**, **Go (`.go`)**, and **Python (`.py`)** with automatic caller extraction, struct/interface embedding, docstrings, and intelligent noise pruning (`node_modules`, `vendor`, `.venv`).
 - 🔗 **Cross-File Import Linker & Symbol Disambiguation:** Resolves cross-file dependencies, monorepo tsconfig aliases (`@/*`, `~/*`), Python package hierarchies, and Go module/intra-package scopes into deterministic qualified node IDs (`path::symbol::kind`), with explicit `IMPORTS` edges and `external:` namespaces for third-party libraries.
+- 🧠 **Epistemic Living Memory (`agentmem` Integration):** Persistent, cross-session memory with SQLite FTS5 lexical ranking, recency decay, and verification weighting. Features an automated post-task distillation hook to capture bug root causes, failed hypotheses, and procedural invariants, plus pre-turn-1 advisory injection and repository namespace isolation.
 - 🛡 **Fail-Closed Security Firewall:** Intercepts agent actions pre-execution at the tool boundary. Blocks unauthorized edits, path escapes, and security breaches before disk modification can occur.
 - 🔒 **Sub-File AST Concurrency Leasing:** Bi-temporal write leases at the class/function level prevent parallel agents from clobbering each other's work.
 - 🔀 **Universal Agent Fabric:** Connects seamlessly to **any** agent via the Model Context Protocol (MCP), pure Python SDK, or the autonomous CLI runner.
@@ -207,6 +209,10 @@ Add to your `mcp_config.json` (or Cursor / Claude Desktop MCP configuration):
 | Tool Name | Parameters | Purpose |
 | :--- | :--- | :--- |
 | `chronos_resolve_zero_path_context` | `prompt`, `token_budget` | Discovers files, symbols, tests & formats Turn 1 context envelope (< 15ms). |
+| `chronos_remember` | `content`, `tier`, `namespace`, `tags` | Stores an epistemic memory record (advisory only). |
+| `chronos_recall` | `query`, `namespace`, `limit` | Searches and ranks past postmortems, gotchas, and invariants. |
+| `chronos_get_procedures` | `namespace` | Retrieves active procedural rules and behavioral invariants. |
+| `chronos_memory_stats` | `namespace` | Aggregated statistics on stored epistemic memories. |
 | `as_of_impact` | `symbol_name`, `max_depth` | Transitive downstream blast radius analysis before refactoring. |
 | `as_of_callers` | `symbol_name` | Direct incoming callers across the repository graph. |
 | `as_of_callees` | `symbol_name` | Outgoing functions/classes invoked by a symbol. |
@@ -214,6 +220,29 @@ Add to your `mcp_config.json` (or Cursor / Claude Desktop MCP configuration):
 | `chronos_acquire_lock` | `node_id`, `agent_id`, `ttl` | Reserves atomic sub-file AST lease to prevent agent collisions. |
 | `chronos_release_lock` | `node_id`, `agent_id` | Releases held sub-file lock. |
 | `chronos_list_locks` | *(none)* | Lists all active non-expired AST leases. |
+
+---
+
+### Option D: Epistemic Living Memory Management (`chronos memory`)
+
+Chronos provides CLI commands for managing persistent repository memory:
+
+```bash
+# 1. Remember a learned gotcha or invariant
+chronos memory remember "Cycle prevention in SQLiteGraphStore requires tracking visited paths in recursive CTE" --tier learned
+
+# 2. Add an explicit behavioral procedure / coding invariant
+chronos memory remember "Always run pytest before committing code changes" --tier procedural
+
+# 3. Recall past lessons for a task
+chronos memory recall "cycle prevention graph traversal"
+
+# 4. List stored memories
+chronos memory list --tier learned
+
+# 5. Inspect memory statistics
+chronos memory stats
+```
 
 ---
 

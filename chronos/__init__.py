@@ -38,6 +38,13 @@ from chronos.security.permissions import (
     set_permissions,
     get_permissions,
 )
+from chronos.memory import (
+    ChronosMemoryStore,
+    MemoryRecord,
+    MemoryTier,
+    RecallResult,
+    on_task_completed,
+)
 
 __all__ = [
     "ChronosConfig",
@@ -64,4 +71,9 @@ __all__ = [
     "check_action_allowed",
     "set_permissions",
     "get_permissions",
+    "ChronosMemoryStore",
+    "MemoryRecord",
+    "MemoryTier",
+    "RecallResult",
+    "on_task_completed",
 ]

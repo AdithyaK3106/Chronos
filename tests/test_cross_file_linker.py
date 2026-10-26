@@ -297,8 +297,11 @@ export function run(): number {
     callers_add = store.as_of_callers("add")
     assert any(c["name"] == "run" for c in callers_add)
 
+    from datetime import datetime, timedelta, timezone
+    t1 = edges[0].valid_at if edges else datetime.now(timezone.utc).isoformat()
+    t2 = (datetime.fromisoformat(t1) + timedelta(minutes=5)).isoformat()
+
     # Edit app.ts to import and call multiply instead
-    t2 = "2026-10-26T02:00:00Z"
     app_ts.write_text("""
 import { multiply } from './calc';
 
@@ -315,5 +318,5 @@ export function run(): number {
     assert any(c["name"] == "run" for c in callers_mult)
 
     # Historical at t1: run called add
-    callers_past = store.as_of_callers("add", as_of="2026-10-26T01:00:00Z")
+    callers_past = store.as_of_callers("add", as_of=t1)
     assert any(c["name"] == "run" for c in callers_past)

@@ -19,6 +19,7 @@ from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
 from chronos.context.resolver import DeterministicContextResolver, ResolutionResult
 from chronos.coordination.ledger import acquire_lock
+from chronos.memory.store import ChronosMemoryStore
 from chronos.security.gates import check_gate_approval
 from chronos.security.permissions import check_action_allowed
 from chronos.verification.rule_store import get_active_blocking_rules
@@ -32,6 +33,7 @@ class ChronosSessionBootstrap:
         self.con = con
         self.graph_store = SQLiteGraphStore(con)
         self.resolver = DeterministicContextResolver(repo_root=self.repo_path, graph_store=self.graph_store)
+        self.memory_store = ChronosMemoryStore(con=self.con)
 
     def bootstrap_session(
         self,
@@ -151,6 +153,42 @@ class ChronosSessionBootstrap:
             for l in acquired_leases:
                 envelope_lines.append(f"- Held lease: `{l}`")
 
+        # 6. Epistemic Living Memory Recall (Past Postmortems, Invariants, & Gotchas)
+        recalled_memories = []
+        repo_ns = self.repo_path.name
+        try:
+            recalled_memories = self.memory_store.recall(
+                query=task_prompt,
+                repo_namespace=repo_ns,
+                limit=3,
+                current_only=True,
+            )
+            # If prompt search returned few results, try resolved symbols
+            if len(recalled_memories) < 2 and resolved_symbols:
+                sym_query = " ".join(resolved_symbols[:3])
+                sym_mems = self.memory_store.recall(
+                    query=sym_query,
+                    repo_namespace=repo_ns,
+                    limit=2,
+                    current_only=True,
+                )
+                seen_ids = {m.id for m in recalled_memories}
+                for sm in sym_mems:
+                    if sm.id not in seen_ids:
+                        recalled_memories.append(sm)
+                        seen_ids.add(sm.id)
+        except Exception:
+            recalled_memories = []
+
+        if recalled_memories:
+            envelope_lines.append("")
+            envelope_lines.append("#### 🧠 Chronos Repository Memory & Past Postmortems (Advisory Only):")
+            for m in recalled_memories[:3]:
+                outcome_tag = f" [{m.outcome.value}]" if m.outcome.value != "success" else ""
+                verif_tag = f" ({m.verification_status.value})" if m.verification_status.value != "unverified" else ""
+                envelope_lines.append(f"- [{m.tier.value.capitalize()}]{outcome_tag}: {m.content}{verif_tag}")
+            envelope_lines.append("- *Notice: Past memories are advisory guidance only and never supersede active security rules or write locks.*")
+
         envelope_text = "\n".join(envelope_lines)
         augmented_prompt = f"{task_prompt}\n\n{envelope_text}"
 
@@ -161,6 +199,7 @@ class ChronosSessionBootstrap:
             "symbols": ast_ctx["included_symbols"],
             "leases": acquired_leases,
             "rules_count": len(rules),
+            "memories_count": len(recalled_memories),
             "resolved_files": resolved_files,
             "resolved_symbols": resolved_symbols,
             "test_files": test_files,

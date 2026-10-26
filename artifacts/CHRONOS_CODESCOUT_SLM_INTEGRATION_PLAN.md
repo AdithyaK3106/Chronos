@@ -1,77 +1,71 @@
-# Production-Grade OpenHands CodeScout-1.7B SLM Integration Plan
+# Production-Ready OpenHands CodeScout-1.7B SLM Integration Plan
 
-## 1. Executive Summary & Architectural Goals
-
-The goal of this initiative is to elevate Chronos's Zero-Path Context Resolution with a **production-grade integration of `OpenHands/CodeScout-1.7B`** as our primary Small Language Model (SLM), while maintaining **complete user autonomy** over whether SLM inference is utilized.
-
-### Core Philosophy
-1. **User Choice First (Opt-In / Opt-Out):** The user explicitly controls whether SLM reasoning is active via CLI flags, project configuration, or environment variables. 
-2. **Advisory Acceleration, Never a Hard Dependency:** When SLM is disabled or unavailable, Chronos operates 100% deterministically using Tree-Sitter polyglot AST call graphs, caller/callee traversal, and SQLite FTS5 BM25 lexical ranking.
-3. **Multi-Backend Production Serving:** Support the diverse deployment topologies used in production:
-   - **vLLM (Recommended for servers / clusters):** High-throughput OpenAI-compatible endpoint.
-   - **Ollama (Recommended for developer laptops / workstations):** Local zero-config model execution.
-   - **In-Process Transformers (Zero external daemon dependency):** Direct PyTorch/HuggingFace pipeline with optional 4-bit quantization and lazy initialization.
-   - **Generic OpenAI-Compatible Gateway:** LiteLLM proxy, TGI, FastChat, or remote clusters.
-   - **Agy / Cloud Fallback:** Existing lightweight CLI runner.
-4. **Resilient Zero-Degradation Fallback:** If an SLM call fails (timeout, connection refused, out-of-memory, invalid JSON), Chronos emits a clean warning and falls back immediately to AST + BM25 with zero latency overhead and zero crashes.
+**Status:** Audited & Ready for Implementation  
+**Target Model:** `OpenHands/CodeScout-1.7B` (exclusively; no alternative/larger models)  
+**Target Architecture:** Zero-Path Semantic Codebase Localization under Chronos Deterministic Governance  
+**Hardware Environment Audited:** 
+- GPU: NVIDIA GeForce GTX 750 Ti (2048 MiB VRAM, Maxwell compute capability 5.0)
+- Host CPU: Intel(R) Core(TM) i3-4130 CPU @ 3.40GHz (Haswell, 2 cores / 4 threads, AVX2)
+- System RAM: 7.2 GiB total (3.7 GiB available)
+- NPU Status: **None detected** (`/sys/class/accel` empty, `/dev/accel*` absent)
 
 ---
 
-## 2. System Architecture
+## 1. Verified Model & Runtime Compatibility
 
-```mermaid
-flowchart TD
-    UserPrompt["Natural Language Prompt<br/>(No File Paths)"] --> ConfigCheck{"User Configuration Check<br/>CLI > ENV > config.json"}
-    
-    subgraph "Resolution Pipeline"
-        ConfigCheck -->|SLM Disabled<br/>--no-slm| DetPath["Deterministic AST Engine<br/>Tree-Sitter + FTS5 BM25"]
-        
-        ConfigCheck -->|SLM Enabled<br/>--enable-slm| CodeScoutClient["CodeScout 1.7B Client<br/>(Backend Router)"]
-        
-        subgraph "CodeScout Serving Backends"
-            CodeScoutClient -->|vllm| B_VLLM["vLLM (/v1/chat/completions)"]
-            CodeScoutClient -->|ollama| B_OLLAMA["Ollama (/api/chat)"]
-            CodeScoutClient -->|transformers| B_HF["In-Process HuggingFace"]
-            CodeScoutClient -->|openai| B_OAI["OpenAI Gateway / Proxy"]
-            CodeScoutClient -->|agy| B_AGY["Agy CLI Runner"]
-        end
-        
-        B_VLLM -.->|Response / Failure| RespHandler["Parser & Anti-Hallucination Filter"]
-        B_OLLAMA -.->|Response / Failure| RespHandler
-        B_HF -.->|Response / Failure| RespHandler
-        B_OAI -.->|Response / Failure| RespHandler
-        B_AGY -.->|Response / Failure| RespHandler
-        
-        RespHandler -->|On Failure / Timeout| DetPath
-        RespHandler -->|Suspected Files & Symbols| GraphFusion["AST Graph Relevance Reranker"]
-        DetPath -->|Lexical & Structural Candidates| GraphFusion
-    end
-    
-    GraphFusion --> DiscoveredContext["Discovered Files, Symbols & Co-Located Tests"]
-    DiscoveredContext --> ContextEnvelope["Context Envelope (Pre-Turn-1 Injection)"]
-```
+### A. Model Architecture & Origin
+- **Model:** `OpenHands/CodeScout-1.7B` (and `OpenHands/CodeScout-1.7B-RFT`).
+- **Base Architecture:** Qwen-based 1.7B parameter transformer.
+- **Training Strategy:** 2-stage training by the OpenHands team:
+  1. Rejection Fine-Tuning (RFT) on expert exploration trajectories from larger models.
+  2. Group Sequence Policy Optimization (GSPO) reinforcement learning on SWE-bench issues.
+- **Target Task:** Repository-level fault & feature localization: mapping natural-language issue descriptions to the exact files, classes, and functions requiring modifications.
+
+### B. Hardware & Serving Compatibility Matrix
+
+| Runtime Backend | Model Format | VRAM Footprint | Host RAM | Supported on Local GTX 750 Ti (2GB) | Production Fit |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **vLLM** (`/v1/chat/completions`) | FP16 / BF16 | ~3.4 GB | ~4 GB | ❌ Exceeds 2GB VRAM | ✅ Ideal for Dedicated GPU Server |
+| **vLLM** (AWQ / GPTQ 4-bit) | 4-bit quantized | ~1.3 GB | ~3 GB | ⚠️ Maxwell lacks INT4 tensor cores | ✅ Recommended for Ampere/Ada Server |
+| **Ollama** (`/v1` or `/api/chat`) | Q4_K_M GGUF | ~1.1 GB | ~2.5 GB | ✅ Fits in 2GB VRAM or CPU RAM | ✅ Ideal for Local Dev Workstation |
+| **llama-server** (OpenAI API) | Q4_K_M GGUF | ~1.1 GB | ~2.2 GB | ✅ CPU or GPU offload | ✅ Lightweight CLI / Embedded |
+| **OpenAI-Compatible Remote Gateway** | Any remote | 0 MB (Client) | 0 MB (Client) | ✅ Fully Supported (Zero client GPU) | ✅ Recommended Enterprise Gateway |
+| **Agy CLI Runner** | Cloud/CLI | 0 MB (Client) | 0 MB (Client) | ✅ Verified in Current Dev Environment | ✅ Development / Harness Fallback |
+
+> [!NOTE]
+> **NPU Compatibility Finding**  
+> Inspection of the host system confirmed `/sys/class/accel` is empty and no NPU driver is loaded. While CodeScout-1.7B GGUF weights can run via OpenVINO or ONNX Runtime on Intel Core Ultra NPUs or Qualcomm Hexagon NPUs, **no NPU acceleration is claimed or enabled for this deployment without direct hardware presence**.
 
 ---
 
-## 3. Configuration & User Choice Architecture
+## 2. First-Release Backend Scope
 
-We introduce a first-class `SLMConfig` model in `chronos/core/config.py` with full configuration hierarchy:
+To maintain a clean, lightweight, and robust architecture without bloat, the first release implements **three focused backends**:
 
-### A. Configuration Schema (`chronos/core/config.py`)
+1. **`openai_compatible` (Default Backend):**
+   - Implements standard OpenAI chat completion API (`POST {endpoint}/chat/completions`).
+   - Automatically supports: **vLLM**, **Ollama** (via its built-in `/v1` endpoint), **llama-server**, **LiteLLM proxy**, and **OpenAI-compatible gateways**.
+   - Configurable timeout, connection pooling, and JSON schema extraction.
+2. **`ollama` (Native Ollama API Backend):**
+   - Connects to native Ollama HTTP endpoint (`POST {endpoint}/api/chat`).
+   - Enables zero-config local developer execution when users run `ollama run hf.co/OpenHands/CodeScout-1.7B`.
+3. **`agy` (Antigravity CLI Runner):**
+   - Leverages local environment runner for regression and test harness compatibility.
+
+*(Theoretical in-process PyTorch transformers backends are excluded from Phase 1 to prevent 3+ GB PyTorch dependencies from bloating non-GPU environments).*
+
+---
+
+## 3. Configuration Schema & Precedence Hierarchy
+
+### A. Precedence Rule
+SLM inference is **explicitly opt-in** and strictly **disabled by default**. The precedence order is:
+
+$$\text{CLI Flags} > \text{Environment Variables} > \text{Repository Config (.chronos/config.json)} > \text{Defaults (enabled=False)}$$
+
+### B. Configuration Schema (`chronos/core/config.py`)
 
 ```python
-from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
-
-class SLMBackend(str, Enum):
-    VLLM = "vllm"
-    OLLAMA = "ollama"
-    TRANSFORMERS = "transformers"
-    OPENAI = "openai"
-    AGY = "agy"
-    NONE = "none"
-
 class SLMConfig(BaseModel):
     enabled: bool = Field(
         default=False, 
@@ -79,188 +73,120 @@ class SLMConfig(BaseModel):
     )
     model: str = Field(
         default="OpenHands/CodeScout-1.7B",
-        description="Hugging Face repo ID, Ollama model tag, or custom model identifier."
+        description="Target model identifier (fixed to OpenHands/CodeScout-1.7B)."
     )
-    backend: SLMBackend = Field(
-        default=SLMBackend.VLLM,
-        description="Inference backend engine (vllm, ollama, transformers, openai, agy)."
+    backend: str = Field(
+        default="openai_compatible",
+        description="Backend engine: 'openai_compatible', 'ollama', or 'agy'."
     )
-    endpoint: Optional[str] = Field(
+    endpoint: str = Field(
         default="http://localhost:8000/v1",
-        description="Base URL for vLLM, Ollama, or OpenAI-compatible server."
+        description="Endpoint URL for OpenAI-compatible or Ollama server."
     )
     api_key: Optional[str] = Field(
         default="EMPTY",
-        description="API key for authentication if required by proxy."
+        description="API key or token for authenticated gateways."
     )
     timeout_seconds: int = Field(
         default=25,
-        description="Maximum seconds before falling back to deterministic AST resolution."
+        description="Maximum seconds before triggering circuit breaker and AST fallback."
     )
-    temperature: float = Field(default=0.1)
     max_candidate_files: int = Field(
         default=150,
-        description="Maximum candidate repository files provided in context to the SLM."
-    )
-    quantization: Optional[str] = Field(
-        default="4bit",
-        description="Quantization for in-process transformers backend ('4bit', '8bit', 'bfloat16', None)."
+        description="Maximum candidate repository files provided in context to CodeScout."
     )
 ```
 
-### B. Configuration Precedence
-
-1. **CLI Flags (Highest priority):**
-   - `--enable-slm` / `--no-slm`
-   - `--slm-backend [vllm|ollama|transformers|openai|agy]`
-   - `--slm-model <id>`
-   - `--slm-endpoint <url>`
-2. **Environment Variables:**
-   - `CHRONOS_ENABLE_SLM` (`true` / `false` / `1` / `0`)
-   - `CHRONOS_SLM_MODEL` (e.g. `OpenHands/CodeScout-1.7B`)
-   - `CHRONOS_SLM_BACKEND` (e.g. `vllm`, `ollama`)
-   - `CHRONOS_SLM_ENDPOINT` (e.g. `http://localhost:8000/v1`)
-   - `CHRONOS_SLM_API_KEY`
-3. **Repository Configuration (`.chronos/config.json`):**
-   ```json
-   {
-     "slm": {
-       "enabled": true,
-       "model": "OpenHands/CodeScout-1.7B",
-       "backend": "vllm",
-       "endpoint": "http://localhost:8000/v1"
-     }
-   }
-   ```
-4. **Default Setting:**
-   - Default is **`enabled: False`** (opt-in) for pure deterministic environments, or **auto-detected** if a local vLLM/Ollama service is actively running on standard ports.
-
 ---
 
-## 4. Backend Implementation Specifications
+## 4. Architectural Data Flow & Resolution Fusion
 
-### Backend 1: vLLM (`VLLMBackend`) — Production Standard
-- Target: Running via `vllm serve OpenHands/CodeScout-1.7B --port 8000`.
-- Protocol: Standard OpenAI-compatible HTTP POST to `{endpoint}/chat/completions`.
-- Features: High concurrency, batching, PagedAttention, KV-caching.
-- Request payload uses `response_format={"type": "json_object"}` when supported.
-
-### Backend 2: Ollama (`OllamaBackend`) — Developer Workstation
-- Target: Running via `ollama run hf.co/OpenHands/CodeScout-1.7B` or `ollama serve`.
-- Protocol: Direct HTTP to `http://localhost:11434/api/chat` or `http://localhost:11434/v1/chat/completions`.
-- Features: Lightweight single-binary installation on Linux/macOS/Windows with zero Python dependencies.
-
-### Backend 3: In-Process Hugging Face (`TransformersBackend`) — Embedded / Zero-Daemon
-- Target: Python environments with `torch` and `transformers` installed.
-- Loading: Lazy, on-demand loading on first call (avoids startup penalty when SLM is unused).
-- Features:
-  - Supports `bitsandbytes` 4-bit NF4 quantization (`device_map="auto"`) for low VRAM (~2.5GB VRAM footprint).
-  - CPU offload fallback if CUDA is unavailable.
-  - Cached under `~/.cache/huggingface/hub/`.
-
-### Backend 4: Generic OpenAI (`OpenAIBackend`)
-- Target: Custom proxies (LiteLLM, FastChat, OpenRouter, self-hosted API gateways).
-
-### Backend 5: Agy / Cloud Fallback (`AgyBackend`)
-- Target: Environments running the Antigravity CLI runner.
-
----
-
-## 5. CodeScout Prompt Engineering & Anti-Hallucination
-
-CodeScout-1.7B was trained via GSPO reinforcement learning on SWE-bench specifically for localization. The prompt structure is optimized for CodeScout's training distribution:
-
-```text
-[SYSTEM]
-You are CodeScout, an expert code search and localization agent.
-Given a natural-language issue or task description and a list of repository files, identify the exact target files and functions that must be modified to solve the problem.
-
-Format your output strictly as a JSON object:
-{
-  "suspected_files": ["relative/path/to/file.py"],
-  "suspected_symbols": ["symbol_or_function_name"],
-  "domain_concepts": ["concept1", "concept2"],
-  "intent": "bug_fix" | "feature" | "refactor" | "security",
-  "rationale": "Concise explanation of why these files need changes"
-}
-
-[USER]
-REPOSITORY SOURCE FILES:
-<filtered_candidate_files>
-
-TASK DESCRIPTION:
-<natural_language_prompt>
-```
-
-### Anti-Hallucination Gate
-Every path returned by CodeScout is validated against the actual repository tree:
-1. Exact match on disk -> accepted.
-2. Basename suffix match (e.g. `ledger.py` matching `chronos/coordination/ledger.py`) -> normalized to actual relative path.
-3. Completely nonexistent file -> filtered out before AST graph traversal.
-
----
-
-## 6. CLI & Operational Ergonomics
-
-We enhance the CLI commands across Chronos to provide intuitive SLM management:
-
-### 1. `chronos resolve`
-```bash
-# Explicitly use CodeScout with vLLM
-chronos resolve "Fix deadlock in coordination ledger" --enable-slm --slm-backend vllm
-
-# Explicitly disable SLM (pure AST + BM25)
-chronos resolve "Fix deadlock in coordination ledger" --no-slm
-
-# Use Ollama backend
-chronos resolve "Sanitize secret keys in audit log" --enable-slm --slm-backend ollama --slm-endpoint http://localhost:11434/v1
-```
-
-### 2. `chronos run`
-```bash
-# Run OpenHands agent with CodeScout zero-path bootstrap
-chronos run "Fix race condition in lock lease renewal" --enable-slm
-
-# Run with pure deterministic AST resolution
-chronos run "Fix race condition in lock lease renewal" --no-slm
-```
-
-### 3. `chronos doctor`
-Adds an SLM Diagnostics section:
-```text
-SLM Zero-Path Resolver:
-  Configuration : Enabled (Opt-In)
-  Backend       : vLLM (http://localhost:8000/v1)
-  Model         : OpenHands/CodeScout-1.7B
-  Service Health: ONLINE (HTTP 200, Ping Latency: 14ms)
-  Inference Test: PASSED (Resolved sample query in 312ms)
-```
-
-### 4. `chronos config`
-```bash
-# Toggle SLM on or off in .chronos/config.json
-chronos config set slm.enabled true
-chronos config set slm.backend vllm
-chronos config set slm.model OpenHands/CodeScout-1.7B
+```mermaid
+flowchart TD
+    UserPrompt["Natural Language Prompt"] --> CheckSLM{"SLM Enabled?<br/>(CLI > ENV > config.json)"}
+    
+    CheckSLM -->|No / Default| DetEngine["Deterministic Engine<br/>Tree-Sitter AST + FTS5 BM25"]
+    
+    CheckSLM -->|Yes (Opt-In)| BoundedFiles["Collect Candidate Repo Files<br/>(Max N Files, Filtered Exts)"]
+    BoundedFiles --> CBCheck{"Circuit Breaker<br/>Tripped?"}
+    
+    CBCheck -->|Yes (Unhealthy)| DetEngine
+    CBCheck -->|No| CodeScout["Invoke CodeScout-1.7B<br/>(OpenAI-Compatible / Ollama / Agy)"]
+    
+    CodeScout -->|Timeout / Conn Error| TriggerCB["Trip Circuit Breaker & Log Warning"]
+    TriggerCB --> DetEngine
+    
+    CodeScout -->|Raw Response| ParseJSON["Parse Structured Output<br/>(Files, Symbols, Rationale)"]
+    ParseJSON --> ValidatePaths["Anti-Hallucination Gate:<br/>1. Check exact file exists<br/>2. Disambiguate unique basenames<br/>3. Reject ambiguous / missing paths<br/>4. Validate symbols against AST"]
+    
+    ValidatePaths --> ValidatedSLM["Validated SLM Candidates"]
+    DetEngine --> DetCandidates["Deterministic Candidates"]
+    
+    ValidatedSLM --> Fusion["Graph & Lexical Fusion Reranker<br/>(Boost candidates confirmed by both)"]
+    DetCandidates --> Fusion
+    
+    Fusion --> Budgeter["Chronos Token Budgeter"]
+    Budgeter --> ContextEnvelope["Context Envelope (Pre-Turn-1 Injection)"]
+    ContextEnvelope --> SecurityGates["Independent Security Gateway & AST Leases"]
 ```
 
 ---
 
-## 7. Phased Implementation Steps
+## 5. Anti-Hallucination & Validation Rules
 
-| Phase | Component | Detailed Tasks | Acceptance Criteria |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | **Configuration & Schema** | • Implement `SLMConfig` and `SLMBackend` in `chronos/core/config.py`<br>• Wire environment variable overrides and `.chronos/config.json` loading<br>• Add CLI flags (`--enable-slm`, `--no-slm`, `--slm-backend`, `--slm-model`, `--slm-endpoint`) to `chronos/cli/main.py` | Configuration precedence works cleanly: CLI > ENV > JSON > Default. |
-| **Phase 2** | **CodeScout Client & Backend Routers** | • Refactor `chronos/context/slm_resolver.py` to support `VLLMBackend`, `OllamaBackend`, `TransformersBackend`, `OpenAIBackend`, and `AgyBackend`<br>• Implement lazy loading for `transformers`<br>• Standardize JSON extraction and anti-hallucination validation | All backends handle CodeScout's output and validate paths against repository root. |
-| **Phase 3** | **Resolver & Bootstrap Wiring** | • Update `DeterministicContextResolver` to accept `SLMConfig`<br>• Update `ChronosSessionBootstrap` and `ChronosAgentRuntime` to propagate user SLM choice<br>• Update benchmark harness `runner.py` to support `--enable-slm` / `--no-slm` | Resolver executes SLM only when requested; falls back to AST + BM25 on failure or when disabled. |
-| **Phase 4** | **Doctor & Diagnostics** | • Add SLM connectivity ping and diagnostic reporting to `chronos doctor`<br>• Implement `chronos config` helper commands | `chronos doctor` reports accurate health for local/remote SLM backends. |
-| **Phase 5** | **Testing & Verification** | • Unit tests for all backends (mocked HTTP/Ollama/Transformers)<br>• Unit tests for opt-in/opt-out configuration precedence<br>• Unit tests for anti-hallucination and fallback safety<br>• End-to-end CLI integration test | All 89+ tests pass; zero regressions. |
+Model output is strictly untrusted advisory data:
+1. **File Path Validation:**
+   - Every file path returned by CodeScout must resolve to a valid, existing file under `repo_root`.
+   - If CodeScout outputs an unqualified filename (e.g. `ledger.py`), the resolver searches candidate files:
+     - If **exactly 1** candidate matches `Path(cand).name == "ledger.py"`, normalize to `chronos/coordination/ledger.py`.
+     - If **multiple candidates** match (e.g. `src/utils.py` and `tests/utils.py`), **reject the suggestion as ambiguous** rather than making a random guess.
+     - If **0 candidates** match, immediately discard.
+2. **Symbol Validation:**
+   - Check proposed symbols against indexed AST nodes in `SQLiteGraphStore`.
+   - Unmatched symbols are demoted to plain search terms rather than authoritative target AST seeds.
+3. **Advisory Immunity Guarantee:**
+   - Retrieved SLM target files **never** grant write permissions, lease bypasses, or security approval. Leases must still be acquired through `chronos_acquire_lock` and actions verified against `security/permissions.py`.
 
 ---
 
-## 8. Verification & Acceptance Criteria
+## 6. Resilience, Timeouts & Circuit Breaker
 
-1. **Opt-Out Test:** Calling `chronos resolve "..." --no-slm` executes 100% locally via Tree-Sitter AST & SQLite BM25 in <50ms without initiating any network connection or model loading.
-2. **Opt-In Test:** Calling `chronos resolve "..." --enable-slm` routes prompt through the configured CodeScout backend and returns targeted files with SLM provenance.
-3. **Resilience Test:** When `--enable-slm` is specified with an unreachable endpoint (e.g. `http://localhost:9999/v1`), the resolver logs a diagnostic warning and successfully returns the AST + BM25 resolution without an unhandled exception.
-4. **Test Suite Integrity:** The full test suite passes with 100% green status.
+- **Bounded Timeouts:** Every network call has an explicit `timeout_seconds` (default: 25s, configurable).
+- **Circuit Breaker:**
+  - Maintains consecutive failure count (`consecutive_failures`).
+  - If 2 consecutive failures occur (connection refused, HTTP 500, read timeout), the circuit breaker trips into `OPEN` state for the remainder of the session.
+  - While `OPEN`, subsequent prompt resolutions bypass the network call entirely and execute deterministic AST + BM25 instantly.
+- **Zero-Network Invariant:**
+  - When `enabled=False`, zero sockets are opened, zero background processes are spawned, and zero HTTP calls are dispatched.
+
+---
+
+## 7. CLI & Diagnostic Ergonomics
+
+- `chronos resolve "<prompt>" [--enable-slm|--no-slm] [--slm-backend <b\>] [--slm-endpoint <url\>]`
+- `chronos run "<prompt>" [--enable-slm|--no-slm] ...`
+- `chronos doctor`:
+  - Inspects SLM configuration status (Enabled / Disabled).
+  - Pings the configured endpoint (HTTP health check).
+  - Reports detected local accelerator hardware (GTX 750 Ti, RAM, NPU status).
+  - Prints sanitized diagnostics without leaking API keys.
+
+---
+
+## 8. Measurable Acceptance Criteria & Localization Benchmark
+
+1. **Configuration Precedence:**
+   - `chronos resolve "..." --no-slm` executes pure AST + BM25 in < 50ms without network traffic.
+   - `chronos resolve "..." --enable-slm` engages CodeScout.
+2. **Resilience & Fallback:**
+   - When pointing to dead endpoint `http://localhost:9999/v1`, resolver catches `ConnectionError`, trips circuit breaker, and returns deterministic AST results with zero unhandled exceptions.
+3. **Anti-Hallucination:**
+   - Hallucinated paths (e.g. `chronos/non_existent_module.py`) and ambiguous duplicate basenames are rejected 100% of the time.
+4. **Security Independence:**
+   - SLM resolution output cannot bypass path traversal, secret file blocks, or write permissions.
+5. **Localization Benchmark:**
+   - Measure File Recall@5, Recall@10, and Symbol Recall across enterprise tasks comparing:
+     - Baseline: Deterministic AST + FTS5 BM25.
+     - Treatment: Deterministic AST + CodeScout-1.7B + Graph Fusion.
+6. **Test Suite:**
+   - 100% green test pass rate (89+ tests).

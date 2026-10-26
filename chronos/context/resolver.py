@@ -88,15 +88,16 @@ class DeterministicContextResolver:
         graph_store: GraphStore,
         slm_resolver: Optional[Any] = None,
         enable_slm: bool = False,
+        slm_config: Optional[Any] = None,
     ):
         self.repo_root = Path(repo_root).resolve()
         self.graph_store = graph_store
         if slm_resolver is not None:
             self.slm_resolver = slm_resolver
-        elif enable_slm:
+        elif enable_slm or (slm_config and getattr(slm_config, "enabled", False)):
             try:
                 from chronos.context.slm_resolver import LocalSLMResolver
-                self.slm_resolver = LocalSLMResolver(repo_root=self.repo_root)
+                self.slm_resolver = LocalSLMResolver(repo_root=self.repo_root, config=slm_config)
             except Exception:
                 self.slm_resolver = None
         else:
@@ -156,7 +157,15 @@ class DeterministicContextResolver:
                 slm_res = self.slm_resolver.resolve_prompt(prompt)
                 if slm_res and slm_res.suspected_files:
                     for sf in slm_res.suspected_files:
-                        norm_sf = Path(sf).as_posix()
+                        p = Path(sf)
+                        if p.is_absolute():
+                            try:
+                                norm_sf = p.resolve().relative_to(self.repo_root).as_posix()
+                            except ValueError:
+                                norm_sf = p.as_posix()
+                        else:
+                            norm_sf = p.as_posix()
+
                         if norm_sf not in candidates_map:
                             candidates_map[norm_sf] = CandidateEvidence(
                                 node_id=norm_sf,
@@ -166,7 +175,28 @@ class DeterministicContextResolver:
                                 score=65.0,
                                 reasons=[f"SLM Semantic Inference: {slm_res.rationale or 'Target file identified'}"],
                             )
+                        else:
+                            candidates_map[norm_sf].score += 30.0
+                            candidates_map[norm_sf].reasons.append(
+                                f"Confirmed by CodeScout-1.7B: {slm_res.rationale or 'Relevant'}"
+                            )
+                    # Validate suspected symbols against AST graph
                     for sym in slm_res.suspected_symbols:
+                        matched = self.graph_store.get_nodes_by_name(sym)
+                        for mn in matched:
+                            nid = mn["id"]
+                            if nid in candidates_map:
+                                candidates_map[nid].score += 25.0
+                                candidates_map[nid].reasons.append("CodeScout identified symbol validated in AST")
+                            else:
+                                candidates_map[nid] = CandidateEvidence(
+                                    node_id=nid,
+                                    name=mn["name"],
+                                    path=mn["path"],
+                                    kind=mn.get("kind", "Symbol"),
+                                    score=40.0,
+                                    reasons=["CodeScout identified symbol validated in AST"],
+                                )
                         if sym not in features.keywords:
                             features.keywords.append(sym)
                     for conc in slm_res.domain_concepts:
@@ -272,7 +302,11 @@ class DeterministicContextResolver:
 
         for c in top_candidates:
             if c.path:
-                target_files_set.add(c.path)
+                try:
+                    rel_p = Path(c.path).resolve().relative_to(self.repo_root).as_posix()
+                    target_files_set.add(rel_p)
+                except ValueError:
+                    target_files_set.add(c.path)
             if c.kind != "File":
                 seed_symbols_set.add(c.name)
 

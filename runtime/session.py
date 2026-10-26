@@ -28,11 +28,22 @@ from chronos.verification.rule_store import get_active_blocking_rules
 class ChronosSessionBootstrap:
     """Coordinates deterministic pre-turn-1 knowledge injection and lease acquisition."""
 
-    def __init__(self, repo_path: str | Path, con: sqlite3.Connection, enable_slm: bool = True):
+    def __init__(
+        self,
+        repo_path: str | Path,
+        con: sqlite3.Connection,
+        enable_slm: bool = False,
+        slm_config: Optional[Any] = None,
+    ):
         self.repo_path = Path(repo_path).resolve()
         self.con = con
         self.graph_store = SQLiteGraphStore(con)
-        self.resolver = DeterministicContextResolver(repo_root=self.repo_path, graph_store=self.graph_store, enable_slm=enable_slm)
+        self.resolver = DeterministicContextResolver(
+            repo_root=self.repo_path,
+            graph_store=self.graph_store,
+            enable_slm=enable_slm,
+            slm_config=slm_config,
+        )
         self.memory_store = ChronosMemoryStore(con=self.con)
 
     def bootstrap_session(

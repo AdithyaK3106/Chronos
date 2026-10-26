@@ -100,7 +100,12 @@ class ChronosAgentRuntime:
         self.con = db_con or get_connection(self.repo_root / self.config.db_path)
         self.graph_store = graph_store or create_graph_store(self.con, backend=self.config.graph_backend)
         self.audit_log_path = self.repo_root / self.config.audit_log_path
-        self.bootstrap = ChronosSessionBootstrap(repo_path=self.repo_root, con=self.con)
+        self.bootstrap = ChronosSessionBootstrap(
+            repo_path=self.repo_root,
+            con=self.con,
+            enable_slm=getattr(self.config.slm, "enabled", False),
+            slm_config=self.config.slm,
+        )
 
     def create_agent(
         self,

@@ -1,7 +1,7 @@
 """Local SLM-powered Zero-Path intent & file resolver for Chronos.
 
 Enables resolving exact repository files and symbols from natural-language task
-prompts without explicit file paths or manual navigation.
+prompts without explicit file paths or manual navigation, powered by OpenHands/CodeScout-1.7B.
 """
 
 from __future__ import annotations
@@ -11,9 +11,15 @@ import logging
 import os
 from pathlib import Path
 import re
+import socket
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+
+from chronos.core.config import SLMConfig
 
 logger = logging.getLogger(__name__)
 
@@ -38,30 +44,97 @@ class SLMResolutionResult(BaseModel):
     )
 
 
+class SLMCircuitBreaker:
+    """Protects Chronos from repeated latency penalties when SLM backend is down."""
+
+    def __init__(self, max_failures: int = 2) -> None:
+        self.max_failures = max_failures
+        self.consecutive_failures = 0
+        self.is_open = False
+        self.last_failure_reason: Optional[str] = None
+        self.last_failure_time: float = 0.0
+
+    def can_attempt(self) -> bool:
+        """Check whether requests are allowed through to the backend."""
+        return not self.is_open
+
+    def record_success(self) -> None:
+        """Reset failure counter after a successful response."""
+        self.consecutive_failures = 0
+        self.is_open = False
+        self.last_failure_reason = None
+
+    def record_failure(self, reason: str) -> None:
+        """Record a failure and trip the circuit breaker if threshold is reached."""
+        self.consecutive_failures += 1
+        self.last_failure_reason = reason
+        self.last_failure_time = time.time()
+        if self.consecutive_failures >= self.max_failures:
+            self.is_open = True
+            logger.warning(
+                f"[Chronos Circuit Breaker] CodeScout SLM backend tripped OPEN after "
+                f"{self.consecutive_failures} failures ({reason}). Bypassing SLM for remainder of session."
+            )
+
+    def reset(self) -> None:
+        """Force reset the breaker state."""
+        self.consecutive_failures = 0
+        self.is_open = False
+        self.last_failure_reason = None
+
+
 class LocalSLMResolver:
-    """Zero-Path semantic resolver leveraging local SLM inference."""
+    """Zero-Path semantic resolver leveraging OpenHands/CodeScout-1.7B."""
 
     def __init__(
         self,
         repo_root: str | Path,
-        model: str = "gemini-3.8-flash-low",
-        timeout_seconds: int = 25,
+        config: Optional[SLMConfig] = None,
+        model: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
         slm_endpoint: Optional[str] = None,
+        backend: Optional[str] = None,
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
-        self.model = model
-        self.timeout_seconds = timeout_seconds
-        self.slm_endpoint = slm_endpoint or os.environ.get("CHRONOS_SLM_ENDPOINT")
+        
+        # Build configuration with backward-compatible parameter overrides
+        base_cfg = config or SLMConfig()
+        cfg_dict = base_cfg.model_dump()
+        if model is not None:
+            cfg_dict["model"] = model
+        if timeout_seconds is not None:
+            cfg_dict["timeout_seconds"] = timeout_seconds
+        if slm_endpoint is not None:
+            cfg_dict["endpoint"] = slm_endpoint
+        if backend is not None:
+            cfg_dict["backend"] = backend
 
-    def list_candidate_files(self, max_files: int = 150) -> List[str]:
-        """Collect source files from repo root to provide targeted scope."""
+        self.config = SLMConfig(**cfg_dict)
+        self.circuit_breaker = SLMCircuitBreaker(max_failures=2)
+
+    @property
+    def model(self) -> str:
+        return self.config.model
+
+    @property
+    def timeout_seconds(self) -> int:
+        return self.config.timeout_seconds
+
+    @property
+    def slm_endpoint(self) -> str:
+        return self.config.endpoint
+
+    def list_candidate_files(self, max_files: Optional[int] = None) -> List[str]:
+        """Collect source code files from repo root to provide targeted scope."""
+        limit = max_files or self.config.max_candidate_files
         source_exts = {
             ".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java",
-            ".cpp", ".hpp", ".c", ".h", ".sql", ".yaml", ".yml", ".json",
+            ".cpp", ".hpp", ".c", ".h",
         }
         ignore_dirs = {
             ".git", ".venv", "venv", "node_modules", "__pycache__", "build",
             "dist", ".mypy_cache", ".pytest_cache", ".chronos", "coverage",
+            "runs", "diffs", "data", "reports", ".system_generated",
         }
 
         # 1. Try git ls-files if repo is a git repository
@@ -78,7 +151,7 @@ class LocalSLMResolver:
                         and not any(ig in line for ig in ignore_dirs)
                     ]
                     if files:
-                        return sorted(files)[:max_files]
+                        return sorted(files)[:limit]
             except Exception:
                 pass
 
@@ -94,9 +167,9 @@ class LocalSLMResolver:
                     if p.suffix.lower() in source_exts:
                         rel_file = (rel_root / f).as_posix()
                         collected.append(rel_file)
-                        if len(collected) >= max_files:
+                        if len(collected) >= limit:
                             break
-                if len(collected) >= max_files:
+                if len(collected) >= limit:
                     break
         except Exception:
             pass
@@ -108,17 +181,26 @@ class LocalSLMResolver:
         prompt: str,
         repo_files: Optional[List[str]] = None,
     ) -> SLMResolutionResult:
-        """Resolve suspected files and symbols from natural-language prompt."""
+        """Resolve suspected files and symbols using CodeScout-1.7B with circuit breaker and fallback."""
         if not prompt or not prompt.strip():
             return SLMResolutionResult()
 
-        files = repo_files if repo_files is not None else self.list_candidate_files()
-        files_text = "\n".join(f"- {f}" for f in files[:120])
+        # Zero-Network Invariant: if SLM is disabled, do not open sockets or spawn processes
+        if not self.config.enabled:
+            return SLMResolutionResult()
+
+        # Circuit breaker check
+        if not self.circuit_breaker.can_attempt():
+            logger.debug("[Chronos SLM] Circuit breaker is OPEN. Skipping SLM call.")
+            return SLMResolutionResult()
+
+        candidate_files = repo_files if repo_files is not None else self.list_candidate_files()
+        files_text = "\n".join(f"- {f}" for f in candidate_files[: self.config.max_candidate_files])
 
         system_instruction = (
-            "You are Chronos SLM Zero-Path Codebase Resolver.\n"
-            "Given the user's task prompt written in natural language (without explicit file paths),\n"
-            "analyze the problem and determine which repository file(s) and symbol(s) are relevant.\n"
+            "You are CodeScout, an expert code search and localization agent.\n"
+            "Given a natural-language issue description and a list of repository source files,\n"
+            "identify the exact target files and functions that must be modified to solve the problem.\n"
             "Output ONLY a raw JSON object matching this schema:\n"
             "{\n"
             '  "suspected_files": ["relative/path/to/file.py"],\n'
@@ -130,48 +212,130 @@ class LocalSLMResolver:
             "Do not include any markdown fences or explanatory text outside the JSON."
         )
 
-        user_content = f"REPOSITORY FILES:\n{files_text}\n\nUSER TASK PROMPT:\n\"{prompt}\""
+        user_content = f"REPOSITORY SOURCE FILES:\n{files_text}\n\nUSER TASK PROMPT:\n\"{prompt}\""
 
-        # 1. Try local OpenAI-compatible endpoint if configured
-        if self.slm_endpoint:
-            try:
-                res = self._call_endpoint(system_instruction, user_content)
-                if res:
-                    return self._filter_and_validate(res)
-            except Exception as e:
-                logger.debug(f"SLM HTTP endpoint call failed: {e}")
+        # Route by configured backend
+        backend_name = self.config.backend.lower()
+        res_raw: Optional[str] = None
 
-        # 2. Try agy CLI (local Antigravity SLM runner)
         try:
-            full_prompt = f"{system_instruction}\n\n{user_content}"
-            cmd = [
-                "agy",
-                f"--model={self.model}",
-                "--disable-slash-commands",
-                "--dangerously-skip-permissions",
-                "--print",
-                full_prompt,
-            ]
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
-            )
-            if proc.returncode == 0 and proc.stdout.strip():
-                parsed = self._extract_json(proc.stdout)
-                if parsed:
-                    return self._filter_and_validate(SLMResolutionResult.model_validate(parsed))
-        except Exception as e:
-            logger.debug(f"agy SLM call failed: {e}")
+            if backend_name in ("openai_compatible", "openai", "vllm"):
+                res_raw = self._call_openai_compatible(system_instruction, user_content)
+            elif backend_name == "ollama":
+                res_raw = self._call_ollama(system_instruction, user_content)
+            elif backend_name == "agy":
+                res_raw = self._call_agy(system_instruction, user_content)
+            else:
+                # Default fallback attempt: OpenAI-compatible then Agy
+                try:
+                    res_raw = self._call_openai_compatible(system_instruction, user_content)
+                except Exception:
+                    res_raw = self._call_agy(system_instruction, user_content)
 
-        # 3. Resilient fallback: empty resolution
+            if res_raw:
+                parsed = self._extract_json(res_raw)
+                if parsed:
+                    self.circuit_breaker.record_success()
+                    raw_result = SLMResolutionResult.model_validate(parsed)
+                    return self._filter_and_validate(raw_result, candidate_files)
+
+        except Exception as exc:
+            self.circuit_breaker.record_failure(str(exc))
+            logger.debug(f"[Chronos SLM] Error during CodeScout inference: {exc}")
+
         return SLMResolutionResult()
+
+    def _call_openai_compatible(self, system_instruction: str, user_content: str) -> Optional[str]:
+        """Call standard OpenAI-compatible chat completion endpoint (vLLM, Ollama /v1, LiteLLM)."""
+        base_endpoint = self.config.endpoint.rstrip("/")
+        url = f"{base_endpoint}/chat/completions" if not base_endpoint.endswith("/chat/completions") else base_endpoint
+
+        payload = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 1024,
+        }
+
+        data = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Chronos-CodeScout/1.0",
+        }
+        if self.config.api_key and self.config.api_key != "EMPTY":
+            headers["Authorization"] = f"Bearer {self.config.api_key}"
+
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
+                if resp.status == 200:
+                    body = json.loads(resp.read().decode("utf-8"))
+                    choices = body.get("choices", [])
+                    if choices:
+                        return choices[0].get("message", {}).get("content", "")
+        except (urllib.error.URLError, socket.timeout, TimeoutError, json.JSONDecodeError) as e:
+            raise RuntimeError(f"OpenAI-compatible request to {url} failed: {e}") from e
+
+        return None
+
+    def _call_ollama(self, system_instruction: str, user_content: str) -> Optional[str]:
+        """Call native Ollama HTTP endpoint (/api/chat)."""
+        base_endpoint = self.config.endpoint.rstrip("/")
+        url = f"{base_endpoint}/api/chat" if not base_endpoint.endswith("/api/chat") else base_endpoint
+
+        payload = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_content},
+            ],
+            "stream": False,
+            "options": {"temperature": 0.1},
+        }
+
+        data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+
+        try:
+            with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
+                if resp.status == 200:
+                    body = json.loads(resp.read().decode("utf-8"))
+                    return body.get("message", {}).get("content", "")
+        except (urllib.error.URLError, socket.timeout, TimeoutError, json.JSONDecodeError) as e:
+            raise RuntimeError(f"Ollama request to {url} failed: {e}") from e
+
+        return None
+
+    def _call_agy(self, system_instruction: str, user_content: str) -> Optional[str]:
+        """Call local Antigravity CLI runner."""
+        full_prompt = f"{system_instruction}\n\n{user_content}"
+        agy_model = self.config.model if self.config.model.startswith("gemini") else "gemini-3.8-flash-low"
+        cmd = [
+            "agy",
+            f"--model={agy_model}",
+            "--disable-slash-commands",
+            "--dangerously-skip-permissions",
+            "--print",
+            full_prompt,
+        ]
+        proc = subprocess.run(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=self.config.timeout_seconds,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout.strip()
+        raise RuntimeError(f"agy execution failed with exit code {proc.returncode}: {proc.stderr[:200]}")
 
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Safely parse JSON from raw LLM output, extracting from code fences if present."""
         text = text.strip()
-        # Remove markdown code blocks if wrapped
         if "```json" in text:
             match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
             if match:
@@ -191,19 +355,38 @@ class LocalSLMResolver:
                 pass
         return None
 
-    def _filter_and_validate(self, result: SLMResolutionResult) -> SLMResolutionResult:
-        """Filter out hallucinatory file paths that do not exist in the repository."""
+    def _filter_and_validate(
+        self, result: SLMResolutionResult, candidate_files: List[str]
+    ) -> SLMResolutionResult:
+        """Anti-Hallucination Gate: validate paths and reject ambiguous basename matches."""
         valid_files: List[str] = []
+
         for f in result.suspected_files:
-            norm_f = Path(f).as_posix()
+            norm_f = Path(f).as_posix().lstrip("./")
+            # 1. Exact match relative to repository root
             if (self.repo_root / norm_f).is_file():
                 valid_files.append(norm_f)
+                continue
+
+            # 2. Basename matching with ambiguity rejection
+            base_name = Path(norm_f).name
+            matching_cands = [
+                cand for cand in candidate_files
+                if Path(cand).name == base_name or cand.endswith("/" + norm_f) or cand == norm_f
+            ]
+
+            if len(matching_cands) == 1:
+                # Exactly one match: unambiguous resolution
+                valid_files.append(matching_cands[0])
+            elif len(matching_cands) > 1:
+                # Ambiguous duplicate basenames (e.g. src/utils.py and tests/utils.py): REJECT
+                logger.debug(
+                    f"[Chronos Anti-Hallucination] Rejected ambiguous path '{norm_f}' "
+                    f"matching multiple files: {matching_cands}"
+                )
             else:
-                # Check if matches any existing file basename or relative suffix
-                for cand in self.list_candidate_files():
-                    if cand.endswith(norm_f) or Path(cand).name == Path(norm_f).name:
-                        valid_files.append(cand)
-                        break
+                # Zero matches: hallucinated path
+                logger.debug(f"[Chronos Anti-Hallucination] Rejected non-existent path '{norm_f}'")
 
         # Deduplicate while preserving order
         deduped_files: List[str] = []

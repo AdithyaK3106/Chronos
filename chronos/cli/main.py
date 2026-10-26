@@ -1,15 +1,23 @@
 """Chronos command line interface."""
 
+from __future__ import annotations
+
 import argparse
+import json
 import os
-import sys
 from pathlib import Path
+import subprocess
+import sys
+import time
+import urllib.request
+from typing import Any
 
 from chronos.audit.logger import verify_audit_chain
 from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
+
 
 def main():
     parser = argparse.ArgumentParser(description="Chronos: Bi-temporal intelligence and AI governance")
@@ -20,12 +28,19 @@ def main():
     p_init.add_argument("--repo", default=".", help="Repository root path")
 
     # doctor
-    p_doc = subparsers.add_parser("doctor", help="Check database and toolchain health")
+    p_doc = subparsers.add_parser("doctor", help="Check database, toolchain, and SLM engine health")
     p_doc.add_argument("--repo", default=".", help="Repository root path")
 
     # sync
     p_sync = subparsers.add_parser("sync", help="Index repository AST into bi-temporal graph")
     p_sync.add_argument("--repo", default=".", help="Repository root path")
+
+    # config
+    p_cfg = subparsers.add_parser("config", help="Inspect or modify Chronos repository configuration")
+    p_cfg.add_argument("action", choices=["get", "set", "show"], help="Action (get, set, show)")
+    p_cfg.add_argument("key", nargs="?", default=None, help="Configuration key (e.g. slm.enabled, slm.backend)")
+    p_cfg.add_argument("value", nargs="?", default=None, help="Configuration value")
+    p_cfg.add_argument("--repo", default=".", help="Repository root path")
 
     # run
     default_model = os.environ.get("CHRONOS_MODEL", os.environ.get("LLM_MODEL"))
@@ -36,12 +51,17 @@ def main():
     p_run = subparsers.add_parser("run", help="Execute an autonomous task with Chronos governance & OpenHands agent")
     p_run.add_argument("prompt", help="Natural-language task prompt")
     p_run.add_argument("--repo", default=".", help="Repository root path")
-    p_run.add_argument("--model", default=default_model, help="LLM model (e.g. gpt-4o, claude-3-7-sonnet, ollama/qwen2.5-coder, gemini-3.8-flash-low)")
-    p_run.add_argument("--api-key", default=None, help="LLM provider API key (or set OPENAI_API_KEY / ANTHROPIC_API_KEY / LLM_API_KEY)")
-    p_run.add_argument("--base-url", default=None, help="Custom LLM API base URL (e.g. for Ollama / vLLM)")
+    p_run.add_argument("--model", default=default_model, help="LLM model (e.g. gpt-4o, claude-3-7-sonnet, gemini-3.8-flash-low)")
+    p_run.add_argument("--api-key", default=None, help="LLM provider API key")
+    p_run.add_argument("--base-url", default=None, help="Custom LLM API base URL")
     p_run.add_argument("--agent-id", default="chronos_dev_agent", help="Agent identity ID")
     p_run.add_argument("--max-iterations", type=int, default=20, help="Maximum agent turns")
     p_run.add_argument("--timeout", type=int, default=300, help="Task timeout in seconds")
+    p_run.add_argument("--enable-slm", dest="enable_slm", action="store_true", default=None, help="Opt-in to CodeScout-1.7B SLM localization")
+    p_run.add_argument("--no-slm", dest="enable_slm", action="store_false", help="Disable SLM localization")
+    p_run.add_argument("--slm-backend", choices=["openai_compatible", "ollama", "agy"], default=None, help="SLM serving backend")
+    p_run.add_argument("--slm-endpoint", default=None, help="Base URL for SLM server")
+    p_run.add_argument("--slm-model", default=None, help="Model identifier")
 
     # serve
     p_serve = subparsers.add_parser("serve", help="Start FastMCP server for IDE / external agent integration")
@@ -87,10 +107,15 @@ def main():
     p_mem_proc.add_argument("--repo", default=".", help="Repository root path")
 
     # resolve
-    p_res = subparsers.add_parser("resolve", help="Zero-Path SLM context resolver for natural-language prompts")
+    p_res = subparsers.add_parser("resolve", help="Zero-Path context resolver for natural-language prompts")
     p_res.add_argument("prompt", help="Natural-language task prompt")
     p_res.add_argument("--repo", default=".", help="Repository root path")
     p_res.add_argument("--token-budget", type=int, default=1500, help="Max context token budget")
+    p_res.add_argument("--enable-slm", dest="enable_slm", action="store_true", default=None, help="Opt-in to CodeScout-1.7B SLM localization")
+    p_res.add_argument("--no-slm", dest="enable_slm", action="store_false", help="Disable SLM localization (pure AST + BM25)")
+    p_res.add_argument("--slm-backend", choices=["openai_compatible", "ollama", "agy"], default=None, help="SLM serving backend")
+    p_res.add_argument("--slm-endpoint", default=None, help="Base URL for SLM server")
+    p_res.add_argument("--slm-model", default=None, help="Model identifier")
 
     args = parser.parse_args()
 
@@ -141,7 +166,116 @@ def main():
             print("OpenHands SDK   : Missing")
             status_ok = False
 
+        # SLM Diagnostics
+        cfg = ChronosConfig.load(repo_root)
+        print("\nSLM Localization Engine:")
+        print("-----------------------")
+        print(f"SLM Active      : {'ENABLED (Opt-In)' if cfg.slm.enabled else 'DISABLED (Default: Pure AST + BM25)'}")
+        print(f"Target Model    : {cfg.slm.model}")
+        print(f"Backend Engine  : {cfg.slm.backend}")
+        print(f"Server Endpoint : {cfg.slm.endpoint}")
+
+        # Endpoint connectivity check (sanitized, non-blocking)
+        if cfg.slm.backend in ("openai_compatible", "openai", "vllm", "ollama") and cfg.slm.endpoint:
+            probe_url = cfg.slm.endpoint.rstrip("/")
+            if cfg.slm.backend == "ollama":
+                probe_url = f"{probe_url}/api/tags"
+            elif not probe_url.endswith("/models"):
+                probe_url = f"{probe_url}/models"
+            try:
+                t0 = time.time()
+                req = urllib.request.Request(probe_url, headers={"User-Agent": "Chronos-Doctor/1.0"})
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    latency_ms = (time.time() - t0) * 1000
+                    print(f"Endpoint Health : ONLINE (HTTP {resp.status}, Ping: {latency_ms:.1f}ms)")
+            except Exception:
+                print(f"Endpoint Health : OFFLINE / UNREACHABLE (Probe to {probe_url} timed out or failed)")
+        elif cfg.slm.backend == "agy":
+            import shutil
+            has_agy = shutil.which("agy") is not None
+            print(f"Endpoint Health : {'READY (agy CLI detected)' if has_agy else 'MISSING (agy CLI not in PATH)'}")
+
+        # Hardware Accelerators
+        print("\nHardware Acceleration:")
+        print("---------------------")
+        try:
+            sp = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"], capture_output=True, text=True, timeout=2)
+            if sp.returncode == 0 and sp.stdout.strip():
+                print(f"GPU Detected    : {sp.stdout.strip().replace('\n', ', ')}")
+            else:
+                print("GPU Detected    : None (CPU Execution)")
+        except Exception:
+            print("GPU Detected    : None (CPU Execution)")
+
+        npu_detected = False
+        for p in ("/sys/class/accel", "/dev/accel0", "/dev/davinciX"):
+            if Path(p).exists():
+                try:
+                    entries = list(Path(p).iterdir()) if Path(p).is_dir() else [p]
+                    if entries:
+                        npu_detected = True
+                        print(f"NPU Detected    : {p} ({len(entries)} devices)")
+                        break
+                except Exception:
+                    pass
+        if not npu_detected:
+            print("NPU Detected    : None (Unverified / No accelerator found)")
+
         sys.exit(0 if status_ok else 1)
+
+    elif args.command == "config":
+        chronos_dir.mkdir(parents=True, exist_ok=True)
+        config_file = chronos_dir / "config.json"
+        data: dict[str, Any] = {}
+        if config_file.is_file():
+            try:
+                with open(config_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                data = {}
+
+        if args.action == "show":
+            print(json.dumps(data, indent=2))
+        elif args.action == "get":
+            if not args.key:
+                print(json.dumps(data, indent=2))
+            else:
+                keys = args.key.split(".")
+                curr: Any = data
+                for k in keys:
+                    if isinstance(curr, dict) and k in curr:
+                        curr = curr[k]
+                    else:
+                        curr = None
+                        break
+                print(curr)
+        elif args.action == "set":
+            if not args.key or args.value is None:
+                print("Usage: chronos config set <key> <value>", file=sys.stderr)
+                sys.exit(1)
+            keys = args.key.split(".")
+            val: Any = args.value
+            if val.lower() in ("true", "1", "yes", "on"):
+                val = True
+            elif val.lower() in ("false", "0", "no", "off"):
+                val = False
+            else:
+                try:
+                    val = int(val)
+                except ValueError:
+                    pass
+
+            curr = data
+            for k in keys[:-1]:
+                if k not in curr or not isinstance(curr[k], dict):
+                    curr[k] = {}
+                curr = curr[k]
+            curr[keys[-1]] = val
+
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            print(f"Updated {args.key} = {val} in {config_file}")
+        sys.exit(0)
 
     elif args.command == "sync":
         con = get_connection(db_file)
@@ -155,12 +289,30 @@ def main():
 
     elif args.command == "resolve":
         from runtime.session import ChronosSessionBootstrap
+        cfg = ChronosConfig.load(repo_root)
+
+        # Apply CLI flag overrides to SLM configuration
+        if args.enable_slm is not None:
+            cfg.slm.enabled = args.enable_slm
+        if getattr(args, "slm_backend", None):
+            cfg.slm.backend = args.slm_backend
+        if getattr(args, "slm_endpoint", None):
+            cfg.slm.endpoint = args.slm_endpoint
+        if getattr(args, "slm_model", None):
+            cfg.slm.model = args.slm_model
+
         con = get_connection(db_file)
-        boot = ChronosSessionBootstrap(repo_path=repo_root, con=con)
+        boot = ChronosSessionBootstrap(
+            repo_path=repo_root,
+            con=con,
+            enable_slm=cfg.slm.enabled,
+            slm_config=cfg.slm,
+        )
         res = boot.bootstrap_session(task_prompt=args.prompt, token_budget=args.token_budget)
         con.close()
 
-        print(f"\n🔍 Chronos Zero-Path Semantic Resolution:")
+        mode_str = f"CodeScout-1.7B ({cfg.slm.backend})" if cfg.slm.enabled else "Deterministic AST + BM25"
+        print(f"\n🔍 Chronos Zero-Path Semantic Resolution [{mode_str}]:")
         resolved_files = res.get("resolved_files", [])
         resolved_symbols = res.get("resolved_symbols", [])
         test_files = res.get("test_files", [])
@@ -205,14 +357,23 @@ def main():
         from openhands.sdk import Tool, Conversation
         from openhands.tools.file_editor import FileEditorTool
 
-        cfg = ChronosConfig(
-            repo_path=str(repo_root),
-            db_path=str(db_file),
-            audit_log_path=str(chronos_dir / "chronos-audit.log"),
-        )
+        cfg = ChronosConfig.load(repo_root)
+        if getattr(args, "enable_slm", None) is not None:
+            cfg.slm.enabled = args.enable_slm
+        if getattr(args, "slm_backend", None):
+            cfg.slm.backend = args.slm_backend
+        if getattr(args, "slm_endpoint", None):
+            cfg.slm.endpoint = args.slm_endpoint
+        if getattr(args, "slm_model", None):
+            cfg.slm.model = args.slm_model
+        cfg.repo_path = str(repo_root)
+        cfg.db_path = str(db_file)
+        cfg.audit_log_path = str(chronos_dir / "chronos-audit.log")
+
         runtime = ChronosAgentRuntime(config=cfg, db_con=con, graph_store=store)
 
-        print("\n⏳ Resolving Zero-Path Context Envelope...")
+        mode_desc = f"CodeScout-1.7B ({cfg.slm.backend})" if cfg.slm.enabled else "Deterministic AST + BM25"
+        print(f"\n⏳ Resolving Zero-Path Context Envelope [{mode_desc}]...")
         bootstrap_res = runtime.bootstrap.bootstrap_session(
             task_prompt=args.prompt,
             agent_id=args.agent_id,
@@ -362,6 +523,7 @@ def main():
 
         con.close()
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

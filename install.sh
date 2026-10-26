@@ -144,7 +144,7 @@ if [ "$USE_UV" = true ]; then
         uv venv --allow-existing "${VENV_DIR}" >/dev/null 2>&1 || true
     fi
     echo -e "${CYAN}==>${RESET} Installing Chronos and polyglot AST dependencies via uv..."
-    VIRTUAL_ENV="${VENV_DIR}" uv pip install -e .
+    VIRTUAL_ENV="${VENV_DIR}" uv pip install -e '.[test]' 2>/dev/null || VIRTUAL_ENV="${VENV_DIR}" uv pip install -e .
 else
     # Fallback to standard Python
     if ! command -v python3 >/dev/null 2>&1; then
@@ -156,7 +156,7 @@ else
     fi
     echo -e "${CYAN}==>${RESET} Installing Chronos and dependencies via pip..."
     "${VENV_DIR}/bin/pip" install --upgrade pip >/dev/null 2>&1 || true
-    "${VENV_DIR}/bin/pip" install -e .
+    "${VENV_DIR}/bin/pip" install -e '.[test]' 2>/dev/null || "${VENV_DIR}/bin/pip" install -e .
 fi
 
 CHRONOS_BIN="${VENV_DIR}/bin/chronos"

@@ -1,0 +1,80 @@
+{
+  "run_id": "chronos_task_04_treatment_iter1_604fff",
+  "task_id": "chronos_task_04",
+  "repository_id": "chronos",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 62.69202399253845,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 49382,
+    "completion_tokens": 648,
+    "total_tokens": 50030,
+    "cost_usd": null
+  },
+  "tool_calls_count": 5,
+  "tool_call_types": {
+    "file_editor": 3,
+    "finish": 2
+  },
+  "patch_diff": "diff --git a/chronos/verification/rule_store.py b/chronos/verification/rule_store.py\nindex fb6d343..aaad22d 100644\n--- a/chronos/verification/rule_store.py\n+++ b/chronos/verification/rule_store.py\n@@ -63,3 +63,28 @@ def list_rules(con: sqlite3.Connection, status: str | None = None) -> list[dict[\n \n def get_active_blocking_rules(con: sqlite3.Connection) -> list[dict[str, Any]]:\n     return list_rules(con, status=BLOCKING)\n+\n+def export_active_rules_json_schema(con: sqlite3.Connection, status: str = BLOCKING) -> dict[str, Any]:\n+    \"\"\"Export active security rules formatted as a JSON Schema validation document.\"\"\"\n+    rules = list_rules(con, status=status)\n+    return {\n+        \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n+        \"title\": f\"Chronos Active Security Rules ({status})\",\n+        \"type\": \"array\",\n+        \"items\": {\n+            \"type\": \"object\",\n+            \"properties\": {\n+                \"rule_id\": {\"type\": \"string\"},\n+                \"language\": {\"type\": \"string\"},\n+                \"rule_text\": {\"type\": \"string\"},\n+                \"yaml_pattern\": {\"type\": [\"string\", \"null\"]},\n+                \"status\": {\"type\": \"string\", \"enum\": [status]},\n+                \"detectability_passed\": {\"type\": \"boolean\"},\n+                \"created_at\": {\"type\": \"string\"},\n+                \"promoted_at\": {\"type\": [\"string\", \"null\"]},\n+                \"promoted_by\": {\"type\": [\"string\", \"null\"]},\n+            },\n+            \"required\": [\"rule_id\", \"language\", \"rule_text\", \"status\"],\n+        },\n+        \"rules\": rules,\n+    }\n",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [
+    {
+      "target": "chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_04_treatment_iter1_604fff/chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_04_treatment_iter1_604fff/chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_04_treatment_iter1_604fff/chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_04_treatment_iter1_604fff/chronos/verification/rule_store.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    }
+  ],
+  "memories_recalled": 0,
+  "memories_stored": 1,
+  "timestamp": "2026-10-26T11:23:31.069115+00:00"
+}

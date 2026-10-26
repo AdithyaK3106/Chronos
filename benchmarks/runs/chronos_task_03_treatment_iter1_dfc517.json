@@ -1,0 +1,159 @@
+{
+  "run_id": "chronos_task_03_treatment_iter1_dfc517",
+  "task_id": "chronos_task_03",
+  "repository_id": "chronos",
+  "suite": "efficacy",
+  "arm": "treatment",
+  "iteration": 1,
+  "status": "SUCCESS",
+  "duration_seconds": 158.7006938457489,
+  "resolved_model_id": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "usage": {
+    "prompt_tokens": 139272,
+    "completion_tokens": 1119,
+    "total_tokens": 140391,
+    "cost_usd": null
+  },
+  "tool_calls_count": 12,
+  "tool_call_types": {
+    "file_editor": 8,
+    "think": 2,
+    "finish": 2
+  },
+  "patch_diff": "",
+  "stdout": "All verification and regression checks passed.",
+  "stderr": "",
+  "error_message": null,
+  "policy_decisions": [
+    {
+      "target": "chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests/test_context_graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests/test_context_graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests/test_context_graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/tests/test_context_graph.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/budgeter.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "/tmp/chronos_bench_workspaces/chronos_task_03_treatment_iter1_dfc517/chronos/context/budgeter.py",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": ".../graph.py",
+      "decision": "deny",
+      "action": "reject",
+      "reason": "Access denied: path matches restricted pattern '.*'"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    },
+    {
+      "target": "none",
+      "decision": "allow",
+      "action": "permit",
+      "reason": "All security checks passed"
+    }
+  ],
+  "memories_recalled": 1,
+  "memories_stored": 1,
+  "timestamp": "2026-10-26T11:21:23.131518+00:00"
+}

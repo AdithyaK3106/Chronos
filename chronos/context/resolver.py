@@ -82,9 +82,25 @@ class ResolutionResult:
 class DeterministicContextResolver:
     """Zero-path context resolver mapping natural language prompts to repository AST nodes."""
 
-    def __init__(self, repo_root: str | Path, graph_store: GraphStore):
+    def __init__(
+        self,
+        repo_root: str | Path,
+        graph_store: GraphStore,
+        slm_resolver: Optional[Any] = None,
+        enable_slm: bool = False,
+    ):
         self.repo_root = Path(repo_root).resolve()
         self.graph_store = graph_store
+        if slm_resolver is not None:
+            self.slm_resolver = slm_resolver
+        elif enable_slm:
+            try:
+                from chronos.context.slm_resolver import LocalSLMResolver
+                self.slm_resolver = LocalSLMResolver(repo_root=self.repo_root)
+            except Exception:
+                self.slm_resolver = None
+        else:
+            self.slm_resolver = None
 
     def harvest_features(self, prompt: str) -> HarvestedFeatures:
         """Extract deterministic features using regex patterns."""
@@ -133,6 +149,31 @@ class DeterministicContextResolver:
                     score=100.0,
                     reasons=["Explicitly specified by task configuration"],
                 )
+
+        # 1.5. SLM Semantic Extraction (if enabled and no explicit paths are provided)
+        if self.slm_resolver and not explicit_target_files and not features.explicit_paths:
+            try:
+                slm_res = self.slm_resolver.resolve_prompt(prompt)
+                if slm_res and slm_res.suspected_files:
+                    for sf in slm_res.suspected_files:
+                        norm_sf = Path(sf).as_posix()
+                        if norm_sf not in candidates_map:
+                            candidates_map[norm_sf] = CandidateEvidence(
+                                node_id=norm_sf,
+                                name=Path(sf).stem,
+                                path=norm_sf,
+                                kind="File",
+                                score=65.0,
+                                reasons=[f"SLM Semantic Inference: {slm_res.rationale or 'Target file identified'}"],
+                            )
+                    for sym in slm_res.suspected_symbols:
+                        if sym not in features.keywords:
+                            features.keywords.append(sym)
+                    for conc in slm_res.domain_concepts:
+                        if conc not in features.keywords:
+                            features.keywords.append(conc)
+            except Exception:
+                pass
 
         # 2. Score explicit paths extracted via regex
         for p in features.explicit_paths + features.stack_trace_files:
@@ -243,6 +284,7 @@ class DeterministicContextResolver:
         for tf in target_files_set:
             tf_path = Path(tf)
             stem = tf_path.stem.split(".")[0]
+            parent_stem = tf_path.parent.name.lower()
 
             # Co-located tests (standard in Go and TypeScript/React)
             parent_dir = (self.repo_root / tf_path.parent).resolve()
@@ -277,6 +319,12 @@ class DeterministicContextResolver:
                             or t_stem.startswith(f"test_{stem}_")
                             or f"_{stem}" in t_stem
                             or f"{stem}_" in t_stem
+                            or (parent_stem and parent_stem not in ("src", "lib", "chronos") and (
+                                t_stem == f"test_{parent_stem}"
+                                or t_stem == f"{parent_stem}_test"
+                                or f"_{parent_stem}" in t_stem
+                                or f"{parent_stem}_" in t_stem
+                            ))
                         ):
                             try:
                                 rel_p = test_file.relative_to(self.repo_root).as_posix()

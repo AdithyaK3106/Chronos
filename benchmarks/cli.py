@@ -135,6 +135,18 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("No matching tasks found to execute.", file=sys.stderr)
         return 1
 
+    if args.no_resume:
+        import shutil
+        repo_chronos_dir = results_dir / "data" / "repo_chronos"
+        if repo_chronos_dir.exists():
+            if repo_filter:
+                for r_id in repo_filter:
+                    r_db = repo_chronos_dir / f"chronos_{r_id}.db"
+                    if r_db.exists():
+                        r_db.unlink()
+            else:
+                shutil.rmtree(repo_chronos_dir, ignore_errors=True)
+
     print(f"Running paired benchmark across {len(tasks)} tasks (Runs per task: {args.runs})...")
     provider_cfg = ModelProviderConfig(
         name=args.provider,

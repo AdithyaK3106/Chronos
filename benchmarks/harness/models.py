@@ -108,6 +108,8 @@ class TaskRunResult(BaseModel):
     stderr: str = ""
     error_message: Optional[str] = None
     policy_decisions: List[Dict[str, Any]] = Field(default_factory=list)
+    memories_recalled: int = 0
+    memories_stored: int = 0
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 

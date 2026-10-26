@@ -28,11 +28,11 @@ from chronos.verification.rule_store import get_active_blocking_rules
 class ChronosSessionBootstrap:
     """Coordinates deterministic pre-turn-1 knowledge injection and lease acquisition."""
 
-    def __init__(self, repo_path: str | Path, con: sqlite3.Connection):
+    def __init__(self, repo_path: str | Path, con: sqlite3.Connection, enable_slm: bool = True):
         self.repo_path = Path(repo_path).resolve()
         self.con = con
         self.graph_store = SQLiteGraphStore(con)
-        self.resolver = DeterministicContextResolver(repo_root=self.repo_path, graph_store=self.graph_store)
+        self.resolver = DeterministicContextResolver(repo_root=self.repo_path, graph_store=self.graph_store, enable_slm=enable_slm)
         self.memory_store = ChronosMemoryStore(con=self.con)
 
     def bootstrap_session(
@@ -42,6 +42,7 @@ class ChronosSessionBootstrap:
         agent_id: str = "default_agent",
         session_id: str = "default_session",
         token_budget: int = 1500,
+        repo_namespace: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Assemble bi-temporal AST graph context, rules, and leases before first model turn."""
         target_files = target_files or []
@@ -155,7 +156,7 @@ class ChronosSessionBootstrap:
 
         # 6. Epistemic Living Memory Recall (Past Postmortems, Invariants, & Gotchas)
         recalled_memories = []
-        repo_ns = self.repo_path.name
+        repo_ns = repo_namespace or self.repo_path.name
         try:
             recalled_memories = self.memory_store.recall(
                 query=task_prompt,

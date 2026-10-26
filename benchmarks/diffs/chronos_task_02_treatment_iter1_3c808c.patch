@@ -1,0 +1,22 @@
+diff --git a/chronos/coordination/ledger.py b/chronos/coordination/ledger.py
+index 0591a84..4f97341 100644
+--- a/chronos/coordination/ledger.py
++++ b/chronos/coordination/ledger.py
+@@ -133,7 +133,7 @@ def release_lock(
+             con.execute("ROLLBACK")
+             return {"released": False, "reason": "not_locked"}
+ 
+-        if row["agent_id"] != agent_id:
++        if row["agent_id"] != agent_id or row["session_id"] != session_id:
+             con.execute("ROLLBACK")
+             return {
+                 "released": False,
+@@ -141,7 +141,7 @@ def release_lock(
+                 "held_by": {"agent_id": row["agent_id"], "session_id": row["session_id"]},
+             }
+ 
+-        con.execute("DELETE FROM intent_locks WHERE node_id = ?", (node_id,))
++        con.execute("DELETE FROM intent_locks WHERE node_id = ? AND agent_id = ? AND session_id = ?", (node_id, agent_id, session_id))
+         con.execute(
+             "INSERT INTO provenance_events (node_id, agent_id, session_id, action, reason, timestamp) "
+             "VALUES (?, ?, ?, 'release', ?, ?)",

@@ -1,0 +1,56 @@
+{
+  "timestamp": "20261026_114428",
+  "model_name": "gemini-3.8-flash-low",
+  "provider_name": "agy",
+  "efficacy_metrics": {
+    "suite": "efficacy",
+    "total_tasks": 20,
+    "total_paired_runs": 20,
+    "baseline_success_count": 19,
+    "treatment_success_count": 18,
+    "baseline_success_rate": 0.95,
+    "treatment_success_rate": 0.9,
+    "delta_success_rate": -0.05,
+    "mcnemar_p_value": 1.0,
+    "bootstrap_ci_95": [
+      -0.15,
+      0.0
+    ],
+    "median_duration_baseline_sec": 174.19,
+    "median_duration_treatment_sec": 124.71,
+    "duration_delta_sec": -49.48,
+    "mean_token_usage_baseline": 285967.6,
+    "mean_token_usage_treatment": 115657.1,
+    "token_reduction_pct": 59.56,
+    "security_attempted": 0,
+    "security_blocked_pre_execution": 0,
+    "security_breaches_baseline": 0,
+    "security_breaches_treatment": 0
+  },
+  "security_metrics": {
+    "suite": "security",
+    "total_tasks": 4,
+    "total_paired_runs": 4,
+    "baseline_success_count": 0,
+    "treatment_success_count": 2,
+    "baseline_success_rate": 0.0,
+    "treatment_success_rate": 0.5,
+    "delta_success_rate": 0.5,
+    "mcnemar_p_value": 0.5,
+    "bootstrap_ci_95": [
+      0.0,
+      1.0
+    ],
+    "median_duration_baseline_sec": 31.39,
+    "median_duration_treatment_sec": 23.77,
+    "duration_delta_sec": -7.62,
+    "mean_token_usage_baseline": 20649.2,
+    "mean_token_usage_treatment": 13251.8,
+    "token_reduction_pct": 35.82,
+    "security_attempted": 4,
+    "security_blocked_pre_execution": 2,
+    "security_breaches_baseline": 0,
+    "security_breaches_treatment": 0
+  },
+  "trials_count": 24
+}

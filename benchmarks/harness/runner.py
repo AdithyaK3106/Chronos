@@ -88,10 +88,20 @@ class ResultStore:
                     tool_calls_count INTEGER NOT NULL,
                     tool_call_types TEXT,
                     error_message TEXT,
-                    timestamp TEXT NOT NULL
+                    timestamp TEXT NOT NULL,
+                    memories_recalled INTEGER DEFAULT 0,
+                    memories_stored INTEGER DEFAULT 0
                 );
                 """
             )
+            try:
+                con.execute("ALTER TABLE runs ADD COLUMN memories_recalled INTEGER DEFAULT 0;")
+            except Exception:
+                pass
+            try:
+                con.execute("ALTER TABLE runs ADD COLUMN memories_stored INTEGER DEFAULT 0;")
+            except Exception:
+                pass
             con.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_task_iteration_arm 
@@ -142,8 +152,9 @@ class ResultStore:
                     run_id, task_id, repository_id, suite, arm, iteration,
                     status, duration_seconds, resolved_model_id, provider_name,
                     prompt_tokens, completion_tokens, total_tokens, cost_usd,
-                    tool_calls_count, tool_call_types, error_message, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tool_calls_count, tool_call_types, error_message,
+                    memories_recalled, memories_stored, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     result.run_id,
@@ -163,6 +174,8 @@ class ResultStore:
                     result.tool_calls_count,
                     tool_call_types_json,
                     result.error_message,
+                    result.memories_recalled,
+                    result.memories_stored,
                     result.timestamp,
                 ),
             )
@@ -274,6 +287,8 @@ class PairedRunner:
             policy_decisions: List[Dict[str, Any]] = []
             tool_calls_count = 0
             tool_call_types: Dict[str, int] = {}
+            memories_recalled_count = 0
+            memories_stored_count = 0
 
             try:
                 llm = self._resolve_llm()
@@ -320,9 +335,12 @@ class PairedRunner:
 
                 else:
                     # Treatment arm: Chronos governance, AST graph, and context condensation
+                    repo_db_dir = self.store.data_dir / "repo_chronos"
+                    repo_db_dir.mkdir(parents=True, exist_ok=True)
+                    db_file = repo_db_dir / f"chronos_{repo.id}.db"
+
                     chronos_dir = ws_path / ".chronos"
                     chronos_dir.mkdir(parents=True, exist_ok=True)
-                    db_file = chronos_dir / "chronos.db"
                     audit_file = chronos_dir / "chronos-audit.log"
 
                     con = get_connection(db_file)
@@ -367,8 +385,10 @@ class PairedRunner:
                         agent_id=agent_id,
                         session_id=run_id,
                         token_budget=1500,
+                        repo_namespace=repo.id,
                     )
                     treatment_prompt = bootstrap_res["augmented_prompt"]
+                    memories_recalled_count = bootstrap_res.get("memories_count", 0)
 
                     condenser = ChronosContextCondenser(max_events=15, keep_first=2)
                     treatment_sys_prompt = (
@@ -404,7 +424,24 @@ class PairedRunner:
                     convo.send_message(treatment_prompt)
                     timed_out, err_msg = self._run_convo_with_watchdog(convo, task.timeout_seconds)
                     if timed_out:
-                        con.close()
+                        try:
+                            from chronos.memory.hooks import on_task_completed
+                            from chronos.memory.models import OutcomeType
+                            on_task_completed(
+                                con=con,
+                                task_id=f"{task.id}_iter{iteration}",
+                                task_prompt=task.prompt,
+                                agent_id=agent_id,
+                                repo_namespace=repo.id,
+                                outcome=OutcomeType.TIMEOUT,
+                                files_modified=task.target_files,
+                                error_message="Watchdog timeout exceeded",
+                                audit_log_path=audit_file,
+                            )
+                        except Exception:
+                            pass
+                        finally:
+                            con.close()
                         return TaskRunResult(
                             run_id=run_id,
                             task_id=task.id,
@@ -417,9 +454,27 @@ class PairedRunner:
                             resolved_model_id=resolved_model_id,
                             provider_name=self.provider_config.name,
                             error_message="Watchdog timeout exceeded",
+                            memories_recalled=memories_recalled_count,
                         )
                     if err_msg:
-                        con.close()
+                        try:
+                            from chronos.memory.hooks import on_task_completed
+                            from chronos.memory.models import OutcomeType
+                            on_task_completed(
+                                con=con,
+                                task_id=f"{task.id}_iter{iteration}",
+                                task_prompt=task.prompt,
+                                agent_id=agent_id,
+                                repo_namespace=repo.id,
+                                outcome=OutcomeType.FAILURE,
+                                files_modified=task.target_files,
+                                error_message=err_msg,
+                                audit_log_path=audit_file,
+                            )
+                        except Exception:
+                            pass
+                        finally:
+                            con.close()
                         return TaskRunResult(
                             run_id=run_id,
                             task_id=task.id,
@@ -432,13 +487,11 @@ class PairedRunner:
                             resolved_model_id=resolved_model_id,
                             provider_name=self.provider_config.name,
                             error_message=err_msg,
+                            memories_recalled=memories_recalled_count,
                         )
-                    con.close()
 
-                # Extract patch before teardown
+                # Extract patch before evaluation and memory distillation
                 patch = ws.get_patch()
-
-                # Preserve patch diff
                 if patch:
                     patch_file = self.store.diffs_dir / f"{run_id}.patch"
                     patch_file.write_text(patch, encoding="utf-8")
@@ -465,6 +518,39 @@ class PairedRunner:
                     workspace_path=ws_path,
                     policy_decisions=policy_decisions,
                 )
+
+                # Post-task epistemic living memory distillation (Treatment arm only)
+                if arm == ArmConfiguration.TREATMENT:
+                    try:
+                        from chronos.memory.hooks import on_task_completed
+                        from chronos.memory.models import OutcomeType
+                        task_outcome = OutcomeType.SUCCESS if outcome.passed else OutcomeType.FAILURE
+                        saved_ids = on_task_completed(
+                            con=con,
+                            task_id=f"{task.id}_iter{iteration}",
+                            task_prompt=task.prompt,
+                            agent_id=agent_id,
+                            repo_namespace=repo.id,
+                            outcome=task_outcome,
+                            files_modified=task.target_files,
+                            git_diff=patch or "",
+                            test_results={
+                                "status": outcome.status.value,
+                                "passed": outcome.passed,
+                                "stdout": (outcome.stdout or "")[:1000],
+                                "stderr": (outcome.stderr or "")[:1000],
+                            },
+                            error_message=outcome.error_message,
+                            audit_log_path=audit_file,
+                        )
+                        memories_stored_count = len(saved_ids)
+                    except Exception:
+                        memories_stored_count = 0
+                    finally:
+                        try:
+                            con.close()
+                        except Exception:
+                            pass
 
                 duration = time.time() - start_time
 
@@ -525,6 +611,8 @@ class PairedRunner:
                     stderr=outcome.stderr,
                     error_message=outcome.error_message,
                     policy_decisions=policy_decisions,
+                    memories_recalled=memories_recalled_count,
+                    memories_stored=memories_stored_count,
                 )
                 self.store.save_run(result)
                 return result

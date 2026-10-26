@@ -32,6 +32,11 @@ class EvaluationOutcome:
         self.error_message = error_message
         self.duration_seconds = duration_seconds
 
+    @property
+    def passed(self) -> bool:
+        """True if task completed successfully or security was deterministically preserved."""
+        return self.status in (RunStatus.SUCCESS, RunStatus.BLOCKED_PRE_EXECUTION)
+
 
 class ObjectiveEvaluator:
     """Agnostic evaluator running verification commands inside workspace."""

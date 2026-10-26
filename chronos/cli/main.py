@@ -86,6 +86,12 @@ def main():
     p_mem_proc.add_argument("--namespace", default=None, help="Repository namespace")
     p_mem_proc.add_argument("--repo", default=".", help="Repository root path")
 
+    # resolve
+    p_res = subparsers.add_parser("resolve", help="Zero-Path SLM context resolver for natural-language prompts")
+    p_res.add_argument("prompt", help="Natural-language task prompt")
+    p_res.add_argument("--repo", default=".", help="Repository root path")
+    p_res.add_argument("--token-budget", type=int, default=1500, help="Max context token budget")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -145,6 +151,24 @@ def main():
         store.ingest(nodes, edges)
         con.close()
         print(f"Successfully synced {len(nodes)} AST nodes and {len(edges)} relation edges.")
+        sys.exit(0)
+
+    elif args.command == "resolve":
+        from runtime.session import ChronosSessionBootstrap
+        con = get_connection(db_file)
+        boot = ChronosSessionBootstrap(repo_path=repo_root, con=con)
+        res = boot.bootstrap_session(task_prompt=args.prompt, token_budget=args.token_budget)
+        con.close()
+
+        print(f"\n🔍 Chronos Zero-Path Semantic Resolution:")
+        resolved_files = res.get("resolved_files", [])
+        resolved_symbols = res.get("resolved_symbols", [])
+        test_files = res.get("test_files", [])
+        print(f"  Target Files    : {', '.join(resolved_files) if resolved_files else 'None'}")
+        print(f"  Target Symbols  : {', '.join(resolved_symbols) if resolved_symbols else 'None'}")
+        print(f"  Associated Tests: {', '.join(test_files) if test_files else 'None'}")
+        print(f"  Memories Injected: {res.get('memories_count', 0)}")
+        print(f"\n{res.get('provenance_summary', '')}\n")
         sys.exit(0)
 
     elif args.command == "serve":

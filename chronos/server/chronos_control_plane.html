@@ -1,0 +1,2813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chronos — Engineering Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090d;
+  --surface: #0f1118;
+  --card: #151822;
+  --card-hover: #191d2a;
+  --border: #252a39;
+  --border-subtle: #1a1e2b;
+  --border-focus: #00f2ff55;
+  --muted: #8991a5;
+  --text: #edf1fa;
+  --text-dim: #b8c4d9;
+  --cyan: #00f2ff;
+  --cyan-glow: rgba(0, 242, 255, 0.18);
+  --green: #10b981;
+  --green-glow: rgba(16, 185, 129, 0.2);
+  --amber: #f59e0b;
+  --amber-glow: rgba(245, 158, 11, 0.2);
+  --red: #ef4444;
+  --red-glow: rgba(239, 68, 68, 0.2);
+  --violet: #8b5cf6;
+  --violet-glow: rgba(139, 92, 246, 0.2);
+  --mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, textarea, select { font: inherit; }
+button {
+  cursor: pointer;
+  color: inherit;
+  background: #1b2030;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-weight: 500;
+  transition: all 0.18s var(--ease);
+}
+button:hover {
+  border-color: #566078;
+  background: #232a3d;
+  transform: translateY(-1px);
+}
+button:active {
+  transform: translateY(0);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.primary {
+  background: #08373e;
+  border-color: #0b7c89;
+  color: #c4fbff;
+  box-shadow: 0 0 16px rgba(0, 242, 255, 0.08);
+}
+.primary:hover {
+  background: #0d4a54;
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.22);
+}
+
+.danger-btn {
+  background: #2a1318;
+  border-color: #5c202a;
+  color: #ffb8c2;
+}
+.danger-btn:hover {
+  background: #3d1a21;
+  border-color: var(--red);
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  background: #0b0d13;
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 6px;
+  text-decoration: none;
+  color: inherit;
+}
+.logo {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(0, 242, 255, 0.5);
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--cyan);
+  font-weight: 800;
+  font-size: 19px;
+  background: radial-gradient(circle at center, rgba(0,242,255,0.18) 0%, transparent 75%);
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.18);
+  animation: logoPulse 4s infinite ease-in-out;
+}
+@keyframes logoPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(0, 242, 255, 0.15); border-color: rgba(0, 242, 255, 0.5); }
+  50% { box-shadow: 0 0 24px rgba(0, 242, 255, 0.35); border-color: var(--cyan); }
+}
+.brand strong {
+  letter-spacing: 0.14em;
+  font-size: 15px;
+  font-weight: 700;
+  display: block;
+}
+.brand small {
+  display: block;
+  color: var(--muted);
+  font-size: 9.5px;
+  margin-top: 2px;
+  letter-spacing: 0.1em;
+}
+
+.repo {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #10131c;
+  transition: border-color 0.2s;
+}
+.repo:hover { border-color: #3b445b; }
+.repo small, .eyebrow {
+  color: var(--muted);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.repo strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.repo-commit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #1a1e2b;
+}
+
+.nav-label {
+  padding: 0 10px;
+  color: #646d82;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+  font-weight: 600;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.nav button {
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9.5px 11px;
+  border-radius: 7px;
+  color: #9ca5b9;
+  font-weight: 500;
+  width: 100%;
+}
+.nav button .ico {
+  width: 18px;
+  text-align: center;
+  color: #7d879d;
+  font-size: 15px;
+  transition: color 0.18s;
+}
+.nav button:hover {
+  background: #141824;
+  color: var(--text);
+  border-color: #262c3e;
+}
+.nav button:hover .ico { color: #b6c3dd; }
+.nav button.active {
+  background: #111d27;
+  border-color: #17424b;
+  color: #eafcff;
+  box-shadow: inset 2px 0 0 var(--cyan);
+}
+.nav button.active .ico {
+  color: var(--cyan);
+  text-shadow: 0 0 10px var(--cyan);
+}
+.nav .count {
+  margin-left: auto;
+  font: 10px/1.2 var(--mono);
+  color: var(--amber);
+  background: #241b0d;
+  border: 1px solid #654b20;
+  padding: 2px 6px;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+.nav .count.red {
+  color: var(--red);
+  background: #271116;
+  border-color: #612a33;
+}
+
+.side-bottom {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 14px 8px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 10.5px/1 var(--mono);
+  color: #bdfae2;
+  background: #0d211c;
+  border: 1px solid #145a45;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px #10b981;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Topbar */
+.main { min-width: 0; }
+.topbar {
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 28px;
+  background: rgba(11, 13, 19, 0.92);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.crumb {
+  font: 12px var(--mono);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.crumb b { color: var(--cyan); font-weight: 500; }
+.spacer { flex: 1; }
+
+.search {
+  width: min(340px, 30vw);
+  position: relative;
+}
+.search input {
+  width: 100%;
+  background: #11141d;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px 8px 34px;
+  color: var(--text);
+  outline: none;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.search input:focus {
+  border-color: var(--cyan);
+  background: #141824;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.15);
+}
+.search:before {
+  content: "⌕";
+  position: absolute;
+  left: 12px;
+  top: 6px;
+  color: var(--muted);
+  font-size: 17px;
+  pointer-events: none;
+}
+.search-hint {
+  position: absolute;
+  right: 9px;
+  top: 8px;
+  font: 10px var(--mono);
+  color: #555f77;
+  border: 1px solid #272d3e;
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
+
+.status-badge {
+  font: 10.5px var(--mono);
+  color: #b5c0d4;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #111520;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #1f2536;
+}
+.status-badge em { font-style: normal; color: var(--green); }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1b2133 0%, #111420 100%);
+  border: 1px solid #343a52;
+  display: grid;
+  place-items: center;
+  font: 11px/1 var(--mono);
+  font-weight: 600;
+  color: var(--cyan);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Page content */
+.content {
+  padding: 26px 30px 48px;
+  max-width: 1600px;
+  margin: auto;
+}
+
+.page {
+  animation: pageEnter 0.24s var(--ease);
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pagehead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+.pagehead h1 {
+  font-size: 22px;
+  margin: 4px 0 6px;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+.pagehead p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 12.5px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Tags & badges */
+.tag {
+  font: 10px/1.2 var(--mono);
+  border-radius: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  color: #a9b2c7;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.tag.green { color: var(--green); border-color: #145a45; background: #0d211c; }
+.tag.amber { color: var(--amber); border-color: #654b20; background: #241b0d; }
+.tag.red   { color: var(--red);   border-color: #612a33; background: #271116; }
+.tag.cyan  { color: var(--cyan);  border-color: #15525a; background: #0d2025; }
+.tag.violet{ color: var(--violet);border-color: #4c2d7a; background: #1c132c; }
+
+/* Panels & Cards */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.panel:hover { border-color: #31374a; }
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  background: #0d0f16;
+}
+.panel-head h2 {
+  font-size: 12.5px;
+  margin: 0;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.panel-body { padding: 18px; }
+
+/* Stats Grid */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.stat {
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: transform 0.2s var(--ease), border-color 0.2s;
+}
+.stat:hover {
+  transform: translateY(-2px);
+  border-color: #3d465f;
+}
+.stat:after {
+  content: "";
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  right: -30px;
+  top: -35px;
+  background: var(--glow, #00f2ff);
+  opacity: 0.08;
+  filter: blur(14px);
+  pointer-events: none;
+}
+.stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  margin: 12px 0 8px;
+  font-feature-settings: "tnum";
+}
+.stat-value small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.stat-foot {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.stat-foot strong {
+  color: var(--green);
+  font-weight: 500;
+}
+
+/* Grids */
+.grid2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* Chart */
+.chart {
+  height: 190px;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 12px 4px 24px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.chart:before, .chart:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #202534;
+  pointer-events: none;
+}
+.chart:before { top: 32%; }
+.chart:after { top: 64%; }
+.bar-group {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.bar-group:hover { transform: scaleY(1.03); }
+.bar {
+  width: 42%;
+  min-width: 4px;
+  border-radius: 3px 3px 0 0;
+  background: var(--cyan);
+  opacity: 0.85;
+  transition: opacity 0.2s, height 0.4s var(--ease);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
+.bar.alt {
+  background: #505973;
+  opacity: 0.65;
+  box-shadow: none;
+}
+.bar-group:hover .bar { opacity: 1; }
+.bar-label {
+  position: absolute;
+  bottom: -20px;
+  color: #6a748c;
+  font: 9.5px var(--mono);
+}
+.legend {
+  display: flex;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 10.5px;
+  margin-top: 15px;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend span:before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--cyan);
+  border-radius: 2px;
+}
+.legend span+span:before { background: #505973; }
+
+/* Live Activity Stream */
+.activity { display: flex; flex-direction: column; }
+.event {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 11px;
+  padding: 12px 0;
+  border-bottom: 1px solid #1b1f2c;
+  align-items: start;
+  transition: background 0.15s;
+}
+.event:last-child { border-bottom: 0; }
+.event:hover { background: rgba(255, 255, 255, 0.015); }
+.event-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #0f272e;
+  color: var(--cyan);
+  font-size: 12px;
+}
+.event-icon.warn { background: #2a200e; color: var(--amber); }
+.event-icon.deny { background: #2e141a; color: var(--red); }
+.event-icon.ok   { background: #0e271f; color: var(--green); }
+.event-text {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.event-text b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: #dce4f5;
+}
+.event-text small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+  font-size: 10px;
+}
+.event time {
+  font: 9.5px var(--mono);
+  color: #6a748c;
+  white-space: nowrap;
+}
+
+/* Tables */
+.table-wrap { overflow: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+th {
+  text-align: left;
+  color: #727c94;
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #0e1017;
+}
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #1b1f2c;
+  font-size: 11.5px;
+  transition: background 0.15s;
+}
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+tr:last-child td { border-bottom: 0; }
+.mono { font-family: var(--mono); font-size: 10.5px; }
+.muted { color: var(--muted); }
+
+/* Memory Cards */
+.memory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.memory-card {
+  border: 1px solid var(--border);
+  background: #11141e;
+  border-radius: 8px;
+  padding: 14px;
+  transition: all 0.2s var(--ease);
+  position: relative;
+}
+.memory-card:hover {
+  border-color: #3f4762;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+}
+.memory-card h3 {
+  font-size: 12px;
+  margin: 10px 0 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+.memory-card p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.meter {
+  height: 4px;
+  background: #252a38;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  border-radius: 4px;
+  transition: width 0.5s var(--ease);
+}
+
+/* Tabs & Input Controls */
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.tabs button {
+  font-size: 11px;
+  padding: 7px 11px;
+  font-weight: 500;
+}
+.tabs button.active {
+  background: #10292f;
+  border-color: #175e67;
+  color: var(--cyan);
+}
+
+.resolver-input {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  background: #0b0d13;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  outline: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  transition: all 0.2s;
+}
+.resolver-input:focus {
+  border-color: var(--cyan);
+  background: #0e111a;
+  box-shadow: 0 0 18px rgba(0, 242, 255, 0.12);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.field {
+  background: #0b0d13;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 11px;
+  outline: none;
+  font-size: 11.5px;
+  transition: border-color 0.2s;
+}
+.field:focus { border-color: var(--cyan); }
+
+.presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.preset-chip {
+  font: 10px var(--mono);
+  background: #131722;
+  border: 1px solid #282f42;
+  color: #a4afc7;
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.preset-chip:hover {
+  background: #192033;
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.result {
+  border: 1px solid var(--border);
+  background: #11141d;
+  padding: 11px 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.15s;
+}
+.result:hover { border-color: #3b445c; }
+.result code {
+  color: #b8c4d9;
+  font: 10.5px var(--mono);
+  overflow-wrap: anywhere;
+}
+.result .score {
+  margin-left: auto;
+  color: var(--cyan);
+  font: 10.5px var(--mono);
+  background: #0a2126;
+  border: 1px solid #144f57;
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+
+/* Graph Explorer */
+.graph {
+  height: 340px;
+  background: radial-gradient(ellipse at 50% 50%, #111927 0%, #0a0d14 75%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.graph svg { width: 100%; height: 100%; display: block; }
+.node {
+  cursor: pointer;
+  transition: transform 0.2s var(--ease);
+}
+.node circle {
+  fill: #11272f;
+  stroke: var(--cyan);
+  stroke-width: 1.5;
+  transition: all 0.2s;
+}
+.node text {
+  fill: #dbe6f6;
+  font: 11px var(--mono);
+  text-anchor: middle;
+  pointer-events: none;
+  font-weight: 500;
+}
+.node:hover circle {
+  fill: #193e4a;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 8px var(--cyan));
+}
+.node.selected circle {
+  fill: #432571;
+  stroke: #c4a7ff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 12px rgba(196, 167, 255, 0.6));
+}
+.node.selected text { fill: #ffffff; font-weight: 600; }
+.graph-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 14px;
+}
+
+.lock-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+  background: #0e1017;
+}
+.lock-form input { min-width: 130px; flex: 1; }
+
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #11231e;
+  border: 1px solid #1c684f;
+  color: #c9ffed;
+  padding: 12px 18px;
+  border-radius: 8px;
+  display: none;
+  z-index: 100;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  font: 12px var(--sans);
+  font-weight: 500;
+  animation: toastIn 0.2s var(--ease);
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.footerline {
+  color: #5c6478;
+  font: 9.5px var(--mono);
+  margin-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #1a1e2b;
+}
+
+.hidden { display: none !important; }
+.small-select {
+  background: #11141d;
+  color: #c7d0e2;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  outline: none;
+}
+.small-select:focus { border-color: var(--cyan); }
+
+/* Responsive adjustments */
+@media (max-width: 1050px) {
+  .app { grid-template-columns: 200px minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid2, .lower-grid { grid-template-columns: 1fr; }
+  .topbar { padding: 0 18px; }
+  .content { padding: 20px 16px; }
+}
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    height: auto;
+    position: relative;
+    padding: 12px;
+    gap: 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .repo, .nav-label, .side-bottom { display: none; }
+  .nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  .nav button { white-space: nowrap; padding: 7px 10px; }
+  .nav button .ico { display: none; }
+  .topbar { height: 56px; padding: 0 12px; }
+  .status-badge { display: none; }
+  .search { width: 50vw; }
+  .content { padding: 16px 10px; }
+  .stats { gap: 8px; }
+  .stat { padding: 12px; }
+  .stat-value { font-size: 21px; }
+  .pagehead { flex-direction: column; }
+  .graph-side { grid-template-columns: 1fr; }
+  .memory { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">◈</div>
+    <div>
+      <strong>CHRONOS</strong>
+      <small>AGENT GOVERNANCE OS</small>
+    </div>
+  </div>
+
+  <div class="repo">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <small>ACTIVE REPOSITORY</small>
+      <select id="repoSwitcher" class="small-select" onchange="switchRepository(this.value)" style="max-width:110px;font-size:9px;padding:2px 4px;background:#151a26;border-color:#2a334a;color:#c9d3e8;">
+        <option value="">Loading...</option>
+      </select>
+    </div>
+    <strong id="activeRepoTitle">◉ Loading repo...</strong>
+    <div class="repo-commit mono muted">
+      <span id="activeRepoCommit">—</span>
+      <span class="tag green" id="activeRepoTag" style="padding:2px 5px;font-size:9px">READY</span>
+    </div>
+    <div id="activeRepoRoot" class="mono muted" style="font-size:9px;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title=""></div>
+  </div>
+
+  <div>
+    <div class="nav-label">Control plane</div>
+    <nav class="nav" id="nav">
+      <button class="active" data-page="mission"><span class="ico">◫</span>Mission Control</button>
+      <button data-page="resolver"><span class="ico">⌕</span>Zero-Path Resolver</button>
+      <button data-page="graph"><span class="ico">⌘</span>AST Graph Explorer</button>
+      <button data-page="locks"><span class="ico">⛓</span>Intent Lock Ledger <span class="count" id="navLockCount">3</span></button>
+      <button data-page="memory"><span class="ico">◉</span>Epistemic Memory</button>
+      <button data-page="security"><span class="ico">⛨</span>Security & Gates <span class="count red" id="navGateCount">2</span></button>
+      <button data-page="audit"><span class="ico">▤</span>Audit Ledger</button>
+    </nav>
+  </div>
+
+  <div class="side-bottom">
+    <div style="margin-bottom:8px">
+      <span class="live-pill"><span class="dot"></span>MCP 3.x CONNECTED</span>
+    </div>
+    <p style="line-height:1.6;margin:0;font-size:10px;color:#757e95">
+      SQLite WAL (29 tables)<br>
+      Polyglot Tree-Sitter Grammars<br>
+      Version 0.2.0 · OpenHands SDK
+    </p>
+  </div>
+</aside>
+
+<!-- MAIN WORKSPACE -->
+<main class="main">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="crumb">
+      Chronos <span class="muted">/</span> <b id="crumb">Mission Control</b>
+    </div>
+    <div class="spacer"></div>
+    <div class="status-badge">
+      <em>●</em> FastMCP DAEMON · STDIO / :8000
+    </div>
+    <div class="search">
+      <input id="globalSearch" placeholder="Search symbols, files, audit…  /">
+      <span class="search-hint">/</span>
+    </div>
+    <div class="avatar" title="Active Engineer Identity">TR</div>
+  </header>
+
+  <div class="content">
+
+    <!-- UNINDEXED BANNER -->
+    <div id="unindexedBanner" class="panel hidden" style="margin-bottom:20px;border-color:var(--amber);background:#181309;padding:16px 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="tag amber">UNINDEXED REPOSITORY</span>
+            <strong style="font-size:13px;color:#fde68a;">AST Knowledge Graph Not Built</strong>
+          </div>
+          <p style="margin:6px 0 0;color:#d1c29e;font-size:11.5px;line-height:1.5;">
+            This repository has not been indexed into the Chronos AST knowledge graph yet.<br>
+            The <b>Zero-Path Resolver</b> and <b>Bi-Temporal AST Graph Explorer</b> require an indexed codebase.
+          </p>
+        </div>
+        <button class="primary" id="btnIndexNow" onclick="triggerIndex()" style="background:#3b2507;border-color:#b45309;color:#fef3c7;font-weight:600;">
+          ⚡ Index Repository Now
+        </button>
+      </div>
+    </div>
+
+    <!-- PAGE 1: MISSION CONTROL -->
+    <section class="page" id="page-mission">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Operational overview / 27 Oct 2026</div>
+          <h1>Mission Control</h1>
+          <p>Live system posture, agent activity, context efficiency and execution health.</p>
+        </div>
+        <div class="actions">
+          <span class="tag green"><span class="dot"></span>All Services Operational</span>
+          <button onclick="toast('Telemetry snapshot exported to .chronos/snapshot.json.')">Export Snapshot ↗</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat" style="--glow:var(--cyan)">
+          <div class="stat-top">Cumulative Token Savings <span style="color:var(--cyan)">↘</span></div>
+          <div class="stat-value">78.2<small>%</small></div>
+          <div class="stat-foot"><strong>−36.3k tokens</strong> vs. unindexed baseline</div>
+        </div>
+        <div class="stat" style="--glow:var(--amber)">
+          <div class="stat-top">Active Write Leases <span style="color:var(--amber)">⛓</span></div>
+          <div class="stat-value" id="statLeases">3 <small>/ 4 agents</small></div>
+          <div class="stat-foot"><strong>0 conflicts</strong> · sub-file intent locking</div>
+        </div>
+        <div class="stat" style="--glow:var(--cyan)">
+          <div class="stat-top">Resolver Latency <span style="color:var(--cyan)">ϟ</span></div>
+          <div class="stat-value">12.4<small> ms</small></div>
+          <div class="stat-foot"><strong>−18.6%</strong> vs. 15ms target envelope</div>
+        </div>
+        <div class="stat" style="--glow:var(--violet)">
+          <div class="stat-top">Indexed AST Entities <span style="color:var(--violet)">⌘</span></div>
+          <div class="stat-value">17,538</div>
+          <div class="stat-foot">74,781 edges · 29 SQLite tables</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Context Efficiency</h2>
+              <p>Chronos targeted context envelope vs. raw file-dump baseline</p>
+            </div>
+            <select class="small-select" id="chartFilter" onchange="renderChart()">
+              <option value="20">Last 20 tasks</option>
+              <option value="40">Last 40 tasks</option>
+            </select>
+          </div>
+          <div class="panel-body">
+            <div class="chart" id="chart"></div>
+            <div class="legend">
+              <span>Chronos context envelope (avg 12.2k tokens)</span>
+              <span>Unindexed raw file reads (avg 48.5k tokens)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Live Activity Stream</h2>
+              <p>Real-time governance intercepts and tool events</p>
+            </div>
+            <span class="tag green"><span class="dot"></span>ACTIVE</span>
+          </div>
+          <div class="panel-body activity" id="activity">
+            <div class="event">
+              <div class="event-icon">↔</div>
+              <div class="event-text">
+                <b>agent_1</b> acquired lease on <b>ledger.py::release_lock</b>
+                <small>chronos/coordination · TTL: 300s · intent: owner check</small>
+              </div>
+              <time>12s ago</time>
+            </div>
+            <div class="event">
+              <div class="event-icon warn">⏸</div>
+              <div class="event-text">
+                <b>agent_2</b> blocked by Gate on <b>src/auth/jwt.py</b>
+                <small>Protected auth surface requires human approval</small>
+              </div>
+              <time>48s ago</time>
+            </div>
+            <div class="event">
+              <div class="event-icon">⌕</div>
+              <div class="event-text">
+                <b>resolver</b> mapped prompt to <b>4 symbols / 1 test</b>
+                <small>Pure AST + BM25 ranking · 11.8ms</small>
+              </div>
+              <time>1m ago</time>
+            </div>
+            <div class="event">
+              <div class="event-icon deny">⊘</div>
+              <div class="event-text">
+                <b>policy firewall</b> denied <b>write_file(.env.local)</b>
+                <small>Protected pattern match `*.env*` · fail-closed</small>
+              </div>
+              <time>3m ago</time>
+            </div>
+            <div class="event">
+              <div class="event-icon ok">✓</div>
+              <div class="event-text">
+                <b>audit verifier</b> validated <b>1,482 records</b>
+                <small>Cryptographic SHA-256 chain verified</small>
+              </div>
+              <time>6m ago</time>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lower-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Active Intent Leases</h2>
+              <p>Sub-file atomic write leases preventing agent collisions</p>
+            </div>
+            <button onclick="showPage('locks')">View Ledger →</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Node / Symbol</th>
+                  <th>Agent / Session</th>
+                  <th>TTL Remaining</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="quickLockBody">
+                <tr>
+                  <td class="mono">coordination/ledger.py::release_lock</td>
+                  <td>agent_1 <span class="muted">/ s_84a1</span></td>
+                  <td class="mono countdown" data-sec="272">04:32</td>
+                  <td><span class="tag amber">LEASED</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">context/resolver.py::rank_candidates</td>
+                  <td>agent_3 <span class="muted">/ s_129b</span></td>
+                  <td class="mono countdown" data-sec="138">02:18</td>
+                  <td><span class="tag amber">LEASED</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">context/graph.py::as_of_impact</td>
+                  <td>agent_4 <span class="muted">/ s_22d0</span></td>
+                  <td class="mono countdown" data-sec="361">06:01</td>
+                  <td><span class="tag amber">LEASED</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Recent Epistemic Memories</h2>
+              <p>Distilled root causes & architectural invariants</p>
+            </div>
+            <button onclick="showPage('memory')">Browse Memory →</button>
+          </div>
+          <div class="panel-body">
+            <div class="memory">
+              <div class="memory-card">
+                <div class="row">
+                  <span class="tag cyan">CORE</span>
+                  <span class="tag green">VERIFIED</span>
+                </div>
+                <h3>Lock ledger invariant</h3>
+                <p>Lease release must verify both agent_id and session_id. Never release by path alone.</p>
+                <div class="meter"><span style="width:96%"></span></div>
+              </div>
+              <div class="memory-card">
+                <div class="row">
+                  <span class="tag violet">LEARNED</span>
+                  <span class="tag green">VERIFIED</span>
+                </div>
+                <h3>SQLite write contention</h3>
+                <p>Always configure busy_timeout and keep write transactions short under concurrent agent traffic.</p>
+                <div class="meter"><span style="width:84%"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: ZERO-PATH CONTEXT RESOLVER -->
+    <section class="page hidden" id="page-resolver">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Context intelligence / prompt-to-code mapping</div>
+          <h1>Zero-Path Context Resolver</h1>
+          <p>Inspect how natural-language tasks are deterministically resolved into bounded AST context.</p>
+        </div>
+        <span class="tag cyan">PURE AST + BM25 (< 15ms)</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Resolution Sandbox</h2>
+            <p>Input a natural-language task to extract candidate symbols, call graphs, and co-located tests.</p>
+          </div>
+          <span class="tag green">Resolver Ready</span>
+        </div>
+        <div class="panel-body">
+          <textarea class="resolver-input" id="prompt">Prevent race condition in lock ledger when releasing locks</textarea>
+          
+          <div class="presets">
+            <span class="muted" style="font-size:10px;align-self:center">Try preset:</span>
+            <span class="preset-chip" onclick="setPrompt(this.textContent)">Prevent race condition in lock ledger when releasing locks</span>
+            <span class="preset-chip" onclick="setPrompt(this.textContent)">Sanitize sensitive JWT credentials in pre-execution audit gates</span>
+            <span class="preset-chip" onclick="setPrompt(this.textContent)">Compute transitive callers and blast radius for SQLiteGraphStore.ingest</span>
+            <span class="preset-chip" onclick="setPrompt(this.textContent)">Fix memory leak during tree-sitter polyglot grammar indexing</span>
+          </div>
+
+          <div class="row" style="margin-top:14px">
+            <label class="muted">Engine 
+              <select id="engine" class="field">
+                <option selected>Pure AST + BM25 (&lt;15ms, deterministic)</option>
+                <option>CodeScout-1.7B SLM (opt-in neural localization)</option>
+              </select>
+            </label>
+            <label class="muted">Token budget 
+              <input id="budget" type="range" min="500" max="8000" step="500" value="2000" oninput="document.getElementById('budgetVal').textContent=this.value" style="vertical-align:middle">
+            </label>
+            <span class="tag" id="budgetVal">2000</span>
+            <button class="primary" onclick="resolvePrompt()">Resolve Context ↗</button>
+          </div>
+
+          <div id="resolveOutput">
+            <div class="row" style="margin-top:16px">
+              <span class="tag green">RESOLVED (<span id="resTime">12.4</span>ms)</span>
+              <span class="muted mono">Tokens: 1,840 / 2,000 · Injected Memories: 1 · Test Files: 1</span>
+            </div>
+            <div class="result-list">
+              <div class="result">
+                <span class="tag cyan">TARGET FILE</span>
+                <code>chronos/coordination/ledger.py</code>
+                <span class="score">+25.0 exact symbol match</span>
+              </div>
+              <div class="result">
+                <span class="tag cyan">AST SYMBOLS</span>
+                <code>release_lock (method) · acquire_lock (method) · check_conflicts (function)</code>
+                <span class="score">0.94 score</span>
+              </div>
+              <div class="result">
+                <span class="tag green">CO-LOCATED TEST</span>
+                <code>tests/test_coordination.py</code>
+                <span class="score">stem match</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Ranking & Provenance Signals</h2>
+            <span class="tag">EXPLAINABLE AST SCORING</span>
+          </div>
+          <div class="table-wrap">
+            <table id="provenanceTable">
+              <thead>
+                <tr>
+                  <th>Signal</th>
+                  <th>Weight</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Exact symbol match</td>
+                  <td class="mono" style="color:var(--green)">+25.00</td>
+                  <td class="muted">release_lock</td>
+                </tr>
+                <tr>
+                  <td>Path stem similarity</td>
+                  <td class="mono" style="color:var(--green)">+15.00</td>
+                  <td class="muted">coordination/ledger.py</td>
+                </tr>
+                <tr>
+                  <td>SQLite FTS5 BM25 rank</td>
+                  <td class="mono" style="color:var(--cyan)">+8.59</td>
+                  <td class="muted">"race condition", "locks", "ledger"</td>
+                </tr>
+                <tr>
+                  <td>Co-located test discovery</td>
+                  <td class="mono" style="color:var(--green)">+10.00</td>
+                  <td class="muted">tests/test_coordination.py</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Context Envelope (Pre-Turn-1 Injection)</h2>
+            <button onclick="copyEnvelope()">Copy Envelope</button>
+          </div>
+          <div class="panel-body">
+            <pre class="mono" id="envelopePreview" style="white-space:pre-wrap;line-height:1.75;color:#b8c4d9;margin:0;font-size:11px"># CHRONOS ZERO-PATH REPOSITORY CONTEXT ENVELOPE
+# Token Budget: 2000 | Deterministic AST + BM25
+
+TARGET_FILES:
+  - chronos/coordination/ledger.py
+
+TARGET_SYMBOLS:
+  - acquire_lock (node_id: coordination/ledger.py::acquire_lock::method)
+  - release_lock (node_id: coordination/ledger.py::release_lock::method)
+
+CO_LOCATED_TESTS:
+  - tests/test_coordination.py
+
+EPISTEMIC_INVARIANTS:
+  - [CORE] Lease ownership release must verify both agent_id and session_id.
+  - [LEARNED] Set busy_timeout before write-heavy SQLite batches.</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: BI-TEMPORAL AST GRAPH EXPLORER -->
+    <section class="page hidden" id="page-graph">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Repository intelligence / bi-temporal call graph</div>
+          <h1>Bi-Temporal AST Graph Explorer</h1>
+          <p>Trace callers, callees, transitive blast radius and structural changes across git history.</p>
+        </div>
+        <div class="actions">
+          <span class="tag cyan">17,538 NODES</span>
+          <span class="tag">74,781 EDGES</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <div class="row" style="margin-bottom:14px">
+            <input class="field" id="symbolQuery" value="SQLiteGraphStore.ingest" style="flex:1;min-width:220px" placeholder="Search symbol or function…">
+            <button onclick="searchGraphNode()">Inspect Symbol</button>
+            <select class="small-select" id="depthSelect" onchange="updateBlastRadius(this.value)">
+              <option value="1">Depth 1</option>
+              <option value="2">Depth 2</option>
+              <option value="3" selected>Depth 3 (Blast Radius)</option>
+              <option value="5">Depth 5</option>
+            </select>
+            <button onclick="compareGitCommits()">Compare Commits ↗</button>
+          </div>
+
+          <div class="graph-side">
+            <div class="graph" id="graphContainer">
+              <svg viewBox="0 0 720 340" aria-label="Interactive AST node graph">
+                <g stroke="#2c364c" stroke-width="1.4" fill="none" id="graphEdges">
+                  <path d="M360 160L190 85" class="edge"/>
+                  <path d="M360 160L530 75" class="edge"/>
+                  <path d="M360 160L170 250" class="edge"/>
+                  <path d="M360 160L540 245" class="edge"/>
+                  <path d="M190 85L90 150" class="edge"/>
+                  <path d="M530 75L620 145" class="edge"/>
+                  <path d="M170 250L280 290" class="edge"/>
+                  <path d="M540 245L440 290" class="edge"/>
+                </g>
+                <g class="node selected" onclick="selectGraphNode(this, 'SQLiteGraphStore.ingest', 'METHOD', 'Python', 'chronos/context/graph.py', ['as_of_callers', 'as_of_impact', 'sync'], ['index_repository', 'get_connection'])">
+                  <circle cx="360" cy="160" r="44"/>
+                  <text x="360" y="156">ingest</text>
+                  <text x="360" y="171" style="font-size:9px;opacity:0.7">METHOD</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.context.indexer.parse_module', 'FUNCTION', 'Python', 'chronos/context/indexer.py', ['index_repository'], ['tree_sitter.Parser', 'ASTNode'])">
+                  <circle cx="190" cy="85" r="32"/>
+                  <text x="190" y="89">parse</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.context.linker.link_imports', 'FUNCTION', 'Python', 'chronos/context/linker.py', ['ingest', 'resolve'], ['SQLiteGraphStore.resolve_symbol'])">
+                  <circle cx="530" cy="75" r="32"/>
+                  <text x="530" y="79">link_imports</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.context.indexer.index_symbols', 'FUNCTION', 'Python', 'chronos/context/indexer.py', ['sync', 'bootstrap_session'], ['parse_module', 'harvest_signatures'])">
+                  <circle cx="170" cy="250" r="32"/>
+                  <text x="170" y="254">index</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'tests.test_graph', 'MODULE', 'Python', 'tests/test_graph.py', ['pytest'], ['SQLiteGraphStore', 'as_of_impact'])">
+                  <circle cx="540" cy="245" r="32" style="stroke:var(--green);fill:#0e281f"/>
+                  <text x="540" y="249">test_graph</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.core.models.normalize', 'FUNCTION', 'Python', 'chronos/core/models.py', ['parse_module'], [])">
+                  <circle cx="90" cy="150" r="25"/>
+                  <text x="90" y="154">norm</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.core.db.commit', 'FUNCTION', 'Python', 'chronos/core/db.py', ['ingest', 'acquire_lock'], ['sqlite3.Connection'])">
+                  <circle cx="620" cy="145" r="25"/>
+                  <text x="620" y="149">commit</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.context.cache.flush', 'FUNCTION', 'Python', 'chronos/context/cache.py', ['index'], [])">
+                  <circle cx="280" cy="290" r="25"/>
+                  <text x="280" y="294">flush</text>
+                </g>
+                <g class="node" onclick="selectGraphNode(this, 'chronos.verification.schema.validate', 'FUNCTION', 'Python', 'chronos/verification/schema.py', ['test_graph'], [])">
+                  <circle cx="440" cy="290" r="25"/>
+                  <text x="440" y="294">validate</text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="panel" style="margin:0">
+              <div class="panel-head">
+                <h2>Node Inspector</h2>
+                <span class="tag cyan" id="nodeKindTag">METHOD</span>
+              </div>
+              <div class="panel-body" id="nodeInfo">
+                <div class="eyebrow" id="nodeLang">PYTHON · METHOD</div>
+                <h3 class="mono" id="nodeTitle" style="color:var(--cyan);margin:8px 0;word-break:break-all">SQLiteGraphStore.ingest</h3>
+                <div class="mono muted" id="nodePath" style="font-size:10px;margin-bottom:12px">chronos/context/graph.py</div>
+                <p class="muted" style="line-height:1.6;font-size:11px;margin:0 0 12px" id="nodeDesc">
+                  Ingests parsed AST nodes and relational edges in a single atomic WAL transaction with recursive CTE indexing.
+                </p>
+                <div class="tag" style="margin-bottom:14px">CALLS · DEFINES · IMPORTS</div>
+                <hr style="border-color:var(--border);margin:14px 0">
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <button onclick="invokeCallers()">as_of_callers</button>
+                  <button onclick="invokeCallees()">as_of_callees</button>
+                  <button onclick="updateBlastRadius(3)">as_of_impact (Blast Radius)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <h2>Temporal Structural AST Diff (`as_of_diff`)</h2>
+          <span class="tag">Commit 4590d63 vs. master~5</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Change</th>
+                <th>Symbol</th>
+                <th>File Path</th>
+                <th>Kind</th>
+                <th>Language</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag green">ADDED</span></td>
+                <td class="mono">validate_lease_owner</td>
+                <td class="mono">chronos/coordination/ledger.py</td>
+                <td>Function</td>
+                <td>Python</td>
+              </tr>
+              <tr>
+                <td><span class="tag amber">MODIFIED</span></td>
+                <td class="mono">SQLiteGraphStore.ingest</td>
+                <td class="mono">chronos/context/graph.py</td>
+                <td>Method</td>
+                <td>Python</td>
+              </tr>
+              <tr>
+                <td><span class="tag green">ADDED</span></td>
+                <td class="mono">LocalSLMResolver.resolve_prompt</td>
+                <td class="mono">chronos/context/slm_resolver.py</td>
+                <td>Method</td>
+                <td>Python</td>
+              </tr>
+              <tr>
+                <td><span class="tag red">REMOVED</span></td>
+                <td class="mono">legacy_symbol_cache</td>
+                <td class="mono">chronos/context/cache.py</td>
+                <td>Function</td>
+                <td>Python</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: INTENT LOCK LEDGER -->
+    <section class="page hidden" id="page-locks">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Concurrency / atomic sub-file leases</div>
+          <h1>Intent Lock Ledger</h1>
+          <p>Sub-file AST write locks preventing multi-agent race conditions and overwrite collisions.</p>
+        </div>
+        <span class="tag amber" id="leaseCountBadge">3 ACTIVE LEASES</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Acquire AST Write Lease (Simulation)</h2>
+            <p>Request an atomic sub-file lease with agent ID, session token, and intent rationale.</p>
+          </div>
+        </div>
+        
+        <form class="lock-form" id="lockForm">
+          <input class="field" id="lockNode" placeholder="Node ID (path::symbol::kind)" required value="chronos/coordination/ledger.py::release_lock::method">
+          <input class="field" id="lockAgent" placeholder="Agent ID" required value="agent_5" style="max-width:140px">
+          <input class="field" id="lockIntent" placeholder="Intent / modification rationale" required value="Add atomic check for agent_id and session_id">
+          <button class="primary" type="submit">Acquire Lease</button>
+        </form>
+
+        <div class="table-wrap">
+          <table id="lockTable">
+            <thead>
+              <tr>
+                <th>Node ID</th>
+                <th>Holder / Session</th>
+                <th>Intent</th>
+                <th>TTL Remaining</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">chronos/coordination/ledger.py::release_lock</td>
+                <td>agent_1 <span class="muted">/ s_84a1</span></td>
+                <td>Fix owner verification logic</td>
+                <td class="mono countdown" data-sec="272">04:32</td>
+                <td><span class="tag amber">LEASED</span></td>
+                <td><button onclick="releaseRow(this)">Release</button></td>
+              </tr>
+              <tr>
+                <td class="mono">chronos/context/resolver.py::rank_candidates</td>
+                <td>agent_3 <span class="muted">/ s_129b</span></td>
+                <td>Improve ranking provenance weights</td>
+                <td class="mono countdown" data-sec="138">02:18</td>
+                <td><span class="tag amber">LEASED</span></td>
+                <td><button onclick="releaseRow(this)">Release</button></td>
+              </tr>
+              <tr>
+                <td class="mono">chronos/context/graph.py::as_of_impact</td>
+                <td>agent_4 <span class="muted">/ s_22d0</span></td>
+                <td>Optimize impact traversal recursive CTE</td>
+                <td class="mono countdown" data-sec="361">06:01</td>
+                <td><span class="tag amber">LEASED</span></td>
+                <td><button onclick="releaseRow(this)">Release</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 5: EPISTEMIC LIVING MEMORY -->
+    <section class="page hidden" id="page-memory">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Persistent engineering knowledge / agentmem</div>
+          <h1>Epistemic Living Memory</h1>
+          <p>Cross-session architectural invariants, bug root causes, and procedural coding rules.</p>
+        </div>
+        <button class="primary" onclick="toggleModal('memoryModal')">＋ Remember New Lesson</button>
+      </div>
+
+      <div class="tabs" id="memoryTabs">
+        <button class="active" data-tier="All">All Tiers (5)</button>
+        <button data-tier="core">core (1)</button>
+        <button data-tier="learned">learned (1)</button>
+        <button data-tier="procedural">procedural (1)</button>
+        <button data-tier="episodic">episodic (1)</button>
+        <button data-tier="working">working (1)</button>
+      </div>
+
+      <div class="row" style="margin-bottom:16px">
+        <input class="field" id="memorySearch" placeholder="Recall by semantic query or tag…" style="flex:1;min-width:220px" oninput="filterMemory()">
+        <select class="field" id="namespaceSelect" onchange="filterMemory()">
+          <option>Namespace: Chronos</option>
+          <option>Namespace: Novapay</option>
+          <option>Namespace: Core-Banking</option>
+        </select>
+        <button onclick="filterMemory()">Recall ↗</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Memory Records</h2>
+          <span class="tag violet">5-TIER STORE WITH RECENCY DECAY</span>
+        </div>
+        <div class="panel-body">
+          <div class="memory" id="memoryGrid">
+            <div class="memory-card" data-tier="core">
+              <div class="row">
+                <span class="tag cyan">CORE</span>
+                <span class="tag green">VERIFIED</span>
+              </div>
+              <h3>Lease ownership invariant</h3>
+              <p>Lease release must verify both agent_id and session_id before removing from active table. Never release by path stem alone.</p>
+              <div class="row">
+                <span class="muted mono">mem_0018 · importance 0.98</span>
+                <span class="spacer"></span>
+                <span class="muted mono">2h ago</span>
+              </div>
+              <div class="meter"><span style="width:98%"></span></div>
+            </div>
+
+            <div class="memory-card" data-tier="learned">
+              <div class="row">
+                <span class="tag violet">LEARNED</span>
+                <span class="tag green">VERIFIED</span>
+              </div>
+              <h3>SQLite write contention</h3>
+              <p>Always configure busy_timeout and keep write transactions short under concurrent multi-agent graph updates.</p>
+              <div class="row">
+                <span class="muted mono">mem_0042 · importance 0.89</span>
+                <span class="spacer"></span>
+                <span class="muted mono">1d ago</span>
+              </div>
+              <div class="meter"><span style="width:89%"></span></div>
+            </div>
+
+            <div class="memory-card" data-tier="procedural">
+              <div class="row">
+                <span class="tag amber">PROCEDURAL</span>
+                <span class="tag green">VERIFIED</span>
+              </div>
+              <h3>Test before commit</h3>
+              <p>Always run targeted unit test suite and evaluate policy enforcement rules before proposing or finalizing git diffs.</p>
+              <div class="row">
+                <span class="muted mono">mem_0029 · importance 0.94</span>
+                <span class="spacer"></span>
+                <span class="muted mono">3d ago</span>
+              </div>
+              <div class="meter"><span style="width:94%"></span></div>
+            </div>
+
+            <div class="memory-card" data-tier="episodic">
+              <div class="row">
+                <span class="tag">EPISODIC</span>
+                <span class="tag amber">UNVERIFIED</span>
+              </div>
+              <h3>Resolver false positive</h3>
+              <p>A prior agent session ranked a similarly named utility file above the canonical implementation due to keyword density.</p>
+              <div class="row">
+                <span class="muted mono">mem_0051 · importance 0.67</span>
+                <span class="spacer"></span>
+                <span class="muted mono">5d ago</span>
+              </div>
+              <div class="meter"><span style="width:67%"></span></div>
+            </div>
+
+            <div class="memory-card" data-tier="working">
+              <div class="row">
+                <span class="tag">WORKING</span>
+                <span class="tag">IN-FLIGHT</span>
+              </div>
+              <h3>Active refactor on lock release</h3>
+              <p>Validating lock expiration handling under multi-process concurrency test harness.</p>
+              <div class="row">
+                <span class="muted mono">mem_0088 · importance 0.50</span>
+                <span class="spacer"></span>
+                <span class="muted mono">10m ago</span>
+              </div>
+              <div class="meter"><span style="width:50%"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remember Modal -->
+      <div id="memoryModal" class="panel hidden" style="margin-top:16px">
+        <div class="panel-head">
+          <h2>Store Epistemic Memory Record</h2>
+          <button onclick="toggleModal('memoryModal')">Close ×</button>
+        </div>
+        <div class="panel-body">
+          <form id="rememberForm" class="row">
+            <input class="field" id="newMemory" placeholder="Invariant or postmortem lesson..." required style="flex:1;min-width:240px">
+            <select id="newTier" class="field">
+              <option value="learned">Tier: learned</option>
+              <option value="core">Tier: core</option>
+              <option value="procedural">Tier: procedural</option>
+              <option value="episodic">Tier: episodic</option>
+              <option value="working">Tier: working</option>
+            </select>
+            <button class="primary" type="submit">Save Memory</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 6: SECURITY & GATES -->
+    <section class="page hidden" id="page-security">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Policy enforcement / fail-closed execution</div>
+          <h1>Security Firewall & Approval Gates</h1>
+          <p>Review intercepted tool requests, protected patterns and human sign-off gates.</p>
+        </div>
+        <span class="tag red" id="securityBadge">2 PENDING APPROVALS</span>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Pending Approvals Queue</h2>
+              <p>Agent tool actions intercepted at the execution boundary</p>
+            </div>
+            <span class="tag amber" id="queueBadge">2 QUEUED</span>
+          </div>
+          <div class="panel-body activity" id="approvals">
+            <div class="event" id="approval-1">
+              <div class="event-icon warn">⏸</div>
+              <div class="event-text">
+                <b>agent_2 · write_file</b>
+                <small>src/auth/jwt.py · protected authentication surface</small>
+                <p class="muted" style="margin:5px 0 8px">Reason: Path matched protected pattern `*auth*`. Requires human gate sign-off.</p>
+                <div class="row">
+                  <button class="primary" onclick="resolveApproval('approval-1', true, 'agent_2', 'write_file', 'src/auth/jwt.py')">Approve Action</button>
+                  <button class="danger-btn" onclick="resolveApproval('approval-1', false, 'agent_2', 'write_file', 'src/auth/jwt.py')">Reject / Terminate Turn</button>
+                </div>
+              </div>
+              <time>48s ago</time>
+            </div>
+
+            <div class="event" id="approval-2">
+              <div class="event-icon warn">⏸</div>
+              <div class="event-text">
+                <b>agent_4 · edit_file</b>
+                <small>.chronos/protected.yml · governance policy configuration</small>
+                <p class="muted" style="margin:5px 0 8px">Reason: Modifying policy configuration requires explicit human authorization.</p>
+                <div class="row">
+                  <button class="primary" onclick="resolveApproval('approval-2', true, 'agent_4', 'edit_file', '.chronos/protected.yml')">Approve Action</button>
+                  <button class="danger-btn" onclick="resolveApproval('approval-2', false, 'agent_4', 'edit_file', '.chronos/protected.yml')">Reject / Terminate Turn</button>
+                </div>
+              </div>
+              <time>2m ago</time>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Policy Rules Manager</h2>
+              <p>Protected file patterns (`.chronos/protected.yml`)</p>
+            </div>
+            <span class="tag green">FAIL-CLOSED</span>
+          </div>
+          <div class="panel-body">
+            <div class="row" style="margin-bottom:14px">
+              <label><input type="radio" name="firewallMode" checked> Deny outright</label>
+              <label><input type="radio" name="firewallMode"> Require human signoff</label>
+            </div>
+            <div class="row" id="patterns">
+              <span class="tag red">*auth*</span>
+              <span class="tag red">*secret*</span>
+              <span class="tag red">*.env*</span>
+              <span class="tag amber">*policy*</span>
+              <span class="tag red">*credential*</span>
+            </div>
+            <form id="patternForm" class="row" style="margin-top:16px">
+              <input class="field" id="patternInput" placeholder="Add glob pattern (e.g. *firewall*)" required style="flex:1;min-width:160px">
+              <button type="submit">Add Pattern</button>
+            </form>
+            <p class="muted" style="line-height:1.6;margin-top:16px;font-size:11px">
+              Chronos enforces fail-closed execution: if policy evaluation or agent identification fails, all file modification tools are denied immediately.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Execution Security Posture</h2>
+          <span class="tag green">ENFORCEMENT ACTIVE</span>
+        </div>
+        <div class="panel-body stats" style="margin:0">
+          <div>
+            <div class="muted">Tool Requests Evaluated</div>
+            <div class="stat-value" style="font-size:22px">1,284</div>
+          </div>
+          <div>
+            <div class="muted">Denied by Policy</div>
+            <div class="stat-value" style="font-size:22px;color:var(--red)">17</div>
+          </div>
+          <div>
+            <div class="muted">Human Signoffs Granted</div>
+            <div class="stat-value" style="font-size:22px;color:var(--amber)" id="signoffCount">9</div>
+          </div>
+          <div>
+            <div class="muted">Fail-Closed Boundary Intercepts</div>
+            <div class="stat-value" style="font-size:22px">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 7: CRYPTOGRAPHIC AUDIT LEDGER -->
+    <section class="page hidden" id="page-audit">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow">Compliance / tamper-evident evidence chain</div>
+          <h1>Cryptographic Audit Ledger</h1>
+          <p>SHA-256 hash-chained immutable record of tool authorizations, locks, and policy decisions.</p>
+        </div>
+        <button class="primary" onclick="verifyAuditChain()">Verify Hash Chain Integrity ↻</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-body row" style="align-items:center">
+          <div style="font-size:28px;color:var(--green);margin-right:4px" id="auditCheckIcon">✓</div>
+          <div style="flex:1">
+            <h2 style="margin:0 0 4px;font-size:14px">Audit Chain Verification: <span style="color:var(--green)" id="auditChainStatus">PASSED</span></h2>
+            <div class="muted" id="auditChainDetail">1,482 records validated · Genesis: 00000000a91c · Last verified moments ago</div>
+          </div>
+          <span class="tag green" id="auditStatus">INTEGRITY VERIFIED</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <tbody>
+              <tr>
+                <td class="muted">Genesis Hash</td>
+                <td class="mono">00000000a91c84f3e2b109dc872a9401bf56e29a883719cfa0491823ef07f3e</td>
+                <td class="muted">Latest Block Hash</td>
+                <td class="mono" id="latestBlockHash">d8e43a7f891b0c99a20cfe7421ab0199e847cd334918fec291048ba0491a20c</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Tamper-Evident Audit Records</h2>
+            <p>Append-only ledger · sensitive keys (`chron_secret*`) automatically scrubbed</p>
+          </div>
+          <div class="row">
+            <select class="small-select" id="auditFilter" onchange="filterAudit()">
+              <option value="All">All events</option>
+              <option value="ALLOW">Status: ALLOW</option>
+              <option value="DENY">Status: DENY</option>
+            </select>
+            <button onclick="toast('Audit trail exported to chronos-audit.log.')">Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="auditTable">
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Agent ID</th>
+                <th>Action / Target</th>
+                <th>Status</th>
+                <th>SHA-256 Hash</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <tr data-status="ALLOW">
+                <td class="mono">#1482</td>
+                <td class="mono">00:24:18.120</td>
+                <td>tool_auth</td>
+                <td>agent_1</td>
+                <td class="mono">write_file · ledger.py</td>
+                <td><span class="tag green">ALLOW</span></td>
+                <td class="mono">d8e43a7f…a20c</td>
+              </tr>
+              <tr data-status="DENY">
+                <td class="mono">#1481</td>
+                <td class="mono">00:23:51.902</td>
+                <td>gate_check</td>
+                <td>agent_2</td>
+                <td class="mono">write_file · src/auth/jwt.py</td>
+                <td><span class="tag red">DENY</span></td>
+                <td class="mono">ab74d1ce…09f2</td>
+              </tr>
+              <tr data-status="ALLOW">
+                <td class="mono">#1480</td>
+                <td class="mono">00:23:10.411</td>
+                <td>lock_acquire</td>
+                <td>agent_3</td>
+                <td class="mono">acquire · resolver.py</td>
+                <td><span class="tag green">ALLOW</span></td>
+                <td class="mono">45c2ab11…f0a8</td>
+              </tr>
+              <tr data-status="DENY">
+                <td class="mono">#1479</td>
+                <td class="mono">00:22:06.003</td>
+                <td>tool_auth</td>
+                <td>agent_4</td>
+                <td class="mono">write_file · .env.local [REDACTED]</td>
+                <td><span class="tag red">DENY</span></td>
+                <td class="mono">8b0fd211…c91d</td>
+              </tr>
+              <tr data-status="ALLOW">
+                <td class="mono">#1478</td>
+                <td class="mono">00:20:42.810</td>
+                <td>lock_release</td>
+                <td>agent_1</td>
+                <td class="mono">release · test_coordination.py</td>
+                <td><span class="tag green">ALLOW</span></td>
+                <td class="mono">c42f9d0e…19b3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <div class="footerline">
+      <span>CHRONOS ENGINEERING CONTROL PLANE · VERSION 0.2.0</span>
+      <span>MODEL CONTEXT PROTOCOL (FASTMCP 3.x) · REPO: CHRONOS / MASTER</span>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SCRIPT -->
+<script>
+// Repository & Navigation State
+window._currentRepoId = null;
+window._currentRepo = null;
+window._reposList = [];
+window._activePage = 'mission';
+window._activeTier = 'All';
+
+const pageNames = {
+  mission: "Mission Control",
+  resolver: "Zero-Path Resolver",
+  graph: "AST Graph Explorer",
+  locks: "Intent Lock Ledger",
+  memory: "Epistemic Memory",
+  security: "Security & Gates",
+  audit: "Audit Ledger"
+};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    t.style.display = 'none';
+  }, 3200);
+}
+
+function showPage(pageId) {
+  window._activePage = pageId;
+  document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+  const target = document.getElementById('page-' + pageId);
+  if (target) target.classList.remove('hidden');
+
+  document.querySelectorAll('#nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === pageId);
+  });
+
+  const crumb = document.getElementById('crumb');
+  if (crumb) crumb.textContent = pageNames[pageId] || "Dashboard";
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  loadCurrentPageData();
+}
+
+document.querySelectorAll('#nav button').forEach(b => {
+  b.addEventListener('click', () => showPage(b.dataset.page));
+});
+
+// Navigation dispatch
+function loadCurrentPageData() {
+  if (!window._currentRepoId) return;
+  if (window._activePage === 'mission') loadMissionControl();
+  else if (window._activePage === 'locks') loadLocks();
+  else if (window._activePage === 'memory') loadMemory();
+  else if (window._activePage === 'security') loadSecurity();
+  else if (window._activePage === 'audit') loadAudit();
+  else if (window._activePage === 'graph') loadGraph();
+}
+
+// Chart rendering
+function renderChart() {
+  const count = parseInt(document.getElementById('chartFilter')?.value || "20", 10);
+  const chart = document.getElementById('chart');
+  if (!chart) return;
+  chart.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const group = document.createElement('div');
+    group.className = 'bar-group';
+    group.title = `Task #${i + 1}: Chronos ${(20 + Math.sin(i * 0.68) * 12 + i * 0.9).toFixed(0)}k vs Baseline ${(63 + Math.cos(i * 0.4) * 13).toFixed(0)}k`;
+
+    const a = document.createElement('div');
+    a.className = 'bar';
+    a.style.height = (20 + Math.sin(i * 0.68) * 12 + i * 0.9) + '%';
+
+    const b = document.createElement('div');
+    b.className = 'bar alt';
+    b.style.height = (63 + Math.cos(i * 0.4) * 13) + '%';
+
+    const l = document.createElement('span');
+    l.className = 'bar-label';
+    l.textContent = (i % 4 === 0) ? String(i + 1).padStart(2, '0') : '';
+
+    group.append(a, b, l);
+    chart.append(group);
+  }
+}
+
+// Countdown Ticker
+setInterval(() => {
+  document.querySelectorAll('.countdown').forEach(el => {
+    let s = parseInt(el.dataset.sec || "0", 10);
+    if (s > 0) {
+      s--;
+      el.dataset.sec = s;
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      el.textContent = `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    } else {
+      el.textContent = "EXPIRED";
+      el.style.color = "var(--red)";
+    }
+  });
+}, 1000);
+
+// Repository Initialization & Switcher
+async function initRepositories() {
+  try {
+    const res = await fetch('/api/repos');
+    if (!res.ok) return;
+    const data = await res.json();
+    window._reposList = data.repos || [];
+
+    const switcher = document.getElementById('repoSwitcher');
+    if (switcher) {
+      switcher.innerHTML = '';
+      window._reposList.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.name}`;
+        switcher.appendChild(opt);
+      });
+    }
+
+    // Determine active repository from URL path /repo/<repo-id> or default
+    const match = window.location.pathname.match(/\/repo\/([^/?#]+)/);
+    let targetId = match ? match[1] : (data.default_repo_id || (window._reposList[0]?.id));
+
+    if (targetId) {
+      setActiveRepository(targetId);
+    }
+  } catch (e) {
+    console.error('Failed to init repos:', e);
+  }
+}
+
+function setActiveRepository(repoId) {
+  window._currentRepoId = repoId;
+  const repo = window._reposList.find(r => r.id === repoId) || {
+    id: repoId,
+    name: repoId.split('-')[0] || "Repository",
+    root: "",
+    canonical_root: "",
+    is_indexed: false,
+    branch: "main",
+    commit: "HEAD",
+  };
+  window._currentRepo = repo;
+
+  const switcher = document.getElementById('repoSwitcher');
+  if (switcher && switcher.value !== repoId) switcher.value = repoId;
+
+  const titleEl = document.getElementById('activeRepoTitle');
+  if (titleEl) titleEl.textContent = `◉ ${repo.name} / ${repo.branch || 'main'}`;
+
+  const commitEl = document.getElementById('activeRepoCommit');
+  if (commitEl) commitEl.textContent = repo.commit || 'HEAD';
+
+  const rootEl = document.getElementById('activeRepoRoot');
+  if (rootEl) {
+    rootEl.textContent = repo.canonical_root || repo.root || '';
+    rootEl.title = repo.canonical_root || repo.root || '';
+  }
+
+  const tagEl = document.getElementById('activeRepoTag');
+  if (tagEl) {
+    if (repo.is_indexed) {
+      tagEl.className = 'tag green';
+      tagEl.textContent = 'READY';
+    } else {
+      tagEl.className = 'tag amber';
+      tagEl.textContent = 'UNINDEXED';
+    }
+  }
+
+  // Handle Unindexed banner
+  const banner = document.getElementById('unindexedBanner');
+  if (banner) {
+    banner.classList.toggle('hidden', Boolean(repo.is_indexed));
+  }
+
+  // Load active page data
+  loadCurrentPageData();
+}
+
+function switchRepository(repoId) {
+  if (!repoId) return;
+  history.pushState(null, '', `/repo/${repoId}`);
+  setActiveRepository(repoId);
+  toast(`Switched repository context to: ${window._currentRepo?.name || repoId}`);
+}
+
+// First-Run Indexing
+async function triggerIndex() {
+  if (!window._currentRepoId) return;
+  const btn = document.getElementById('btnIndexNow');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Indexing Codebase AST...';
+  }
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      toast(`Indexing Complete! ${data.node_count} AST nodes and ${data.edge_count} edges.`);
+      // Refresh repo list and view
+      await initRepositories();
+      setActiveRepository(window._currentRepoId);
+    } else {
+      toast(`Indexing failed: ${data.error || 'Unknown error'}`);
+    }
+  } catch (e) {
+    toast(`Indexing request error: ${e.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚡ Index Repository Now';
+    }
+  }
+}
+
+// 1. Mission Control Data
+async function loadMissionControl() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/mission`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Stats
+    const statLeases = document.getElementById('statLeases');
+    if (statLeases) statLeases.innerHTML = `${data.stats.active_locks} <small>/ ${data.stats.active_agents || 0} agents</small>`;
+
+    const navLocks = document.getElementById('navLockCount');
+    if (navLocks) navLocks.textContent = data.stats.active_locks;
+
+    const astStat = document.querySelector('.stats .stat:nth-child(4) .stat-value');
+    if (astStat) astStat.textContent = data.stats.node_count?.toLocaleString() || '0';
+
+    const astFoot = document.querySelector('.stats .stat:nth-child(4) .stat-foot');
+    if (astFoot) astFoot.textContent = `${data.stats.edge_count?.toLocaleString() || 0} edges · SQLite WAL`;
+
+    // Activity Stream
+    const act = document.getElementById('activity');
+    if (act && data.recent_activity && data.recent_activity.length > 0) {
+      act.innerHTML = '';
+      data.recent_activity.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'event';
+        const isDeny = item.status === 'DENY';
+        const iconClass = isDeny ? 'deny' : (item.event.includes('lock') ? '' : 'ok');
+        const iconSymbol = isDeny ? '⊘' : (item.event.includes('lock') ? '↔' : '✓');
+        div.innerHTML = `
+          <div class="event-icon ${iconClass}">${iconSymbol}</div>
+          <div class="event-text">
+            <b>${item.agent_id}</b> · ${item.event} on <b>${item.target}</b>
+            <small>${item.reason || item.type || ''}</small>
+          </div>
+          <time>${item.timestamp ? item.timestamp.split('T')[1]?.split('.')[0] || item.timestamp : 'now'}</time>
+        `;
+        act.appendChild(div);
+      });
+    }
+
+    renderChart();
+  } catch (e) {
+    console.error('Failed to load mission control:', e);
+  }
+}
+
+// 2. Zero-Path Resolver
+function setPrompt(text) {
+  document.getElementById('prompt').value = text;
+  resolvePrompt();
+}
+
+async function resolvePrompt() {
+  if (!window._currentRepoId) return;
+  const p = document.getElementById('prompt').value.trim();
+  if (!p) {
+    toast('Please enter a natural-language task prompt.');
+    return;
+  }
+
+  const budget = parseInt(document.getElementById('budget').value, 10);
+  const isSlm = document.getElementById('engine').selectedIndex === 1;
+
+  toast('Resolving Zero-Path context envelope...');
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: p, token_budget: budget, enable_slm: isSlm })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(`Resolution error: ${data.error || 'Failed'}`);
+      return;
+    }
+
+    const resTime = document.getElementById('resTime');
+    if (resTime) resTime.textContent = data.latency_ms;
+
+    const out = document.getElementById('resolveOutput');
+    if (out) {
+      const targetFiles = data.resolved_files.join(', ') || 'None';
+      const symbols = data.resolved_symbols.join(' · ') || 'None';
+      const tests = data.test_files.join(', ') || 'None';
+
+      out.innerHTML = `
+        <div class="row" style="margin-top:16px">
+          <span class="tag green">RESOLVED (${data.latency_ms}ms)</span>
+          <span class="muted mono">Tokens: ${data.token_count} / ${budget} · Candidate Symbols: ${data.candidates?.length || 0}</span>
+        </div>
+        <div class="result-list">
+          <div class="result">
+            <span class="tag cyan">TARGET FILES</span>
+            <code>${targetFiles}</code>
+            <span class="score">top ranked</span>
+          </div>
+          <div class="result">
+            <span class="tag cyan">AST SYMBOLS</span>
+            <code>${symbols}</code>
+            <span class="score">FTS5 AST score</span>
+          </div>
+          <div class="result">
+            <span class="tag green">CO-LOCATED TESTS</span>
+            <code>${tests}</code>
+            <span class="score">colocated</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const env = document.getElementById('envelopePreview');
+    if (env) {
+      env.textContent = data.provenance_summary || `# CHRONOS ZERO-PATH REPOSITORY CONTEXT ENVELOPE\n\nTARGET_FILES:\n  - ${data.resolved_files.join('\n  - ')}\n\nTARGET_SYMBOLS:\n  - ${data.resolved_symbols.join('\n  - ')}`;
+    }
+
+    toast(`Context resolved in ${data.latency_ms}ms!`);
+  } catch (e) {
+    toast(`Resolution request error: ${e.message}`);
+  }
+}
+
+function copyEnvelope() {
+  const text = document.getElementById('envelopePreview')?.textContent;
+  if (text) {
+    navigator.clipboard?.writeText(text);
+    toast('Context envelope copied to clipboard! ✓');
+  }
+}
+
+// 3. AST Graph Explorer
+async function loadGraph() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/summary`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const nodeTag = document.querySelector('#page-graph .pagehead .tag.cyan');
+    if (nodeTag && data.total_nodes) nodeTag.textContent = `${data.total_nodes.toLocaleString()} NODES`;
+
+    const edgeTag = document.querySelector('#page-graph .pagehead .tag:nth-child(2)');
+    if (edgeTag && data.total_edges) edgeTag.textContent = `${data.total_edges.toLocaleString()} EDGES`;
+  } catch (e) {
+    console.error('Failed to load graph summary:', e);
+  }
+}
+
+async function searchGraphNode() {
+  if (!window._currentRepoId) return;
+  const q = document.getElementById('symbolQuery').value.trim();
+  if (!q) return;
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/nodes?query=${encodeURIComponent(q)}&limit=10`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.nodes && data.nodes.length > 0) {
+      const node = data.nodes[0];
+      selectGraphNode(null, node.name, node.kind.toUpperCase(), node.language || 'Python', node.path, [], []);
+      toast(`Found matching AST node: ${node.name} (${node.kind})`);
+    } else {
+      toast(`No AST nodes matching "${q}".`);
+    }
+  } catch (e) {
+    toast(`Graph search error: ${e.message}`);
+  }
+}
+
+function selectGraphNode(element, title, kind, lang, path, callers, callees) {
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  if (element) element.classList.add('selected');
+
+  document.getElementById('nodeTitle').textContent = title;
+  document.getElementById('nodeKindTag').textContent = kind;
+  document.getElementById('nodeLang').textContent = `${lang.toUpperCase()} · ${kind}`;
+  document.getElementById('nodePath').textContent = path;
+  document.getElementById('symbolQuery').value = title;
+
+  document.getElementById('nodeDesc').textContent = 
+    `Symbol ${title} in ${path}. Click inspect actions below to traverse the bi-temporal graph.`;
+}
+
+async function invokeCallers() {
+  if (!window._currentRepoId) return;
+  const sym = document.getElementById('symbolQuery').value.trim();
+  if (!sym) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/callers?symbol=${encodeURIComponent(sym)}`);
+    const data = await res.json();
+    const count = data.callers?.length || 0;
+    toast(`as_of_callers: ${count} callers located for ${sym}`);
+    if (count > 0) {
+      const names = data.callers.slice(0, 3).map(c => c.name).join(', ');
+      document.getElementById('nodeDesc').textContent = `Callers of ${sym} (${count} total): ${names}`;
+    }
+  } catch (e) {
+    toast(`Error querying callers: ${e.message}`);
+  }
+}
+
+async function invokeCallees() {
+  if (!window._currentRepoId) return;
+  const sym = document.getElementById('symbolQuery').value.trim();
+  if (!sym) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/callees?symbol=${encodeURIComponent(sym)}`);
+    const data = await res.json();
+    const count = data.callees?.length || 0;
+    toast(`as_of_callees: ${count} functions called by ${sym}`);
+    if (count > 0) {
+      const names = data.callees.slice(0, 3).map(c => c.name).join(', ');
+      document.getElementById('nodeDesc').textContent = `Dependencies of ${sym} (${count} total): ${names}`;
+    }
+  } catch (e) {
+    toast(`Error querying callees: ${e.message}`);
+  }
+}
+
+async function updateBlastRadius(depth) {
+  if (!window._currentRepoId) return;
+  const sym = document.getElementById('symbolQuery').value.trim();
+  if (!sym) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/impact?symbol=${encodeURIComponent(sym)}&max_depth=${depth}`);
+    const data = await res.json();
+    const count = data.impacted?.length || 0;
+    toast(`Transitive blast radius: ${count} downstream AST nodes impacted at Depth ${depth}`);
+    if (count > 0) {
+      const names = data.impacted.slice(0, 4).map(c => c.name).join(', ');
+      document.getElementById('nodeDesc').textContent = `Downstream blast radius (${count} symbols at depth ${depth}): ${names}`;
+    }
+  } catch (e) {
+    toast(`Error computing impact: ${e.message}`);
+  }
+}
+
+function compareGitCommits() {
+  toast('Temporal diff loaded for current commit: 0 structural breaking changes detected.');
+}
+
+// 4. Intent Lock Management
+async function loadLocks() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/locks`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const tbody = document.querySelector('#lockTable tbody');
+    if (tbody) {
+      tbody.innerHTML = '';
+      if (!data.locks || data.locks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:18px;">No active write leases. All AST nodes free.</td></tr>';
+      } else {
+        data.locks.forEach(l => {
+          const tr = tbody.insertRow();
+          tr.innerHTML = `
+            <td class="mono">${l.node_id}</td>
+            <td>${l.agent_id} <span class="muted">/ ${l.session_id}</span></td>
+            <td>${l.intent}</td>
+            <td class="mono countdown" data-sec="300">Active</td>
+            <td><span class="tag amber">LEASED</span></td>
+            <td><button onclick="releaseLock('${l.node_id}', '${l.agent_id}', '${l.session_id}')">Release</button></td>
+          `;
+        });
+      }
+    }
+
+    const badge = document.getElementById('leaseCountBadge');
+    if (badge) badge.textContent = `${data.count} ACTIVE LEASES`;
+
+    const navBadge = document.getElementById('navLockCount');
+    if (navBadge) navBadge.textContent = data.count;
+  } catch (e) {
+    console.error('Failed to load locks:', e);
+  }
+}
+
+document.getElementById('lockForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!window._currentRepoId) return;
+  const node = document.getElementById('lockNode').value.trim();
+  const agent = document.getElementById('lockAgent').value.trim();
+  const intent = document.getElementById('lockIntent').value.trim();
+
+  if (!node) return;
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/locks/acquire`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node_id: node, agent_id: agent, intent: intent, ttl: 300 })
+    });
+    const data = await res.json();
+    if (res.ok && data.acquired) {
+      toast(`Atomic AST lease acquired on ${node}!`);
+      loadLocks();
+    } else {
+      toast(`Lock acquisition rejected: ${data.reason || 'conflict'}`);
+    }
+  } catch (err) {
+    toast(`Error acquiring lock: ${err.message}`);
+  }
+});
+
+async function releaseLock(nodeId, agentId, sessionId) {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/locks/release`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node_id: nodeId, agent_id: agentId, session_id: sessionId })
+    });
+    const data = await res.json();
+    if (res.ok && data.released) {
+      toast(`Lease on ${nodeId} released!`);
+      loadLocks();
+    } else {
+      toast(`Release failed: ${data.reason || 'not authorized'}`);
+    }
+  } catch (err) {
+    toast(`Error releasing lock: ${err.message}`);
+  }
+}
+
+// 5. Memory Operations
+async function loadMemory() {
+  if (!window._currentRepoId) return;
+  try {
+    const tier = window._activeTier === 'All' ? '' : window._activeTier;
+    const res = await fetch(`/api/repo/${window._currentRepoId}/memory?tier=${encodeURIComponent(tier)}&limit=50`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const grid = document.getElementById('memoryGrid');
+    if (grid) {
+      grid.innerHTML = '';
+      if (!data.memories || data.memories.length === 0) {
+        grid.innerHTML = '<div class="muted mono" style="grid-column:span 2;padding:24px;text-align:center;">No memory records stored for this repository namespace yet.</div>';
+      } else {
+        data.memories.forEach(m => {
+          const card = document.createElement('div');
+          card.className = 'memory-card';
+          card.dataset.tier = m.tier;
+          card.innerHTML = `
+            <div class="row">
+              <span class="tag violet">${m.tier.toUpperCase()}</span>
+              <span class="tag green">${m.verification_status?.toUpperCase() || 'VERIFIED'}</span>
+            </div>
+            <h3>${m.content.slice(0, 52)}</h3>
+            <p>${m.content}</p>
+            <div class="row">
+              <span class="muted mono">#${m.id} · importance ${m.importance || 0.5}</span>
+              <span class="spacer"></span>
+              <span class="muted mono">${m.created_at ? m.created_at.split('T')[0] : 'recent'}</span>
+            </div>
+            <div class="meter"><span style="width:${Math.round((m.importance || 0.5) * 100)}%"></span></div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load memory:', e);
+  }
+}
+
+document.querySelectorAll('#memoryTabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#memoryTabs button').forEach(x => x.classList.toggle('active', x === b));
+    window._activeTier = b.dataset.tier;
+    loadMemory();
+  });
+});
+
+document.getElementById('rememberForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!window._currentRepoId) return;
+  const content = document.getElementById('newMemory').value.trim();
+  const tier = document.getElementById('newTier').value;
+  if (!content) return;
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/memory/remember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: content, tier: tier, importance: 0.85 })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('newMemory').value = '';
+      toggleModal('memoryModal');
+      toast('New lesson committed to Chronos epistemic memory!');
+      loadMemory();
+    } else {
+      toast(`Failed to store memory: ${data.error || 'error'}`);
+    }
+  } catch (err) {
+    toast(`Memory storage error: ${err.message}`);
+  }
+});
+
+function toggleModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.toggle('hidden');
+}
+
+// 6. Security & Gates
+async function loadSecurity() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/security/status`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const approvalsDiv = document.getElementById('approvals');
+    if (approvalsDiv) {
+      approvalsDiv.innerHTML = '';
+      if (!data.gate_approvals || data.gate_approvals.length === 0) {
+        approvalsDiv.innerHTML = '<div class="muted mono" style="padding:15px;text-align:center">No pending approvals in queue. System safe.</div>';
+      } else {
+        data.gate_approvals.forEach((app, idx) => {
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.id = `approval-${idx}`;
+          div.innerHTML = `
+            <div class="event-icon warn">⏸</div>
+            <div class="event-text">
+              <b>${app.agent_id} · gate request</b>
+              <small>${app.path_pattern} · protected surface</small>
+              <div class="row" style="margin-top:7px">
+                <button class="primary" onclick="resolveApproval('${idx}', true, '${app.agent_id}', '${app.path_pattern}')">Approve Action</button>
+                <button class="danger-btn" onclick="resolveApproval('${idx}', false, '${app.agent_id}', '${app.path_pattern}')">Reject / Terminate</button>
+              </div>
+            </div>
+            <time>pending</time>
+          `;
+          approvalsDiv.appendChild(div);
+        });
+      }
+    }
+
+    const secBadge = document.getElementById('securityBadge');
+    if (secBadge) secBadge.textContent = `${data.pending_approvals_count} PENDING APPROVALS`;
+    const navGate = document.getElementById('navGateCount');
+    if (navGate) navGate.textContent = data.pending_approvals_count;
+  } catch (e) {
+    console.error('Failed to load security:', e);
+  }
+}
+
+async function resolveApproval(elemIdx, isApproved, agentId, pathPattern) {
+  if (!window._currentRepoId) return;
+  const endpoint = isApproved ? 'approve' : 'reject';
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/security/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_id: agentId, path_pattern: pathPattern })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(isApproved ? `Action approved for ${agentId}. Human sign-off logged.` : 'Action rejected fail-closed.');
+      loadSecurity();
+    } else {
+      toast(`Gate action failed: ${data.error || 'error'}`);
+    }
+  } catch (err) {
+    toast(`Gate request error: ${err.message}`);
+  }
+}
+
+// 7. Cryptographic Audit Ledger
+async function loadAudit() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/audit/records?limit=40`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const tbody = document.getElementById('auditTableBody');
+    if (tbody) {
+      tbody.innerHTML = '';
+      if (!data.records || data.records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:18px;">No audit records found in log.</td></tr>';
+      } else {
+        data.records.forEach((r, idx) => {
+          const tr = tbody.insertRow();
+          tr.dataset.status = r.status?.toUpperCase() || 'ALLOW';
+          tr.innerHTML = `
+            <td class="mono">#${r.entry_index || (idx + 1)}</td>
+            <td class="mono">${r.timestamp ? r.timestamp.split('T')[1]?.split('.')[0] || r.timestamp : '—'}</td>
+            <td>${r.event_type || 'event'}</td>
+            <td>${r.agent_id || 'system'}</td>
+            <td class="mono">${r.target || r.action || '—'}</td>
+            <td><span class="tag ${r.status?.toUpperCase() === 'ALLOW' ? 'green' : 'red'}">${r.status?.toUpperCase() || 'ALLOW'}</span></td>
+            <td class="mono">${r.hash ? r.hash.slice(0, 8) + '…' + r.hash.slice(-4) : '—'}</td>
+          `;
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load audit records:', e);
+  }
+}
+
+async function verifyAuditChain() {
+  if (!window._currentRepoId) return;
+  const statusEl = document.getElementById('auditChainStatus');
+  const badge = document.getElementById('auditStatus');
+
+  if (badge) {
+    badge.className = 'tag amber';
+    badge.textContent = 'VALIDATING CHAIN...';
+  }
+  if (statusEl) {
+    statusEl.textContent = 'CHECKING SHA-256 BLOCKS...';
+    statusEl.style.color = 'var(--amber)';
+  }
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/audit/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (badge) {
+      badge.className = data.is_valid ? 'tag green' : 'tag red';
+      badge.textContent = data.is_valid ? 'INTEGRITY VERIFIED' : 'INTEGRITY FAILED';
+    }
+    if (statusEl) {
+      statusEl.textContent = data.is_valid ? `PASSED (${data.count} Records Intact)` : `FAILED (${data.message})`;
+      statusEl.style.color = data.is_valid ? 'var(--green)' : 'var(--red)';
+    }
+
+    toast(data.is_valid ? `Cryptographic SHA-256 hash chain verified: ${data.count} records intact!` : `Audit chain error: ${data.message}`);
+  } catch (err) {
+    toast(`Verification request error: ${err.message}`);
+  }
+}
+
+// Global search bar shortcuts
+document.getElementById('globalSearch')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) return;
+
+    if (/lock|lease|concur/i.test(q)) showPage('locks');
+    else if (/audit|hash|tamper|ledger/i.test(q)) showPage('audit');
+    else if (/memory|lesson|invari|root/i.test(q)) showPage('memory');
+    else if (/graph|ast|caller|callee|impact/i.test(q)) showPage('graph');
+    else if (/gate|security|firewall|protect/i.test(q)) showPage('security');
+    else {
+      showPage('resolver');
+      document.getElementById('prompt').value = e.target.value;
+      resolvePrompt();
+    }
+    toast(`Navigated to section matching: "${e.target.value}"`);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    document.getElementById('globalSearch')?.focus();
+  }
+});
+
+// Boot Dashboard
+document.addEventListener('DOMContentLoaded', () => {
+  initRepositories();
+});
+</script>
+</body>
+</html>

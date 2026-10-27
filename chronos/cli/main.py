@@ -13,6 +13,7 @@ import urllib.request
 from typing import Any
 
 from chronos.audit.logger import verify_audit_chain
+from chronos.cli.ui import add_ui_subparser, launch_ui
 from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
 from chronos.core.config import ChronosConfig
@@ -22,6 +23,9 @@ from chronos.core.db import get_connection
 def main():
     parser = argparse.ArgumentParser(description="Chronos: Bi-temporal intelligence and AI governance")
     subparsers = parser.add_subparsers(dest="command")
+
+    # ui
+    add_ui_subparser(subparsers)
 
     # init
     p_init = subparsers.add_parser("init", help="Initialize .chronos directory in current repository")
@@ -122,6 +126,18 @@ def main():
     if not args.command:
         parser.print_help()
         sys.exit(1)
+
+
+    if args.command == "ui":
+        code = launch_ui(
+            repo_path=getattr(args, "repo", "."),
+            host=getattr(args, "host", "127.0.0.1"),
+            port=getattr(args, "port", 8765),
+            no_browser=getattr(args, "no_browser", False),
+            foreground=getattr(args, "foreground", False),
+            stop=getattr(args, "stop", False),
+        )
+        sys.exit(code)
 
     repo_root = Path(getattr(args, "repo", ".")).resolve()
     chronos_dir = repo_root / ".chronos"
@@ -253,6 +269,7 @@ def main():
             if not args.key or args.value is None:
                 print("Usage: chronos config set <key> <value>", file=sys.stderr)
                 sys.exit(1)
+
             keys = args.key.split(".")
             val: Any = args.value
             if val.lower() in ("true", "1", "yes", "on"):

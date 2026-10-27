@@ -250,6 +250,72 @@ def chronos_memory_stats(repo_namespace: str = "") -> dict[str, Any]:
     finally:
         con.close()
 
+
+@mcp.tool()
+def chronos_enforce(content: str, file_path: str) -> dict[str, Any]:
+    """Evaluate code content against active deterministic AST blocking rules prior to finalizing changes."""
+    con = _get_con()
+    try:
+        from chronos.verification.enforcer import evaluate_rules_on_content
+        passed, violations = evaluate_rules_on_content(con, content, file_path)
+        return {
+            "passed": passed,
+            "violations": violations,
+            "violations_count": len(violations),
+            "file_path": file_path,
+        }
+    finally:
+        con.close()
+
+
+@mcp.tool()
+def chronos_check_gate(path: str, agent_id: str = "primary_agent") -> dict[str, Any]:
+    """Check if modifying a sensitive path requires human-in-the-loop gate approval."""
+    con = _get_con()
+    try:
+        import fnmatch
+        from pathlib import Path
+        from chronos.security.gates import DEFAULT_PROTECTED_PATTERNS, is_gate_approved
+
+        norm = Path(path).as_posix()
+        is_sensitive = False
+        matched_pattern = ""
+        for pat in DEFAULT_PROTECTED_PATTERNS:
+            if (
+                fnmatch.fnmatch(norm, pat)
+                or fnmatch.fnmatch(Path(norm).name, pat)
+                or fnmatch.fnmatch(norm, f"**/{pat}")
+                or norm == pat
+                or norm.endswith(pat.lstrip("/"))
+            ):
+                is_sensitive = True
+                matched_pattern = pat
+                break
+
+        if not is_sensitive:
+            return {
+                "sensitive": False,
+                "approved": True,
+                "path": path,
+                "matched_pattern": None,
+            }
+
+        approved = is_gate_approved(con, agent_id, norm)
+        return {
+            "sensitive": True,
+            "approved": approved,
+            "path": path,
+            "matched_pattern": matched_pattern,
+            "reason": (
+                "Gate approval grant active"
+                if approved
+                else f"Path matches sensitive pattern '{matched_pattern}'. Explicit human approval required."
+            ),
+        }
+    finally:
+        con.close()
+
+
 def main():
     mcp.run()
 

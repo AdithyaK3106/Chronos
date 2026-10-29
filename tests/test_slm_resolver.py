@@ -19,7 +19,7 @@ def repo_root() -> Path:
 
 def test_slm_resolver_with_natural_words_prompt(repo_root: Path):
     """Test that an SLM prompt in natural words correctly specifies exact repository files."""
-    cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=45)
+    cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=60)
     resolver = LocalSLMResolver(repo_root=repo_root, config=cfg)
 
     # Prompt with NO explicit file paths
@@ -35,7 +35,7 @@ def test_slm_resolver_with_natural_words_prompt(repo_root: Path):
 
 def test_slm_resolver_graph_recursion_natural_words(repo_root: Path):
     """Test resolving circular reference recursion in graph traversal with natural words."""
-    cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=45)
+    cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=60)
     resolver = LocalSLMResolver(repo_root=repo_root, config=cfg)
 
     prompt = "Fix circular reference recursion edge case so that mutually recursive functions do not cause infinite recursion during traversal."

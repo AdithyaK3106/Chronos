@@ -188,6 +188,70 @@ CREATE TABLE IF NOT EXISTS entities (
 );
 CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);
 CREATE INDEX IF NOT EXISTS idx_entities_memory ON entities(memory_id);
+
+-- Observability Suite: Persistent Run Registry (Feature 1)
+CREATE TABLE IF NOT EXISTS runs (
+    run_id           TEXT PRIMARY KEY,
+    repo_id          TEXT NOT NULL,
+    task_id          TEXT,
+    task_description TEXT,
+    commit_sha       TEXT,
+    agent_id         TEXT,
+    model_id         TEXT,
+    provider_name    TEXT,
+    arm              TEXT,
+    suite            TEXT,
+    status           TEXT NOT NULL DEFAULT 'RUNNING',
+    started_at       TEXT NOT NULL,
+    ended_at         TEXT,
+    duration_seconds REAL,
+    prompt_tokens    INTEGER DEFAULT 0,
+    completion_tokens INTEGER DEFAULT 0,
+    total_tokens     INTEGER DEFAULT 0,
+    cost_usd         REAL,
+    error_message    TEXT,
+    metadata         TEXT DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_runs_repo ON runs(repo_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_task ON runs(task_id);
+CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
+
+-- Observability Suite: Structured Run Events (Feature 1 Trace Waterfall)
+CREATE TABLE IF NOT EXISTS run_events (
+    event_id    TEXT PRIMARY KEY,
+    run_id      TEXT NOT NULL,
+    seq         INTEGER NOT NULL,
+    timestamp   TEXT NOT NULL,
+    event_type  TEXT NOT NULL,
+    payload     TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_run_events_run_seq ON run_events(run_id, seq);
+CREATE INDEX IF NOT EXISTS idx_run_events_type ON run_events(event_type);
+
+-- Observability Suite: Context Envelopes (Feature 2 Context Inspector)
+CREATE TABLE IF NOT EXISTS context_envelopes (
+    envelope_id        TEXT PRIMARY KEY,
+    run_id             TEXT,
+    repo_id            TEXT NOT NULL,
+    prompt             TEXT NOT NULL,
+    commit_sha         TEXT,
+    token_budget       INTEGER,
+    estimated_tokens   INTEGER,
+    actual_tokens      INTEGER,
+    resolved_files     TEXT DEFAULT '[]',
+    resolved_symbols   TEXT DEFAULT '[]',
+    test_files         TEXT DEFAULT '[]',
+    candidates         TEXT DEFAULT '[]',
+    memory_entries     TEXT DEFAULT '[]',
+    graph_expansion    TEXT DEFAULT '{}',
+    exclusions         TEXT DEFAULT '[]',
+    provenance_summary TEXT,
+    mode               TEXT,
+    created_at         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_context_repo ON context_envelopes(repo_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_context_run ON context_envelopes(run_id);
 """
 
 _local = threading.local()

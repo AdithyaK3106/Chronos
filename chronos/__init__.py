@@ -7,7 +7,7 @@ A framework- and agent-agnostic platform providing:
 4. Universal FastMCP server for IDEs, Cursor, Claude Code, Windsurf, and custom agents.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection

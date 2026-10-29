@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chronos — Engineering Control Plane</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -941,6 +942,143 @@ tr:last-child td { border-bottom: 0; }
   border-top: 1px solid #1a1e2b;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 13, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(5px);
+}
+.modal {
+  background: #0f131d;
+  border: 1px solid #232c40;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 960px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.waterfall-track {
+  position: relative;
+  padding-left: 20px;
+  border-left: 2px solid #1c2436;
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.waterfall-step {
+  position: relative;
+  background: #121723;
+  border: 1px solid #1f273b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+}
+.waterfall-step::before {
+  content: '';
+  position: absolute;
+  left: -27px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--cyan);
+  border: 2px solid #0b0f19;
+  box-shadow: 0 0 6px var(--cyan);
+}
+.waterfall-step.fail::before { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.score-bar-wrap {
+  width: 80px;
+  height: 6px;
+  background: #192030;
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.score-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1b7a82, #00e5ff);
+  border-radius: 3px;
+}
+.diff-add { background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; padding: 2px 6px; }
+.diff-del { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 2px 6px; }
+.diff-mod { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; padding: 2px 6px; }
+
+.segmented-control {
+  display: inline-flex;
+  background: #111520;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg-btn {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.seg-btn:hover {
+  color: var(--text);
+  background: #192030;
+}
+.seg-btn.active {
+  background: #1f273b;
+  color: var(--cyan);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.bar-legend-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.tab-group {
+  display: inline-flex;
+  gap: 6px;
+  background: #0d1017;
+  padding: 3px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+}
+.tab-group .tab {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tab-group .tab:hover {
+  color: var(--text);
+  background: #141924;
+}
+.tab-group .tab.active {
+  background: #1c2333;
+  color: var(--cyan);
+}
+
 .hidden { display: none !important; }
 .small-select {
   background: #11141d;
@@ -994,7 +1132,9 @@ tr:last-child td { border-bottom: 0; }
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="brand">
-    <div class="logo">◈</div>
+    <div class="logo">
+      <img src="/logo.png" alt="Chronos" onerror="this.style.display='none';this.parentElement.innerHTML='◈'" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">
+    </div>
     <div>
       <strong>CHRONOS</strong>
       <small>AGENT GOVERNANCE OS</small>
@@ -1017,26 +1157,41 @@ tr:last-child td { border-bottom: 0; }
   </div>
 
   <div>
-    <div class="nav-label">Control plane</div>
+    <div class="nav-label">Workspace</div>
     <nav class="nav" id="nav">
       <button class="active" data-page="mission"><span class="ico">◫</span>Mission Control</button>
       <button data-page="resolver"><span class="ico">⌕</span>Zero-Path Resolver</button>
+    </nav>
+  </div>
+
+  <div style="margin-top:14px">
+    <div class="nav-label">Observability Suite</div>
+    <nav class="nav" id="navObs">
+      <button data-page="runs"><span class="ico">▷</span>Runs &amp; Traces <span class="count" id="navRunCount">0</span></button>
+      <button data-page="context"><span class="ico">◈</span>Context Inspector</button>
+      <button data-page="eval"><span class="ico">📊</span>Evaluation Studio</button>
+    </nav>
+  </div>
+
+  <div style="margin-top:14px">
+    <div class="nav-label">System Internals</div>
+    <nav class="nav" id="navSystem">
       <button data-page="graph"><span class="ico">⌘</span>AST Graph Explorer</button>
-      <button data-page="locks"><span class="ico">⛓</span>Intent Lock Ledger <span class="count" id="navLockCount">3</span></button>
+      <button data-page="locks"><span class="ico">⛓</span>Intent Lock Ledger <span class="count" id="navLockCount">0</span></button>
       <button data-page="memory"><span class="ico">◉</span>Epistemic Memory</button>
-      <button data-page="security"><span class="ico">⛨</span>Security & Gates <span class="count red" id="navGateCount">2</span></button>
+      <button data-page="security"><span class="ico">⛨</span>Security &amp; Gates <span class="count red" id="navGateCount">0</span></button>
       <button data-page="audit"><span class="ico">▤</span>Audit Ledger</button>
     </nav>
   </div>
 
   <div class="side-bottom">
     <div style="margin-bottom:8px">
-      <span class="live-pill"><span class="dot"></span>MCP 3.x CONNECTED</span>
+      <span class="live-pill"><span class="dot"></span>CANONICAL CHRONOS</span>
     </div>
     <p style="line-height:1.6;margin:0;font-size:10px;color:#757e95">
-      SQLite WAL (29 tables)<br>
-      Polyglot Tree-Sitter Grammars<br>
-      Version 0.2.0 · OpenHands SDK
+      SQLite WAL Index<br>
+      Tree-Sitter AST & OpenHands<br>
+      Live Subsystem Telemetry
     </p>
   </div>
 </aside>
@@ -1049,14 +1204,16 @@ tr:last-child td { border-bottom: 0; }
       Chronos <span class="muted">/</span> <b id="crumb">Mission Control</b>
     </div>
     <div class="spacer"></div>
-    <div class="status-badge">
-      <em>●</em> FastMCP DAEMON · STDIO / :8000
+    <div class="status-badge" id="topbarStatusBadge">
+      <em>●</em> CANONICAL BACKEND · PORT 8765
     </div>
     <div class="search">
       <input id="globalSearch" placeholder="Search symbols, files, audit…  /">
       <span class="search-hint">/</span>
     </div>
-    <div class="avatar" title="Active Engineer Identity">TR</div>
+    <div class="avatar" title="Chronos Controller" style="overflow:hidden;display:grid;place-items:center;">
+      <img src="/logo.png" alt="CC" onerror="this.style.display='none';this.parentElement.textContent='CC'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+    </div>
   </header>
 
   <div class="content">
@@ -1084,57 +1241,67 @@ tr:last-child td { border-bottom: 0; }
     <section class="page" id="page-mission">
       <div class="pagehead">
         <div>
-          <div class="eyebrow">Operational overview / 27 Oct 2026</div>
+          <div class="eyebrow">Operational overview / Subsystem Telemetry</div>
           <h1>Mission Control</h1>
-          <p>Live system posture, agent activity, context efficiency and execution health.</p>
+          <p>Live canonical posture, agent activity, benchmark efficiency, and execution health.</p>
         </div>
         <div class="actions">
-          <span class="tag green"><span class="dot"></span>All Services Operational</span>
-          <button onclick="toast('Telemetry snapshot exported to .chronos/snapshot.json.')">Export Snapshot ↗</button>
+          <span class="tag green" id="sysPostureTag"><span class="dot"></span>Canonical Subsystems Wired</span>
+          <button onclick="toast('Telemetry state refreshed from database.')">Refresh Status ↻</button>
         </div>
       </div>
 
       <div class="stats">
-        <div class="stat" style="--glow:var(--cyan)">
-          <div class="stat-top">Cumulative Token Savings <span style="color:var(--cyan)">↘</span></div>
-          <div class="stat-value">78.2<small>%</small></div>
-          <div class="stat-foot"><strong>−36.3k tokens</strong> vs. unindexed baseline</div>
+        <div class="stat">
+          <div class="stat-top">Context Token Reduction <span style="color:var(--cyan)">↘</span></div>
+          <div class="stat-value" id="statTokenSavings">—</div>
+          <div class="stat-foot" id="statTokenFoot">Paired benchmark runs</div>
         </div>
-        <div class="stat" style="--glow:var(--amber)">
+        <div class="stat">
+          <div class="stat-top">Task Latency Speedup <span style="color:var(--green)">⏱</span></div>
+          <div class="stat-value" id="statLatency">—</div>
+          <div class="stat-foot" id="statLatencyFoot">Empirical duration delta</div>
+        </div>
+        <div class="stat">
           <div class="stat-top">Active Write Leases <span style="color:var(--amber)">⛓</span></div>
-          <div class="stat-value" id="statLeases">3 <small>/ 4 agents</small></div>
-          <div class="stat-foot"><strong>0 conflicts</strong> · sub-file intent locking</div>
+          <div class="stat-value" id="statLeases">0 <small>/ 0 agents</small></div>
+          <div class="stat-foot" id="statLeasesFoot">Sub-file atomic locking</div>
         </div>
-        <div class="stat" style="--glow:var(--cyan)">
-          <div class="stat-top">Resolver Latency <span style="color:var(--cyan)">ϟ</span></div>
-          <div class="stat-value">12.4<small> ms</small></div>
-          <div class="stat-foot"><strong>−18.6%</strong> vs. 15ms target envelope</div>
-        </div>
-        <div class="stat" style="--glow:var(--violet)">
+        <div class="stat">
           <div class="stat-top">Indexed AST Entities <span style="color:var(--violet)">⌘</span></div>
-          <div class="stat-value">17,538</div>
-          <div class="stat-foot">74,781 edges · 29 SQLite tables</div>
+          <div class="stat-value" id="statAstEntities">—</div>
+          <div class="stat-foot" id="statAstFoot">SQLite WAL</div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <div class="panel-head">
+          <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
             <div>
-              <h2>Context Efficiency</h2>
-              <p>Chronos targeted context envelope vs. raw file-dump baseline</p>
+              <h2 id="chartTitle">Context Efficiency (Paired Benchmark Tasks)</h2>
+              <p id="chartSubtitle">Baseline total tokens vs. Chronos governed treatment tokens per task</p>
             </div>
-            <select class="small-select" id="chartFilter" onchange="renderChart()">
-              <option value="20">Last 20 tasks</option>
-              <option value="40">Last 40 tasks</option>
-            </select>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="segmented-control">
+                <button class="seg-btn active" id="segModeTokens" onclick="setChartMode('tokens')">🪙 Tokens</button>
+                <button class="seg-btn" id="segModeDuration" onclick="setChartMode('duration')">⏱ Duration (s)</button>
+              </div>
+              <select class="small-select" id="chartFilter" onchange="renderChart()">
+                <option value="10">Last 10 tasks</option>
+                <option value="20" selected>Last 20 tasks</option>
+                <option value="30">All tasks</option>
+              </select>
+            </div>
           </div>
           <div class="panel-body">
-            <div class="chart" id="chart"></div>
-            <div class="legend">
-              <span>Chronos context envelope (avg 12.2k tokens)</span>
-              <span>Unindexed raw file reads (avg 48.5k tokens)</span>
+            <div class="chart" id="chart">
+              <div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">Loading benchmark dataset...</div>
             </div>
+            <div class="legend" id="chartLegend" style="margin-top:10px;">
+              <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Treatment Tokens</span>
+              <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Tokens</span>
+            </div>
+            <div id="chartReconciliationFoot" class="muted mono" style="font-size:10px;margin-top:8px;line-height:1.4;"></div>
           </div>
         </div>
 
@@ -1142,150 +1309,38 @@ tr:last-child td { border-bottom: 0; }
           <div class="panel-head">
             <div>
               <h2>Live Activity Stream</h2>
-              <p>Real-time governance intercepts and tool events</p>
+              <p>Chronos provenance ledger and audit event records</p>
             </div>
-            <span class="tag green"><span class="dot"></span>ACTIVE</span>
+            <span class="tag green" id="activityTag"><span class="dot"></span>ACTIVE</span>
           </div>
           <div class="panel-body activity" id="activity">
-            <div class="event">
-              <div class="event-icon">↔</div>
-              <div class="event-text">
-                <b>agent_1</b> acquired lease on <b>ledger.py::release_lock</b>
-                <small>chronos/coordination · TTL: 300s · intent: owner check</small>
-              </div>
-              <time>12s ago</time>
-            </div>
-            <div class="event">
-              <div class="event-icon warn">⏸</div>
-              <div class="event-text">
-                <b>agent_2</b> blocked by Gate on <b>src/auth/jwt.py</b>
-                <small>Protected auth surface requires human approval</small>
-              </div>
-              <time>48s ago</time>
-            </div>
-            <div class="event">
-              <div class="event-icon">⌕</div>
-              <div class="event-text">
-                <b>resolver</b> mapped prompt to <b>4 symbols / 1 test</b>
-                <small>Pure AST + BM25 ranking · 11.8ms</small>
-              </div>
-              <time>1m ago</time>
-            </div>
-            <div class="event">
-              <div class="event-icon deny">⊘</div>
-              <div class="event-text">
-                <b>policy firewall</b> denied <b>write_file(.env.local)</b>
-                <small>Protected pattern match `*.env*` · fail-closed</small>
-              </div>
-              <time>3m ago</time>
-            </div>
-            <div class="event">
-              <div class="event-icon ok">✓</div>
-              <div class="event-text">
-                <b>audit verifier</b> validated <b>1,482 records</b>
-                <small>Cryptographic SHA-256 chain verified</small>
-              </div>
-              <time>6m ago</time>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="lower-grid">
-        <div class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Active Intent Leases</h2>
-              <p>Sub-file atomic write leases preventing agent collisions</p>
-            </div>
-            <button onclick="showPage('locks')">View Ledger →</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Node / Symbol</th>
-                  <th>Agent / Session</th>
-                  <th>TTL Remaining</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="quickLockBody">
-                <tr>
-                  <td class="mono">coordination/ledger.py::release_lock</td>
-                  <td>agent_1 <span class="muted">/ s_84a1</span></td>
-                  <td class="mono countdown" data-sec="272">04:32</td>
-                  <td><span class="tag amber">LEASED</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">context/resolver.py::rank_candidates</td>
-                  <td>agent_3 <span class="muted">/ s_129b</span></td>
-                  <td class="mono countdown" data-sec="138">02:18</td>
-                  <td><span class="tag amber">LEASED</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">context/graph.py::as_of_impact</td>
-                  <td>agent_4 <span class="muted">/ s_22d0</span></td>
-                  <td class="mono countdown" data-sec="361">06:01</td>
-                  <td><span class="tag amber">LEASED</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Recent Epistemic Memories</h2>
-              <p>Distilled root causes & architectural invariants</p>
-            </div>
-            <button onclick="showPage('memory')">Browse Memory →</button>
-          </div>
-          <div class="panel-body">
-            <div class="memory">
-              <div class="memory-card">
-                <div class="row">
-                  <span class="tag cyan">CORE</span>
-                  <span class="tag green">VERIFIED</span>
-                </div>
-                <h3>Lock ledger invariant</h3>
-                <p>Lease release must verify both agent_id and session_id. Never release by path alone.</p>
-                <div class="meter"><span style="width:96%"></span></div>
-              </div>
-              <div class="memory-card">
-                <div class="row">
-                  <span class="tag violet">LEARNED</span>
-                  <span class="tag green">VERIFIED</span>
-                </div>
-                <h3>SQLite write contention</h3>
-                <p>Always configure busy_timeout and keep write transactions short under concurrent agent traffic.</p>
-                <div class="meter"><span style="width:84%"></span></div>
-              </div>
-            </div>
+            <div class="muted mono" style="padding:18px;text-align:center;">No recent events recorded.</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- PAGE 2: ZERO-PATH CONTEXT RESOLVER -->
+    <!-- PAGE 2: ZERO-PATH RESOLVER -->
     <section class="page hidden" id="page-resolver">
       <div class="pagehead">
         <div>
-          <div class="eyebrow">Context intelligence / prompt-to-code mapping</div>
-          <h1>Zero-Path Context Resolver</h1>
-          <p>Inspect how natural-language tasks are deterministically resolved into bounded AST context.</p>
+          <div class="eyebrow">Zero-Configuration Code Context / Turn-1 Injection</div>
+          <h1>Zero-Path Codebase Resolver</h1>
+          <p>Extract candidate symbols, blast radius, and co-located tests from natural language intent.</p>
         </div>
-        <span class="tag cyan">PURE AST + BM25 (< 15ms)</span>
+        <div class="actions">
+          <span class="tag cyan" id="resolverEngineTag">DETERMINISTIC AST + BM25</span>
+          <span class="tag" id="resolverBudgetTag">2,000 TOKENS</span>
+        </div>
       </div>
 
       <div class="panel">
         <div class="panel-head">
           <div>
             <h2>Resolution Sandbox</h2>
-            <p>Input a natural-language task to extract candidate symbols, call graphs, and co-located tests.</p>
+            <p>Input a natural-language task prompt without specifying explicit file paths.</p>
           </div>
-          <span class="tag green">Resolver Ready</span>
+          <span class="tag green">Ready</span>
         </div>
         <div class="panel-body">
           <textarea class="resolver-input" id="prompt">Prevent race condition in lock ledger when releasing locks</textarea>
@@ -1301,8 +1356,8 @@ tr:last-child td { border-bottom: 0; }
           <div class="row" style="margin-top:14px">
             <label class="muted">Engine 
               <select id="engine" class="field">
-                <option selected>Pure AST + BM25 (&lt;15ms, deterministic)</option>
-                <option>CodeScout-1.7B SLM (opt-in neural localization)</option>
+                <option value="ast" selected>Deterministic AST + BM25 (&lt;15ms, guaranteed local)</option>
+                <option value="slm">Dual Engine (AST + CodeScout SLM Semantic Reranking)</option>
               </select>
             </label>
             <label class="muted">Token budget 
@@ -1312,96 +1367,42 @@ tr:last-child td { border-bottom: 0; }
             <button class="primary" onclick="resolvePrompt()">Resolve Context ↗</button>
           </div>
 
-          <div id="resolveOutput">
-            <div class="row" style="margin-top:16px">
-              <span class="tag green">RESOLVED (<span id="resTime">12.4</span>ms)</span>
-              <span class="muted mono">Tokens: 1,840 / 2,000 · Injected Memories: 1 · Test Files: 1</span>
-            </div>
-            <div class="result-list">
-              <div class="result">
-                <span class="tag cyan">TARGET FILE</span>
-                <code>chronos/coordination/ledger.py</code>
-                <span class="score">+25.0 exact symbol match</span>
-              </div>
-              <div class="result">
-                <span class="tag cyan">AST SYMBOLS</span>
-                <code>release_lock (method) · acquire_lock (method) · check_conflicts (function)</code>
-                <span class="score">0.94 score</span>
-              </div>
-              <div class="result">
-                <span class="tag green">CO-LOCATED TEST</span>
-                <code>tests/test_coordination.py</code>
-                <span class="score">stem match</span>
-              </div>
+          <div id="resolveOutput" style="margin-top:16px;">
+            <div class="muted mono" style="padding:16px;text-align:center;background:#0d1017;border-radius:6px;border:1px dashed var(--border);">
+              Enter a task prompt above and click "Resolve Context" to execute zero-path codebase resolution.
             </div>
           </div>
         </div>
       </div>
 
-      <div class="grid2" style="margin-top:16px">
-        <div class="panel">
-          <div class="panel-head">
-            <h2>Ranking & Provenance Signals</h2>
-            <span class="tag">EXPLAINABLE AST SCORING</span>
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <div class="tab-group">
+            <button class="tab active" id="tabResolverSignals" onclick="switchResolverTab('signals')">Evidence Signals &amp; Ranking</button>
+            <button class="tab" id="tabResolverEnvelope" onclick="switchResolverTab('envelope')">Pre-Turn-1 Injected Envelope</button>
           </div>
+          <span class="tag" id="provenanceTag">GENUINE SIGNALS</span>
+        </div>
+        <div id="resolverTabSignals" class="panel-body" style="padding:0">
           <div class="table-wrap">
             <table id="provenanceTable">
               <thead>
                 <tr>
-                  <th>Signal</th>
-                  <th>Weight</th>
-                  <th>Evidence</th>
+                  <th>Signal Evidence</th>
+                  <th>Weight Factor</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>Exact symbol match</td>
-                  <td class="mono" style="color:var(--green)">+25.00</td>
-                  <td class="muted">release_lock</td>
-                </tr>
-                <tr>
-                  <td>Path stem similarity</td>
-                  <td class="mono" style="color:var(--green)">+15.00</td>
-                  <td class="muted">coordination/ledger.py</td>
-                </tr>
-                <tr>
-                  <td>SQLite FTS5 BM25 rank</td>
-                  <td class="mono" style="color:var(--cyan)">+8.59</td>
-                  <td class="muted">"race condition", "locks", "ledger"</td>
-                </tr>
-                <tr>
-                  <td>Co-located test discovery</td>
-                  <td class="mono" style="color:var(--green)">+10.00</td>
-                  <td class="muted">tests/test_coordination.py</td>
-                </tr>
+              <tbody id="provenanceTableBody">
+                <tr><td colspan="2" class="muted" style="text-align:center;padding:16px;">Run a prompt resolution above to inspect real AST, BM25, and lexical ranking signals.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
-
-        <div class="panel">
-          <div class="panel-head">
-            <h2>Context Envelope (Pre-Turn-1 Injection)</h2>
+        <div id="resolverTabEnvelope" class="panel-body hidden">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
             <button onclick="copyEnvelope()">Copy Envelope</button>
           </div>
-          <div class="panel-body">
-            <pre class="mono" id="envelopePreview" style="white-space:pre-wrap;line-height:1.75;color:#b8c4d9;margin:0;font-size:11px"># CHRONOS ZERO-PATH REPOSITORY CONTEXT ENVELOPE
-# Token Budget: 2000 | Deterministic AST + BM25
-
-TARGET_FILES:
-  - chronos/coordination/ledger.py
-
-TARGET_SYMBOLS:
-  - acquire_lock (node_id: coordination/ledger.py::acquire_lock::method)
-  - release_lock (node_id: coordination/ledger.py::release_lock::method)
-
-CO_LOCATED_TESTS:
-  - tests/test_coordination.py
-
-EPISTEMIC_INVARIANTS:
-  - [CORE] Lease ownership release must verify both agent_id and session_id.
-  - [LEARNED] Set busy_timeout before write-heavy SQLite batches.</pre>
-          </div>
+          <pre class="mono" id="envelopePreview" style="white-space:pre-wrap;line-height:1.75;color:#b8c4d9;margin:0;font-size:11px"># Context envelope will appear here after resolving prompt...</pre>
         </div>
       </div>
     </section>
@@ -1415,15 +1416,15 @@ EPISTEMIC_INVARIANTS:
           <p>Trace callers, callees, transitive blast radius and structural changes across git history.</p>
         </div>
         <div class="actions">
-          <span class="tag cyan">17,538 NODES</span>
-          <span class="tag">74,781 EDGES</span>
+          <span class="tag cyan" id="graphNodesCountTag">— NODES</span>
+          <span class="tag" id="graphEdgesCountTag">— EDGES</span>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-body">
           <div class="row" style="margin-bottom:14px">
-            <input class="field" id="symbolQuery" value="SQLiteGraphStore.ingest" style="flex:1;min-width:220px" placeholder="Search symbol or function…">
+            <input class="field" id="symbolQuery" value="acquire_lock" style="flex:1;min-width:220px" placeholder="Search symbol or function…">
             <button onclick="searchGraphNode()">Inspect Symbol</button>
             <select class="small-select" id="depthSelect" onchange="updateBlastRadius(this.value)">
               <option value="1">Depth 1</option>
@@ -1431,80 +1432,30 @@ EPISTEMIC_INVARIANTS:
               <option value="3" selected>Depth 3 (Blast Radius)</option>
               <option value="5">Depth 5</option>
             </select>
-            <button onclick="compareGitCommits()">Compare Commits ↗</button>
           </div>
 
           <div class="graph-side">
-            <div class="graph" id="graphContainer">
-              <svg viewBox="0 0 720 340" aria-label="Interactive AST node graph">
-                <g stroke="#2c364c" stroke-width="1.4" fill="none" id="graphEdges">
-                  <path d="M360 160L190 85" class="edge"/>
-                  <path d="M360 160L530 75" class="edge"/>
-                  <path d="M360 160L170 250" class="edge"/>
-                  <path d="M360 160L540 245" class="edge"/>
-                  <path d="M190 85L90 150" class="edge"/>
-                  <path d="M530 75L620 145" class="edge"/>
-                  <path d="M170 250L280 290" class="edge"/>
-                  <path d="M540 245L440 290" class="edge"/>
-                </g>
-                <g class="node selected" onclick="selectGraphNode(this, 'SQLiteGraphStore.ingest', 'METHOD', 'Python', 'chronos/context/graph.py', ['as_of_callers', 'as_of_impact', 'sync'], ['index_repository', 'get_connection'])">
-                  <circle cx="360" cy="160" r="44"/>
-                  <text x="360" y="156">ingest</text>
-                  <text x="360" y="171" style="font-size:9px;opacity:0.7">METHOD</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.context.indexer.parse_module', 'FUNCTION', 'Python', 'chronos/context/indexer.py', ['index_repository'], ['tree_sitter.Parser', 'ASTNode'])">
-                  <circle cx="190" cy="85" r="32"/>
-                  <text x="190" y="89">parse</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.context.linker.link_imports', 'FUNCTION', 'Python', 'chronos/context/linker.py', ['ingest', 'resolve'], ['SQLiteGraphStore.resolve_symbol'])">
-                  <circle cx="530" cy="75" r="32"/>
-                  <text x="530" y="79">link_imports</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.context.indexer.index_symbols', 'FUNCTION', 'Python', 'chronos/context/indexer.py', ['sync', 'bootstrap_session'], ['parse_module', 'harvest_signatures'])">
-                  <circle cx="170" cy="250" r="32"/>
-                  <text x="170" y="254">index</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'tests.test_graph', 'MODULE', 'Python', 'tests/test_graph.py', ['pytest'], ['SQLiteGraphStore', 'as_of_impact'])">
-                  <circle cx="540" cy="245" r="32" style="stroke:var(--green);fill:#0e281f"/>
-                  <text x="540" y="249">test_graph</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.core.models.normalize', 'FUNCTION', 'Python', 'chronos/core/models.py', ['parse_module'], [])">
-                  <circle cx="90" cy="150" r="25"/>
-                  <text x="90" y="154">norm</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.core.db.commit', 'FUNCTION', 'Python', 'chronos/core/db.py', ['ingest', 'acquire_lock'], ['sqlite3.Connection'])">
-                  <circle cx="620" cy="145" r="25"/>
-                  <text x="620" y="149">commit</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.context.cache.flush', 'FUNCTION', 'Python', 'chronos/context/cache.py', ['index'], [])">
-                  <circle cx="280" cy="290" r="25"/>
-                  <text x="280" y="294">flush</text>
-                </g>
-                <g class="node" onclick="selectGraphNode(this, 'chronos.verification.schema.validate', 'FUNCTION', 'Python', 'chronos/verification/schema.py', ['test_graph'], [])">
-                  <circle cx="440" cy="290" r="25"/>
-                  <text x="440" y="294">validate</text>
-                </g>
-              </svg>
+            <div class="graph" id="graphContainer" style="min-height:340px;position:relative;background:#0b0d13;border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+              <div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:340px;">Loading AST knowledge graph...</div>
             </div>
 
             <div class="panel" style="margin:0">
               <div class="panel-head">
                 <h2>Node Inspector</h2>
-                <span class="tag cyan" id="nodeKindTag">METHOD</span>
+                <span class="tag cyan" id="nodeKindTag">FUNCTION</span>
               </div>
               <div class="panel-body" id="nodeInfo">
-                <div class="eyebrow" id="nodeLang">PYTHON · METHOD</div>
-                <h3 class="mono" id="nodeTitle" style="color:var(--cyan);margin:8px 0;word-break:break-all">SQLiteGraphStore.ingest</h3>
-                <div class="mono muted" id="nodePath" style="font-size:10px;margin-bottom:12px">chronos/context/graph.py</div>
+                <div class="eyebrow" id="nodeLang">PYTHON · FUNCTION</div>
+                <h3 class="mono" id="nodeTitle" style="color:var(--cyan);margin:8px 0;word-break:break-all">acquire_lock</h3>
+                <div class="mono muted" id="nodePath" style="font-size:10px;margin-bottom:12px">chronos/coordination/ledger.py</div>
                 <p class="muted" style="line-height:1.6;font-size:11px;margin:0 0 12px" id="nodeDesc">
-                  Ingests parsed AST nodes and relational edges in a single atomic WAL transaction with recursive CTE indexing.
+                  Select a code node to inspect callers, callees, and transitive blast radius.
                 </p>
-                <div class="tag" style="margin-bottom:14px">CALLS · DEFINES · IMPORTS</div>
                 <hr style="border-color:var(--border);margin:14px 0">
                 <div style="display:flex;flex-direction:column;gap:7px">
                   <button onclick="invokeCallers()">as_of_callers</button>
                   <button onclick="invokeCallees()">as_of_callees</button>
-                  <button onclick="updateBlastRadius(3)">as_of_impact (Blast Radius)</button>
+                  <button onclick="updateBlastRadius(document.getElementById('depthSelect').value)">as_of_impact (Blast Radius)</button>
                 </div>
               </div>
             </div>
@@ -1512,53 +1463,70 @@ EPISTEMIC_INVARIANTS:
         </div>
       </div>
 
+      <!-- REVISION & SNAPSHOT DIFF PANEL -->
       <div class="panel" style="margin-top:16px">
         <div class="panel-head">
-          <h2>Temporal Structural AST Diff (`as_of_diff`)</h2>
-          <span class="tag">Commit 4590d63 vs. master~5</span>
+          <div>
+            <h2>Verified Repository & AST Changes</h2>
+            <p>Compare Git commit revisions or query AST bi-temporal knowledge graph snapshots</p>
+          </div>
+          <div class="tabs" style="margin:0" id="diffTabs">
+            <button class="active" id="tabGitDiff" onclick="showDiffView('git')">Git Revision Diff</button>
+            <button id="tabAstDiff" onclick="showDiffView('ast')">AST Bi-Temporal Snapshot (`as_of_diff`)</button>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Change</th>
-                <th>Symbol</th>
-                <th>File Path</th>
-                <th>Kind</th>
-                <th>Language</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><span class="tag green">ADDED</span></td>
-                <td class="mono">validate_lease_owner</td>
-                <td class="mono">chronos/coordination/ledger.py</td>
-                <td>Function</td>
-                <td>Python</td>
-              </tr>
-              <tr>
-                <td><span class="tag amber">MODIFIED</span></td>
-                <td class="mono">SQLiteGraphStore.ingest</td>
-                <td class="mono">chronos/context/graph.py</td>
-                <td>Method</td>
-                <td>Python</td>
-              </tr>
-              <tr>
-                <td><span class="tag green">ADDED</span></td>
-                <td class="mono">LocalSLMResolver.resolve_prompt</td>
-                <td class="mono">chronos/context/slm_resolver.py</td>
-                <td>Method</td>
-                <td>Python</td>
-              </tr>
-              <tr>
-                <td><span class="tag red">REMOVED</span></td>
-                <td class="mono">legacy_symbol_cache</td>
-                <td class="mono">chronos/context/cache.py</td>
-                <td>Function</td>
-                <td>Python</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="panel-body">
+          <!-- View 1: Git Revisions -->
+          <div id="diffViewGit">
+            <div class="row" style="margin-bottom:12px;gap:10px;align-items:center;">
+              <label class="muted mono" style="font-size:11px;">Base:
+                <select class="field" id="gitBaseCommit" style="min-width:180px"></select>
+              </label>
+              <span class="muted mono">➔</span>
+              <label class="muted mono" style="font-size:11px;">Target:
+                <select class="field" id="gitTargetCommit" style="min-width:180px"></select>
+              </label>
+              <button class="primary" onclick="compareGitRevisions()">Compare Git Commits</button>
+            </div>
+            <div class="table-wrap">
+              <table id="gitDiffTable">
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>File Path</th>
+                  </tr>
+                </thead>
+                <tbody id="gitDiffBody">
+                  <tr><td colspan="2" class="muted" style="text-align:center;padding:16px;">Select commits above and click Compare to inspect genuine git changes.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- View 2: AST Bi-Temporal Graph Diff -->
+          <div id="diffViewAst" class="hidden">
+            <div class="row" style="margin-bottom:12px;gap:10px;align-items:center;">
+              <input class="field" id="astT1" placeholder="Timestamp T1 (e.g. 2026-10-26T00:00:00Z)" style="flex:1">
+              <span class="muted mono">➔</span>
+              <input class="field" id="astT2" placeholder="Timestamp T2 (e.g. 2026-10-27T00:00:00Z)" style="flex:1">
+              <button class="primary" onclick="compareAstSnapshots()">Compare Knowledge Graph</button>
+            </div>
+            <div class="table-wrap">
+              <table id="astDiffTable">
+                <thead>
+                  <tr>
+                    <th>Diff Change</th>
+                    <th>Source Node</th>
+                    <th>Target Node</th>
+                    <th>Relation Type</th>
+                  </tr>
+                </thead>
+                <tbody id="astDiffBody">
+                  <tr><td colspan="4" class="muted" style="text-align:center;padding:16px;">Enter bi-temporal ISO timestamps above to query code_edges delta.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1571,21 +1539,21 @@ EPISTEMIC_INVARIANTS:
           <h1>Intent Lock Ledger</h1>
           <p>Sub-file AST write locks preventing multi-agent race conditions and overwrite collisions.</p>
         </div>
-        <span class="tag amber" id="leaseCountBadge">3 ACTIVE LEASES</span>
+        <span class="tag amber" id="leaseCountBadge">0 ACTIVE LEASES</span>
       </div>
 
       <div class="panel">
         <div class="panel-head">
           <div>
-            <h2>Acquire AST Write Lease (Simulation)</h2>
-            <p>Request an atomic sub-file lease with agent ID, session token, and intent rationale.</p>
+            <h2>Acquire AST Write Lease</h2>
+            <p>Request an atomic sub-file lease with agent ID, session token, and intent rationale via coordination ledger.</p>
           </div>
         </div>
         
         <form class="lock-form" id="lockForm">
-          <input class="field" id="lockNode" placeholder="Node ID (path::symbol::kind)" required value="chronos/coordination/ledger.py::release_lock::method">
-          <input class="field" id="lockAgent" placeholder="Agent ID" required value="agent_5" style="max-width:140px">
-          <input class="field" id="lockIntent" placeholder="Intent / modification rationale" required value="Add atomic check for agent_id and session_id">
+          <input class="field" id="lockNode" placeholder="Node ID (path::symbol::kind)" required value="chronos/coordination/ledger.py::release_lock::Function">
+          <input class="field" id="lockAgent" placeholder="Agent ID" required value="engineer_ui" style="max-width:140px">
+          <input class="field" id="lockIntent" placeholder="Intent / modification rationale" required value="Verify lease release ownership logic">
           <button class="primary" type="submit">Acquire Lease</button>
         </form>
 
@@ -1601,31 +1569,8 @@ EPISTEMIC_INVARIANTS:
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td class="mono">chronos/coordination/ledger.py::release_lock</td>
-                <td>agent_1 <span class="muted">/ s_84a1</span></td>
-                <td>Fix owner verification logic</td>
-                <td class="mono countdown" data-sec="272">04:32</td>
-                <td><span class="tag amber">LEASED</span></td>
-                <td><button onclick="releaseRow(this)">Release</button></td>
-              </tr>
-              <tr>
-                <td class="mono">chronos/context/resolver.py::rank_candidates</td>
-                <td>agent_3 <span class="muted">/ s_129b</span></td>
-                <td>Improve ranking provenance weights</td>
-                <td class="mono countdown" data-sec="138">02:18</td>
-                <td><span class="tag amber">LEASED</span></td>
-                <td><button onclick="releaseRow(this)">Release</button></td>
-              </tr>
-              <tr>
-                <td class="mono">chronos/context/graph.py::as_of_impact</td>
-                <td>agent_4 <span class="muted">/ s_22d0</span></td>
-                <td>Optimize impact traversal recursive CTE</td>
-                <td class="mono countdown" data-sec="361">06:01</td>
-                <td><span class="tag amber">LEASED</span></td>
-                <td><button onclick="releaseRow(this)">Release</button></td>
-              </tr>
+            <tbody id="lockTableBody">
+              <tr><td colspan="6" class="muted" style="text-align:center;padding:18px;">No active write leases. All AST nodes free.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1644,126 +1589,63 @@ EPISTEMIC_INVARIANTS:
       </div>
 
       <div class="tabs" id="memoryTabs">
-        <button class="active" data-tier="All">All Tiers (5)</button>
-        <button data-tier="core">core (1)</button>
-        <button data-tier="learned">learned (1)</button>
-        <button data-tier="procedural">procedural (1)</button>
-        <button data-tier="episodic">episodic (1)</button>
-        <button data-tier="working">working (1)</button>
+        <button class="active" data-tier="All">All Tiers (<span id="countTierAll">0</span>)</button>
+        <button data-tier="core">core (<span id="countTierCore">0</span>)</button>
+        <button data-tier="learned">learned (<span id="countTierLearned">0</span>)</button>
+        <button data-tier="procedural">procedural (<span id="countTierProcedural">0</span>)</button>
+        <button data-tier="episodic">episodic (<span id="countTierEpisodic">0</span>)</button>
+        <button data-tier="working">working (<span id="countTierWorking">0</span>)</button>
       </div>
 
       <div class="row" style="margin-bottom:16px">
-        <input class="field" id="memorySearch" placeholder="Recall by semantic query or tag…" style="flex:1;min-width:220px" oninput="filterMemory()">
+        <input class="field" id="memorySearch" placeholder="Recall by semantic query or tag…" style="flex:1;min-width:220px">
         <select class="field" id="namespaceSelect" onchange="filterMemory()">
-          <option>Namespace: Chronos</option>
-          <option>Namespace: Novapay</option>
-          <option>Namespace: Core-Banking</option>
         </select>
         <button onclick="filterMemory()">Recall ↗</button>
       </div>
 
       <div class="panel">
         <div class="panel-head">
-          <h2>Memory Records</h2>
-          <span class="tag violet">5-TIER STORE WITH RECENCY DECAY</span>
+          <div>
+            <h2>Memory Records</h2>
+            <p>Persistent lessons and invariants scoped to repository namespace</p>
+          </div>
+          <span class="tag violet">5-TIER STORE</span>
         </div>
         <div class="panel-body">
           <div class="memory" id="memoryGrid">
-            <div class="memory-card" data-tier="core">
-              <div class="row">
-                <span class="tag cyan">CORE</span>
-                <span class="tag green">VERIFIED</span>
-              </div>
-              <h3>Lease ownership invariant</h3>
-              <p>Lease release must verify both agent_id and session_id before removing from active table. Never release by path stem alone.</p>
-              <div class="row">
-                <span class="muted mono">mem_0018 · importance 0.98</span>
-                <span class="spacer"></span>
-                <span class="muted mono">2h ago</span>
-              </div>
-              <div class="meter"><span style="width:98%"></span></div>
-            </div>
-
-            <div class="memory-card" data-tier="learned">
-              <div class="row">
-                <span class="tag violet">LEARNED</span>
-                <span class="tag green">VERIFIED</span>
-              </div>
-              <h3>SQLite write contention</h3>
-              <p>Always configure busy_timeout and keep write transactions short under concurrent multi-agent graph updates.</p>
-              <div class="row">
-                <span class="muted mono">mem_0042 · importance 0.89</span>
-                <span class="spacer"></span>
-                <span class="muted mono">1d ago</span>
-              </div>
-              <div class="meter"><span style="width:89%"></span></div>
-            </div>
-
-            <div class="memory-card" data-tier="procedural">
-              <div class="row">
-                <span class="tag amber">PROCEDURAL</span>
-                <span class="tag green">VERIFIED</span>
-              </div>
-              <h3>Test before commit</h3>
-              <p>Always run targeted unit test suite and evaluate policy enforcement rules before proposing or finalizing git diffs.</p>
-              <div class="row">
-                <span class="muted mono">mem_0029 · importance 0.94</span>
-                <span class="spacer"></span>
-                <span class="muted mono">3d ago</span>
-              </div>
-              <div class="meter"><span style="width:94%"></span></div>
-            </div>
-
-            <div class="memory-card" data-tier="episodic">
-              <div class="row">
-                <span class="tag">EPISODIC</span>
-                <span class="tag amber">UNVERIFIED</span>
-              </div>
-              <h3>Resolver false positive</h3>
-              <p>A prior agent session ranked a similarly named utility file above the canonical implementation due to keyword density.</p>
-              <div class="row">
-                <span class="muted mono">mem_0051 · importance 0.67</span>
-                <span class="spacer"></span>
-                <span class="muted mono">5d ago</span>
-              </div>
-              <div class="meter"><span style="width:67%"></span></div>
-            </div>
-
-            <div class="memory-card" data-tier="working">
-              <div class="row">
-                <span class="tag">WORKING</span>
-                <span class="tag">IN-FLIGHT</span>
-              </div>
-              <h3>Active refactor on lock release</h3>
-              <p>Validating lock expiration handling under multi-process concurrency test harness.</p>
-              <div class="row">
-                <span class="muted mono">mem_0088 · importance 0.50</span>
-                <span class="spacer"></span>
-                <span class="muted mono">10m ago</span>
-              </div>
-              <div class="meter"><span style="width:50%"></span></div>
-            </div>
+            <div class="muted mono" style="grid-column:span 2;padding:24px;text-align:center;">Loading memory records...</div>
           </div>
         </div>
       </div>
 
       <!-- Remember Modal -->
-      <div id="memoryModal" class="panel hidden" style="margin-top:16px">
-        <div class="panel-head">
-          <h2>Store Epistemic Memory Record</h2>
-          <button onclick="toggleModal('memoryModal')">Close ×</button>
-        </div>
-        <div class="panel-body">
-          <form id="rememberForm" class="row">
-            <input class="field" id="newMemory" placeholder="Invariant or postmortem lesson..." required style="flex:1;min-width:240px">
-            <select id="newTier" class="field">
-              <option value="learned">Tier: learned</option>
-              <option value="core">Tier: core</option>
-              <option value="procedural">Tier: procedural</option>
-              <option value="episodic">Tier: episodic</option>
-              <option value="working">Tier: working</option>
-            </select>
-            <button class="primary" type="submit">Save Memory</button>
+      <div class="modal-backdrop hidden" id="memoryModal">
+        <div class="modal">
+          <div class="panel-head" style="margin-bottom:14px">
+            <h2>Remember New Lesson</h2>
+            <button onclick="toggleModal('memoryModal')">✕</button>
+          </div>
+          <form id="rememberForm">
+            <div style="margin-bottom:12px">
+              <label class="muted" style="display:block;margin-bottom:5px">Lesson Content / Architectural Invariant:</label>
+              <textarea class="field" id="newMemory" rows="4" style="width:100%" placeholder="e.g. Lease release must verify both agent_id and session_id before deleting..." required></textarea>
+            </div>
+            <div class="row" style="margin-bottom:16px">
+              <label class="muted">Epistemic Tier:
+                <select class="field" id="newTier">
+                  <option value="core">Core (Architectural Invariant)</option>
+                  <option value="learned" selected>Learned (Postmortem / Bug Root Cause)</option>
+                  <option value="procedural">Procedural (Workflow / Verification Rule)</option>
+                  <option value="episodic">Episodic (Session History)</option>
+                  <option value="working">Working (In-flight Note)</option>
+                </select>
+              </label>
+            </div>
+            <div class="row" style="justify-content:flex-end">
+              <button type="button" onclick="toggleModal('memoryModal')">Cancel</button>
+              <button class="primary" type="submit">Commit to Memory</button>
+            </div>
           </form>
         </div>
       </div>
@@ -1773,77 +1655,44 @@ EPISTEMIC_INVARIANTS:
     <section class="page hidden" id="page-security">
       <div class="pagehead">
         <div>
-          <div class="eyebrow">Policy enforcement / fail-closed execution</div>
-          <h1>Security Firewall & Approval Gates</h1>
-          <p>Review intercepted tool requests, protected patterns and human sign-off gates.</p>
+          <div class="eyebrow">Governance / Pre-Execution Firewall</div>
+          <h1>Security & Gate Policies</h1>
+          <p>Protected path interception, blast-radius limits, and human-in-the-loop approvals.</p>
         </div>
-        <span class="tag red" id="securityBadge">2 PENDING APPROVALS</span>
+        <span class="tag red" id="securityBadge">0 PENDING APPROVALS</span>
       </div>
 
       <div class="grid2">
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h2>Pending Approvals Queue</h2>
-              <p>Agent tool actions intercepted at the execution boundary</p>
+              <h2>Human Approval Queue</h2>
+              <p>Pending write actions on protected surfaces</p>
             </div>
-            <span class="tag amber" id="queueBadge">2 QUEUED</span>
+            <span class="tag amber">FAIL-CLOSED</span>
           </div>
           <div class="panel-body activity" id="approvals">
-            <div class="event" id="approval-1">
-              <div class="event-icon warn">⏸</div>
-              <div class="event-text">
-                <b>agent_2 · write_file</b>
-                <small>src/auth/jwt.py · protected authentication surface</small>
-                <p class="muted" style="margin:5px 0 8px">Reason: Path matched protected pattern `*auth*`. Requires human gate sign-off.</p>
-                <div class="row">
-                  <button class="primary" onclick="resolveApproval('approval-1', true, 'agent_2', 'write_file', 'src/auth/jwt.py')">Approve Action</button>
-                  <button class="danger-btn" onclick="resolveApproval('approval-1', false, 'agent_2', 'write_file', 'src/auth/jwt.py')">Reject / Terminate Turn</button>
-                </div>
-              </div>
-              <time>48s ago</time>
-            </div>
-
-            <div class="event" id="approval-2">
-              <div class="event-icon warn">⏸</div>
-              <div class="event-text">
-                <b>agent_4 · edit_file</b>
-                <small>.chronos/protected.yml · governance policy configuration</small>
-                <p class="muted" style="margin:5px 0 8px">Reason: Modifying policy configuration requires explicit human authorization.</p>
-                <div class="row">
-                  <button class="primary" onclick="resolveApproval('approval-2', true, 'agent_4', 'edit_file', '.chronos/protected.yml')">Approve Action</button>
-                  <button class="danger-btn" onclick="resolveApproval('approval-2', false, 'agent_4', 'edit_file', '.chronos/protected.yml')">Reject / Terminate Turn</button>
-                </div>
-              </div>
-              <time>2m ago</time>
-            </div>
+            <div class="muted mono" style="padding:15px;text-align:center">No pending approvals in queue. System safe.</div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h2>Policy Rules Manager</h2>
-              <p>Protected file patterns (`.chronos/protected.yml`)</p>
+              <h2>Protected Surface Patterns</h2>
+              <p>Paths requiring explicit human signoff before mutation</p>
             </div>
-            <span class="tag green">FAIL-CLOSED</span>
           </div>
           <div class="panel-body">
-            <div class="row" style="margin-bottom:14px">
-              <label><input type="radio" name="firewallMode" checked> Deny outright</label>
-              <label><input type="radio" name="firewallMode"> Require human signoff</label>
-            </div>
-            <div class="row" id="patterns">
-              <span class="tag red">*auth*</span>
-              <span class="tag red">*secret*</span>
-              <span class="tag red">*.env*</span>
+            <div class="chip-list" id="protectedPatterns">
               <span class="tag amber">*policy*</span>
-              <span class="tag red">*credential*</span>
+              <span class="tag red">*auth*</span>
+              <span class="tag red">*firewall*</span>
+              <span class="tag red">*security*</span>
+              <span class="tag amber">*.env*</span>
+              <span class="tag red">*credentials*</span>
+              <span class="tag red">*permissions*</span>
             </div>
-            <form id="patternForm" class="row" style="margin-top:16px">
-              <input class="field" id="patternInput" placeholder="Add glob pattern (e.g. *firewall*)" required style="flex:1;min-width:160px">
-              <button type="submit">Add Pattern</button>
-            </form>
             <p class="muted" style="line-height:1.6;margin-top:16px;font-size:11px">
               Chronos enforces fail-closed execution: if policy evaluation or agent identification fails, all file modification tools are denied immediately.
             </p>
@@ -1851,28 +1700,36 @@ EPISTEMIC_INVARIANTS:
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" style="margin-top:16px">
         <div class="panel-head">
-          <h2>Execution Security Posture</h2>
-          <span class="tag green">ENFORCEMENT ACTIVE</span>
+          <div>
+            <h2>Observed Security Telemetry</h2>
+            <p>Runtime tool policy evaluation and boundary intercepts (Observed telemetry; not formal proof)</p>
+          </div>
+          <span class="tag green" id="secStatusTag">TELEMETRY ACTIVE</span>
         </div>
         <div class="panel-body stats" style="margin:0">
           <div>
             <div class="muted">Tool Requests Evaluated</div>
-            <div class="stat-value" style="font-size:22px">1,284</div>
+            <div class="stat-value" style="font-size:22px" id="secEvaluated">—</div>
           </div>
           <div>
             <div class="muted">Denied by Policy</div>
-            <div class="stat-value" style="font-size:22px;color:var(--red)">17</div>
+            <div class="stat-value" style="font-size:22px;color:var(--red)" id="secDenied">—</div>
           </div>
           <div>
             <div class="muted">Human Signoffs Granted</div>
-            <div class="stat-value" style="font-size:22px;color:var(--amber)" id="signoffCount">9</div>
+            <div class="stat-value" style="font-size:22px;color:var(--amber)" id="secSignoffs">—</div>
           </div>
           <div>
-            <div class="muted">Fail-Closed Boundary Intercepts</div>
-            <div class="stat-value" style="font-size:22px">0</div>
+            <div class="muted">Boundary Intercepts</div>
+            <div class="stat-value" style="font-size:22px" id="secIntercepts">—</div>
           </div>
+        </div>
+        <div style="padding:0 20px 14px;">
+          <p class="muted mono" style="font-size:10.5px;margin:0;">
+            <b>Notice:</b> Telemetry counters represent events observed in the active append-only audit log. Absence of denied records reflects recorded executions, not absolute immunity.
+          </p>
         </div>
       </div>
     </section>
@@ -1893,21 +1750,9 @@ EPISTEMIC_INVARIANTS:
           <div style="font-size:28px;color:var(--green);margin-right:4px" id="auditCheckIcon">✓</div>
           <div style="flex:1">
             <h2 style="margin:0 0 4px;font-size:14px">Audit Chain Verification: <span style="color:var(--green)" id="auditChainStatus">PASSED</span></h2>
-            <div class="muted" id="auditChainDetail">1,482 records validated · Genesis: 00000000a91c · Last verified moments ago</div>
+            <div class="muted" id="auditChainDetail">Checking cryptographic status...</div>
           </div>
           <span class="tag green" id="auditStatus">INTEGRITY VERIFIED</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <tbody>
-              <tr>
-                <td class="muted">Genesis Hash</td>
-                <td class="mono">00000000a91c84f3e2b109dc872a9401bf56e29a883719cfa0491823ef07f3e</td>
-                <td class="muted">Latest Block Hash</td>
-                <td class="mono" id="latestBlockHash">d8e43a7f891b0c99a20cfe7421ab0199e847cd334918fec291048ba0491a20c</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -1915,22 +1760,21 @@ EPISTEMIC_INVARIANTS:
         <div class="panel-head">
           <div>
             <h2>Tamper-Evident Audit Records</h2>
-            <p>Append-only ledger · sensitive keys (`chron_secret*`) automatically scrubbed</p>
+            <p>Append-only ledger · verified SHA-256 hash chaining</p>
           </div>
           <div class="row">
-            <select class="small-select" id="auditFilter" onchange="filterAudit()">
+            <select class="small-select" id="auditFilter" onchange="loadAudit()">
               <option value="All">All events</option>
               <option value="ALLOW">Status: ALLOW</option>
               <option value="DENY">Status: DENY</option>
             </select>
-            <button onclick="toast('Audit trail exported to chronos-audit.log.')">Export CSV</button>
           </div>
         </div>
         <div class="table-wrap">
           <table id="auditTable">
             <thead>
               <tr>
-                <th>Block</th>
+                <th>Seq #</th>
                 <th>Timestamp</th>
                 <th>Event Type</th>
                 <th>Agent ID</th>
@@ -1940,65 +1784,296 @@ EPISTEMIC_INVARIANTS:
               </tr>
             </thead>
             <tbody id="auditTableBody">
-              <tr data-status="ALLOW">
-                <td class="mono">#1482</td>
-                <td class="mono">00:24:18.120</td>
-                <td>tool_auth</td>
-                <td>agent_1</td>
-                <td class="mono">write_file · ledger.py</td>
-                <td><span class="tag green">ALLOW</span></td>
-                <td class="mono">d8e43a7f…a20c</td>
-              </tr>
-              <tr data-status="DENY">
-                <td class="mono">#1481</td>
-                <td class="mono">00:23:51.902</td>
-                <td>gate_check</td>
-                <td>agent_2</td>
-                <td class="mono">write_file · src/auth/jwt.py</td>
-                <td><span class="tag red">DENY</span></td>
-                <td class="mono">ab74d1ce…09f2</td>
-              </tr>
-              <tr data-status="ALLOW">
-                <td class="mono">#1480</td>
-                <td class="mono">00:23:10.411</td>
-                <td>lock_acquire</td>
-                <td>agent_3</td>
-                <td class="mono">acquire · resolver.py</td>
-                <td><span class="tag green">ALLOW</span></td>
-                <td class="mono">45c2ab11…f0a8</td>
-              </tr>
-              <tr data-status="DENY">
-                <td class="mono">#1479</td>
-                <td class="mono">00:22:06.003</td>
-                <td>tool_auth</td>
-                <td>agent_4</td>
-                <td class="mono">write_file · .env.local [REDACTED]</td>
-                <td><span class="tag red">DENY</span></td>
-                <td class="mono">8b0fd211…c91d</td>
-              </tr>
-              <tr data-status="ALLOW">
-                <td class="mono">#1478</td>
-                <td class="mono">00:20:42.810</td>
-                <td>lock_release</td>
-                <td>agent_1</td>
-                <td class="mono">release · test_coordination.py</td>
-                <td><span class="tag green">ALLOW</span></td>
-                <td class="mono">c42f9d0e…19b3</td>
-              </tr>
+              <tr><td colspan="7" class="muted" style="text-align:center;padding:18px;">Loading audit records...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </section>
 
-    <!-- FOOTER -->
-    <div class="footerline">
-      <span>CHRONOS ENGINEERING CONTROL PLANE · VERSION 0.2.0</span>
-      <span>MODEL CONTEXT PROTOCOL (FASTMCP 3.x) · REPO: CHRONOS / MASTER</span>
-    </div>
+    <!-- 8. RUNS & TRACE EXPLORER PAGE -->
+    <section class="page hidden" id="page-runs">
+      <div class="pagehead">
+        <div>
+          <h1>Runs &amp; Trace Explorer</h1>
+          <p>Inspect persistent agent execution runs, token budgets, and step-by-step trace waterfall spans.</p>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-primary" onclick="syncBenchmarkRuns()">⚡ Sync Benchmark Runs</button>
+          <button class="btn" onclick="loadRuns()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 18px;">
+        <div class="stat">
+          <div class="stat-label">Total Recorded Runs</div>
+          <div class="stat-value" id="runsTotalCount">—</div>
+          <div class="stat-sub">Persistent execution store</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Task Success Rate</div>
+          <div class="stat-value" id="runsSuccessRate">—</div>
+          <div class="stat-sub" id="runsSuccessSub">Completed / Failed</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Mean Duration</div>
+          <div class="stat-value" id="runsAvgDuration">—</div>
+          <div class="stat-sub">Seconds per run</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total Token Consumption</div>
+          <div class="stat-value" id="runsTotalTokens">—</div>
+          <div class="stat-sub">Prompt + Completion</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head" style="gap:12px; flex-wrap:wrap">
+          <div class="row" style="gap:8px; flex:1">
+            <span class="mono" style="font-size:11px; color:#8e99b0">Status:</span>
+            <select class="small-select" id="runsFilterStatus" onchange="loadRuns()">
+              <option value="ALL">All Statuses</option>
+              <option value="SUCCESS">Success Only</option>
+              <option value="FAILED">Failed Only</option>
+              <option value="RUNNING">Running Only</option>
+            </select>
+            <span class="mono" style="font-size:11px; color:#8e99b0; margin-left:8px">Arm:</span>
+            <select class="small-select" id="runsFilterArm" onchange="loadRuns()">
+              <option value="ALL">All Arms</option>
+              <option value="treatment">Treatment (Chronos)</option>
+              <option value="baseline">Baseline (Vanilla)</option>
+            </select>
+            <input type="text" class="field" id="runsSearch" placeholder="Search task ID, model, prompt..." style="max-width:260px; font-size:11px;" onkeyup="if(event.key==='Enter') loadRuns()">
+            <button class="btn" onclick="loadRuns()">Filter</button>
+          </div>
+          <div class="mono muted" style="font-size:11px" id="runsShowingCount">Showing 0 runs</div>
+        </div>
+        <div class="table-wrap">
+          <table id="runsTable">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Task ID</th>
+                <th>Arm</th>
+                <th>Model</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Tokens (P / C / Tot)</th>
+                <th>Started At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="runsTableBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading persistent runs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. CONTEXT INSPECTOR PAGE -->
+    <section class="page hidden" id="page-context">
+      <div class="pagehead">
+        <div>
+          <h1>Context Inspector</h1>
+          <p>Inspect exact zero-path context envelopes delivered to agents, genuine ranking signals, and envelope diffs.</p>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-primary" onclick="openContextDiffModal()">⚖ Compare Envelopes</button>
+          <button class="btn" onclick="showPage('resolver')">⌕ Resolve New Context</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:18px">
+        <div class="panel-head" style="flex-wrap:wrap; gap:12px">
+          <div class="row" style="gap:10px; flex:1">
+            <span class="mono" style="font-size:11px; color:#8e99b0">Active Envelope:</span>
+            <select class="small-select" id="contextEnvelopeSelect" style="min-width:320px;" onchange="loadContextDetail(this.value)">
+              <option value="">Select context envelope...</option>
+            </select>
+            <button class="btn" onclick="loadContextEnvelopesList()">↻</button>
+          </div>
+          <div id="contextBudgetBadge" class="mono muted" style="font-size:11px">—</div>
+        </div>
+        <div class="panel-body" id="contextOverviewBody">
+          <div class="muted mono" style="padding:16px; text-align:center;">Select or resolve a context envelope above to inspect its provenance.</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:18px">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Resolved Target Files &amp; Symbols</h2>
+            <span class="tag blue" id="contextTargetCount">0 Files</span>
+          </div>
+          <div class="panel-body" id="contextTargetsBody" style="font-size:12px">
+            <div class="muted mono" style="padding:14px; text-align:center;">No envelope loaded</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Epistemic Memories &amp; Tests</h2>
+            <span class="tag violet" id="contextMemCount">0 Memories</span>
+          </div>
+          <div class="panel-body" id="contextMemoriesBody" style="font-size:12px">
+            <div class="muted mono" style="padding:14px; text-align:center;">No envelope loaded</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Candidate Ranking Signals &amp; Evidence Weights</h2>
+          <span class="tag cyan" id="contextCandidatesCount">0 Candidates</span>
+        </div>
+        <div class="table-wrap">
+          <table id="contextCandidatesTable">
+            <thead>
+              <tr>
+                <th>Symbol / Node Name</th>
+                <th>File Location</th>
+                <th>Kind</th>
+                <th>Source</th>
+                <th>Rank Score</th>
+                <th>Authentic Signal Breakdown</th>
+              </tr>
+            </thead>
+            <tbody id="contextCandidatesBody">
+              <tr><td colspan="6" class="muted" style="text-align:center;padding:20px;">No envelope loaded</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. EVALUATION STUDIO PAGE -->
+    <section class="page hidden" id="page-eval">
+      <div class="pagehead">
+        <div>
+          <h1>Evaluation Studio</h1>
+          <p>Reproducible baseline vs Chronos evaluations, paired task regressions, and latency distributions.</p>
+        </div>
+        <div class="row" style="gap:8px">
+          <select class="small-select" id="evalExperimentSelect" style="min-width:280px;" onchange="loadEvaluationDetail(this.value)">
+            <option value="">Loading experiments...</option>
+          </select>
+          <button class="btn" onclick="exportEvaluation('csv')">⤓ Export CSV</button>
+          <button class="btn" onclick="exportEvaluation('json')">⤓ Export JSON</button>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 18px;">
+        <div class="stat">
+          <div class="stat-label">Task Success Rate</div>
+          <div class="stat-value" id="evalSuccessRate">—</div>
+          <div class="stat-sub" id="evalSuccessSub">Baseline vs Treatment</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Token Consumption</div>
+          <div class="stat-value" id="evalTokenReduction">—</div>
+          <div class="stat-sub" id="evalTokenSub">Overall token reduction</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Duration Delta (Median)</div>
+          <div class="stat-value" id="evalDurationDelta">—</div>
+          <div class="stat-sub" id="evalDurationSub">p50 / p95 Latencies</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Regressions / Improvements</div>
+          <div class="stat-value" id="evalRegressionsCount">—</div>
+          <div class="stat-sub" id="evalRegressionsSub">Task outcome deltas</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap; gap:12px">
+          <h2>Paired Tasks &amp; Regression Analysis</h2>
+          <div class="row" style="gap:6px">
+            <span class="mono" style="font-size:11px; color:#8e99b0">Filter:</span>
+            <select class="small-select" id="evalFilterClassification" onchange="renderPairedTasksTable()">
+              <option value="ALL">All Paired Tasks</option>
+              <option value="REGRESSION">Regressions Only (Baseline Pass, Treatment Fail)</option>
+              <option value="IMPROVEMENT">Improvements Only (Treatment Pass, Baseline Fail)</option>
+              <option value="BOTH_SUCCESS">Both Succeeded</option>
+              <option value="BOTH_FAILED">Both Failed</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="evalTasksTable">
+            <thead>
+              <tr>
+                <th>Task ID</th>
+                <th>Outcome</th>
+                <th>Tokens (Base → Chronos)</th>
+                <th>Time Taken (Base → Chronos)</th>
+                <th>Speedup / Delta</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="evalTasksTableBody">
+              <tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">Select an experiment to view paired task evaluations.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
   </div>
 </main>
+</div>
+
+<!-- RUN DETAIL & WATERFALL MODAL -->
+<div class="modal-backdrop hidden" id="runDetailModal">
+  <div class="modal">
+    <div class="panel-head" style="margin-bottom:0">
+      <div>
+        <h2 id="modalRunId" class="mono" style="color:var(--cyan);font-size:15px">Run Trace</h2>
+        <div id="modalRunTask" class="muted" style="font-size:11.5px;margin-top:2px">—</div>
+      </div>
+      <button class="btn" onclick="toggleModal('runDetailModal')">✕</button>
+    </div>
+    <div class="stats" style="grid-template-columns: repeat(4, 1fr);" id="modalRunStats">
+      <!-- Injected stats -->
+    </div>
+    <div>
+      <h3 style="font-size:12px;margin:0 0 10px 0;letter-spacing:0.1em;text-transform:uppercase;color:#8590a9">Span Waterfall / Execution Trace</h3>
+      <div class="waterfall-track" id="modalRunWaterfall">
+        <!-- Injected trace waterfall steps -->
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid #1a2233">
+      <button class="btn btn-primary" id="modalRunContextBtn" style="display:none">◈ Inspect Context Envelope</button>
+      <button class="btn" onclick="toggleModal('runDetailModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT DIFF MODAL -->
+<div class="modal-backdrop hidden" id="contextDiffModal">
+  <div class="modal">
+    <div class="panel-head">
+      <h2>Context Envelope Diff</h2>
+      <button class="btn" onclick="toggleModal('contextDiffModal')">✕</button>
+    </div>
+    <div class="row" style="gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1">
+        <label class="muted" style="display:block;font-size:11px;margin-bottom:4px">Base Envelope:</label>
+        <select class="small-select" id="diffBaseSelect" style="width:100%"></select>
+      </div>
+      <div style="flex:1">
+        <label class="muted" style="display:block;font-size:11px;margin-bottom:4px">Target Envelope:</label>
+        <select class="small-select" id="diffTargetSelect" style="width:100%"></select>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="btn btn-primary" onclick="computeContextDiff()">Run Diff</button>
+      </div>
+    </div>
+    <div id="diffResultsBody" style="display:flex;flex-direction:column;gap:14px">
+      <div class="muted mono" style="text-align:center;padding:24px;">Select two context envelopes above and click Run Diff.</div>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST -->
@@ -2012,6 +2087,7 @@ window._currentRepo = null;
 window._reposList = [];
 window._activePage = 'mission';
 window._activeTier = 'All';
+window._benchmarkTasks = [];
 
 const pageNames = {
   mission: "Mission Control",
@@ -2020,8 +2096,75 @@ const pageNames = {
   locks: "Intent Lock Ledger",
   memory: "Epistemic Memory",
   security: "Security & Gates",
-  audit: "Audit Ledger"
+  audit: "Audit Ledger",
+  runs: "Runs & Trace Explorer",
+  context: "Context Inspector",
+  eval: "Evaluation Studio",
 };
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatDuration(sec) {
+  if (sec == null || isNaN(sec) || sec === '') return '—';
+  sec = Number(sec);
+  if (sec <= 0) return '—';
+  if (sec < 1) return `${Math.round(sec * 1000)}ms`;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const mins = Math.floor(sec / 60);
+  const rem = Math.round(sec % 60);
+  return `${mins}m ${rem}s`;
+}
+
+window._chartMode = 'tokens';
+
+function setChartMode(mode) {
+  window._chartMode = mode;
+  const btnTok = document.getElementById('segModeTokens');
+  const btnDur = document.getElementById('segModeDuration');
+  if (btnTok) btnTok.classList.toggle('active', mode === 'tokens');
+  if (btnDur) btnDur.classList.toggle('active', mode === 'duration');
+
+  const title = document.getElementById('chartTitle');
+  const subtitle = document.getElementById('chartSubtitle');
+  const legend = document.getElementById('chartLegend');
+
+  if (mode === 'duration') {
+    if (title) title.textContent = "Execution Time (Paired Benchmark Tasks)";
+    if (subtitle) subtitle.textContent = "Wall-clock duration: Chronos governed vs. Baseline (seconds)";
+    if (legend) legend.innerHTML = `
+      <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Execution Time (s)</span>
+      <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Execution Time (s)</span>
+    `;
+  } else {
+    if (title) title.textContent = "Context Efficiency (Paired Benchmark Tasks)";
+    if (subtitle) subtitle.textContent = "Baseline total tokens vs. Chronos governed treatment tokens per task";
+    if (legend) legend.innerHTML = `
+      <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Treatment Tokens</span>
+      <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Tokens</span>
+    `;
+  }
+  renderChart();
+}
+
+function switchResolverTab(tab) {
+  const tabSig = document.getElementById('tabResolverSignals');
+  const tabEnv = document.getElementById('tabResolverEnvelope');
+  const bodySig = document.getElementById('resolverTabSignals');
+  const bodyEnv = document.getElementById('resolverTabEnvelope');
+
+  if (tabSig) tabSig.classList.toggle('active', tab === 'signals');
+  if (tabEnv) tabEnv.classList.toggle('active', tab === 'envelope');
+  if (bodySig) bodySig.classList.toggle('hidden', tab !== 'signals');
+  if (bodyEnv) bodyEnv.classList.toggle('hidden', tab !== 'envelope');
+}
 
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -2034,13 +2177,18 @@ function toast(msg) {
   }, 3200);
 }
 
+function toggleModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.toggle('hidden');
+}
+
 function showPage(pageId) {
   window._activePage = pageId;
   document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
   const target = document.getElementById('page-' + pageId);
   if (target) target.classList.remove('hidden');
 
-  document.querySelectorAll('#nav button').forEach(b => {
+  document.querySelectorAll('.nav button').forEach(b => {
     b.classList.toggle('active', b.dataset.page === pageId);
   });
 
@@ -2051,11 +2199,10 @@ function showPage(pageId) {
   loadCurrentPageData();
 }
 
-document.querySelectorAll('#nav button').forEach(b => {
+document.querySelectorAll('.nav button').forEach(b => {
   b.addEventListener('click', () => showPage(b.dataset.page));
 });
 
-// Navigation dispatch
 function loadCurrentPageData() {
   if (!window._currentRepoId) return;
   if (window._activePage === 'mission') loadMissionControl();
@@ -2064,174 +2211,90 @@ function loadCurrentPageData() {
   else if (window._activePage === 'security') loadSecurity();
   else if (window._activePage === 'audit') loadAudit();
   else if (window._activePage === 'graph') loadGraph();
+  else if (window._activePage === 'runs') loadRuns();
+  else if (window._activePage === 'context') loadContextInspector();
+  else if (window._activePage === 'eval') loadEvaluationStudio();
 }
 
-// Chart rendering
-function renderChart() {
+// 1. Mission Control & Benchmark Rendering
+async function renderChart() {
+  if (!window._currentRepoId) return;
   const count = parseInt(document.getElementById('chartFilter')?.value || "20", 10);
   const chart = document.getElementById('chart');
   if (!chart) return;
-  chart.innerHTML = '';
-  for (let i = 0; i < count; i++) {
-    const group = document.createElement('div');
-    group.className = 'bar-group';
-    group.title = `Task #${i + 1}: Chronos ${(20 + Math.sin(i * 0.68) * 12 + i * 0.9).toFixed(0)}k vs Baseline ${(63 + Math.cos(i * 0.4) * 13).toFixed(0)}k`;
 
-    const a = document.createElement('div');
-    a.className = 'bar';
-    a.style.height = (20 + Math.sin(i * 0.68) * 12 + i * 0.9) + '%';
-
-    const b = document.createElement('div');
-    b.className = 'bar alt';
-    b.style.height = (63 + Math.cos(i * 0.4) * 13) + '%';
-
-    const l = document.createElement('span');
-    l.className = 'bar-label';
-    l.textContent = (i % 4 === 0) ? String(i + 1).padStart(2, '0') : '';
-
-    group.append(a, b, l);
-    chart.append(group);
-  }
-}
-
-// Countdown Ticker
-setInterval(() => {
-  document.querySelectorAll('.countdown').forEach(el => {
-    let s = parseInt(el.dataset.sec || "0", 10);
-    if (s > 0) {
-      s--;
-      el.dataset.sec = s;
-      const m = Math.floor(s / 60);
-      const rem = s % 60;
-      el.textContent = `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
-    } else {
-      el.textContent = "EXPIRED";
-      el.style.color = "var(--red)";
-    }
-  });
-}, 1000);
-
-// Repository Initialization & Switcher
-async function initRepositories() {
   try {
-    const res = await fetch('/api/repos');
-    if (!res.ok) return;
+    const res = await fetch(`/api/repo/${window._currentRepoId}/benchmarks?limit=${count}`);
     const data = await res.json();
-    window._reposList = data.repos || [];
-
-    const switcher = document.getElementById('repoSwitcher');
-    if (switcher) {
-      switcher.innerHTML = '';
-      window._reposList.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r.id;
-        opt.textContent = `${r.name}`;
-        switcher.appendChild(opt);
-      });
+    if (!res.ok || !data.available) {
+      chart.innerHTML = `<div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">No canonical benchmark dataset available (${escapeHtml(data.reason || 'Missing')})</div>`;
+      return;
     }
 
-    // Determine active repository from URL path /repo/<repo-id> or default
-    const match = window.location.pathname.match(/\/repo\/([^/?#]+)/);
-    let targetId = match ? match[1] : (data.default_repo_id || (window._reposList[0]?.id));
-
-    if (targetId) {
-      setActiveRepository(targetId);
+    const tasks = data.tasks || [];
+    window._benchmarkTasks = tasks;
+    if (tasks.length === 0) {
+      chart.innerHTML = '<div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">No paired tasks found in dataset.</div>';
+      return;
     }
-  } catch (e) {
-    console.error('Failed to init repos:', e);
-  }
-}
 
-function setActiveRepository(repoId) {
-  window._currentRepoId = repoId;
-  const repo = window._reposList.find(r => r.id === repoId) || {
-    id: repoId,
-    name: repoId.split('-')[0] || "Repository",
-    root: "",
-    canonical_root: "",
-    is_indexed: false,
-    branch: "main",
-    commit: "HEAD",
-  };
-  window._currentRepo = repo;
+    chart.innerHTML = '';
+    const isDuration = (window._chartMode === 'duration');
 
-  const switcher = document.getElementById('repoSwitcher');
-  if (switcher && switcher.value !== repoId) switcher.value = repoId;
-
-  const titleEl = document.getElementById('activeRepoTitle');
-  if (titleEl) titleEl.textContent = `◉ ${repo.name} / ${repo.branch || 'main'}`;
-
-  const commitEl = document.getElementById('activeRepoCommit');
-  if (commitEl) commitEl.textContent = repo.commit || 'HEAD';
-
-  const rootEl = document.getElementById('activeRepoRoot');
-  if (rootEl) {
-    rootEl.textContent = repo.canonical_root || repo.root || '';
-    rootEl.title = repo.canonical_root || repo.root || '';
-  }
-
-  const tagEl = document.getElementById('activeRepoTag');
-  if (tagEl) {
-    if (repo.is_indexed) {
-      tagEl.className = 'tag green';
-      tagEl.textContent = 'READY';
+    let maxVal = 1;
+    if (isDuration) {
+      maxVal = Math.max(...tasks.map(t => Math.max(t.baseline_duration_sec || 0, t.treatment_duration_sec || 0)), 1);
     } else {
-      tagEl.className = 'tag amber';
-      tagEl.textContent = 'UNINDEXED';
+      maxVal = Math.max(...tasks.map(t => Math.max(t.baseline_tokens || 0, t.treatment_tokens || 0)), 1);
     }
-  }
 
-  // Handle Unindexed banner
-  const banner = document.getElementById('unindexedBanner');
-  if (banner) {
-    banner.classList.toggle('hidden', Boolean(repo.is_indexed));
-  }
+    tasks.forEach((t, i) => {
+      const group = document.createElement('div');
+      group.className = 'bar-group';
 
-  // Load active page data
-  loadCurrentPageData();
-}
+      let bPct, tPct;
+      if (isDuration) {
+        bPct = Math.min(100, Math.max(4, Math.round(((t.baseline_duration_sec || 0) / maxVal) * 100)));
+        tPct = Math.min(100, Math.max(4, Math.round(((t.treatment_duration_sec || 0) / maxVal) * 100)));
+      } else {
+        bPct = Math.min(100, Math.max(4, Math.round(((t.baseline_tokens || 0) / maxVal) * 100)));
+        tPct = Math.min(100, Math.max(4, Math.round(((t.treatment_tokens || 0) / maxVal) * 100)));
+      }
 
-function switchRepository(repoId) {
-  if (!repoId) return;
-  history.pushState(null, '', `/repo/${repoId}`);
-  setActiveRepository(repoId);
-  toast(`Switched repository context to: ${window._currentRepo?.name || repoId}`);
-}
+      const bSec = formatDuration(t.baseline_duration_sec);
+      const tSec = formatDuration(t.treatment_duration_sec);
+      const deltaSec = t.duration_delta_sec != null ? `${t.duration_delta_sec > 0 ? '+' : ''}${t.duration_delta_sec}s` : '—';
+      const tokSave = t.savings_pct != null ? `${t.savings_pct}%` : '—';
 
-// First-Run Indexing
-async function triggerIndex() {
-  if (!window._currentRepoId) return;
-  const btn = document.getElementById('btnIndexNow');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '⏳ Indexing Codebase AST...';
-  }
+      group.title = `${t.task_id} (${t.suite})
+Duration: Chronos ${tSec} vs Baseline ${bSec} (Delta: ${deltaSec})
+Tokens: Chronos ${(t.treatment_tokens || 0).toLocaleString()} vs Baseline ${(t.baseline_tokens || 0).toLocaleString()} (${tokSave} saved)`;
 
-  try {
-    const res = await fetch(`/api/repo/${window._currentRepoId}/index`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      const barTreat = document.createElement('div');
+      barTreat.className = 'bar';
+      barTreat.style.height = `${tPct}%`;
+
+      const barBase = document.createElement('div');
+      barBase.className = 'bar alt';
+      barBase.style.height = `${bPct}%`;
+
+      const label = document.createElement('span');
+      label.className = 'bar-label';
+      label.textContent = String(i + 1).padStart(2, '0');
+
+      group.append(barTreat, barBase, label);
+      chart.append(group);
     });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      toast(`Indexing Complete! ${data.node_count} AST nodes and ${data.edge_count} edges.`);
-      // Refresh repo list and view
-      await initRepositories();
-      setActiveRepository(window._currentRepoId);
-    } else {
-      toast(`Indexing failed: ${data.error || 'Unknown error'}`);
+
+    const reconFoot = document.getElementById('chartReconciliationFoot');
+    if (reconFoot && data.reconciliation) {
+      reconFoot.textContent = `Canonical Efficacy: ${data.reconciliation.canonical_efficacy_reduction_pct}% reduction · Database Micro Savings: ${data.reconciliation.database_micro_savings_pct}% across ${tasks.length} paired tasks.`;
     }
-  } catch (e) {
-    toast(`Indexing request error: ${e.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '⚡ Index Repository Now';
-    }
+  } catch (err) {
+    chart.innerHTML = `<div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">Error loading benchmarks: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-// 1. Mission Control Data
 async function loadMissionControl() {
   if (!window._currentRepoId) return;
   try {
@@ -2240,38 +2303,75 @@ async function loadMissionControl() {
     const data = await res.json();
 
     // Stats
-    const statLeases = document.getElementById('statLeases');
-    if (statLeases) statLeases.innerHTML = `${data.stats.active_locks} <small>/ ${data.stats.active_agents || 0} agents</small>`;
+    const statToken = document.getElementById('statTokenSavings');
+    if (statToken) {
+      statToken.innerHTML = data.stats.token_savings_pct != null ? `${data.stats.token_savings_pct}<small>%</small>` : '—';
+    }
+    const statTokenFoot = document.getElementById('statTokenFoot');
+    if (statTokenFoot) {
+      statTokenFoot.textContent = data.stats.token_savings_source ? `Derived from ${data.stats.token_savings_source}` : 'No paired benchmark dataset';
+    }
 
+    const statLeases = document.getElementById('statLeases');
+    if (statLeases) {
+      statLeases.innerHTML = `${data.stats.active_locks} <small>/ ${data.stats.active_agents || 0} agents</small>`;
+    }
     const navLocks = document.getElementById('navLockCount');
     if (navLocks) navLocks.textContent = data.stats.active_locks;
 
-    const astStat = document.querySelector('.stats .stat:nth-child(4) .stat-value');
-    if (astStat) astStat.textContent = data.stats.node_count?.toLocaleString() || '0';
+    const statLatency = document.getElementById('statLatency');
+    if (statLatency) {
+      if (data.stats.duration_speedup_p50 != null) {
+        const delta = data.stats.duration_speedup_p50;
+        const sign = delta > 0 ? '+' : '';
+        statLatency.innerHTML = `${sign}${delta}<small>s</small>`;
+      } else if (data.stats.resolver_latency_ms != null) {
+        statLatency.innerHTML = `${data.stats.resolver_latency_ms}<small> ms</small>`;
+      } else {
+        statLatency.innerHTML = '—';
+      }
+    }
+    const statLatencyFoot = document.getElementById('statLatencyFoot');
+    if (statLatencyFoot) {
+      if (data.stats.duration_speedup_p50 != null) {
+        statLatencyFoot.textContent = `p50 task speedup (SWE-bench paired tasks)`;
+      } else if (data.stats.latency_queries_recorded) {
+        statLatencyFoot.textContent = `Rolling average (${data.stats.latency_queries_recorded} queries)`;
+      } else {
+        statLatencyFoot.textContent = `Empirical duration delta`;
+      }
+    }
 
-    const astFoot = document.querySelector('.stats .stat:nth-child(4) .stat-foot');
-    if (astFoot) astFoot.textContent = `${data.stats.edge_count?.toLocaleString() || 0} edges · SQLite WAL`;
+    const astStat = document.getElementById('statAstEntities');
+    if (astStat) astStat.textContent = data.stats.node_count ? data.stats.node_count.toLocaleString() : '0';
+
+    const astFoot = document.getElementById('statAstFoot');
+    if (astFoot) astFoot.textContent = `${(data.stats.edge_count || 0).toLocaleString()} relation edges · SQLite WAL`;
 
     // Activity Stream
     const act = document.getElementById('activity');
-    if (act && data.recent_activity && data.recent_activity.length > 0) {
+    if (act) {
       act.innerHTML = '';
-      data.recent_activity.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'event';
-        const isDeny = item.status === 'DENY';
-        const iconClass = isDeny ? 'deny' : (item.event.includes('lock') ? '' : 'ok');
-        const iconSymbol = isDeny ? '⊘' : (item.event.includes('lock') ? '↔' : '✓');
-        div.innerHTML = `
-          <div class="event-icon ${iconClass}">${iconSymbol}</div>
-          <div class="event-text">
-            <b>${item.agent_id}</b> · ${item.event} on <b>${item.target}</b>
-            <small>${item.reason || item.type || ''}</small>
-          </div>
-          <time>${item.timestamp ? item.timestamp.split('T')[1]?.split('.')[0] || item.timestamp : 'now'}</time>
-        `;
-        act.appendChild(div);
-      });
+      if (!data.recent_activity || data.recent_activity.length === 0) {
+        act.innerHTML = '<div class="muted mono" style="padding:18px;text-align:center;">No recent activity observed.</div>';
+      } else {
+        data.recent_activity.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'event';
+          const isDeny = item.status === 'DENY';
+          const iconClass = isDeny ? 'deny' : (item.type === 'provenance' ? '' : 'ok');
+          const iconSymbol = isDeny ? '⊘' : (item.type === 'provenance' ? '↔' : '✓');
+          div.innerHTML = `
+            <div class="event-icon ${iconClass}">${iconSymbol}</div>
+            <div class="event-text">
+              <b>${escapeHtml(item.agent_id)}</b> · ${escapeHtml(item.event)} on <b>${escapeHtml(item.target)}</b>
+              <small>${escapeHtml(item.reason || item.type || '')}</small>
+            </div>
+            <time>${item.timestamp ? escapeHtml(item.timestamp.split('T')[1]?.split('.')[0] || item.timestamp) : 'now'}</time>
+          `;
+          act.appendChild(div);
+        });
+      }
     }
 
     renderChart();
@@ -2295,7 +2395,7 @@ async function resolvePrompt() {
   }
 
   const budget = parseInt(document.getElementById('budget').value, 10);
-  const isSlm = document.getElementById('engine').selectedIndex === 1;
+  const isSlm = document.getElementById('engine').value === 'slm';
 
   toast('Resolving Zero-Path context envelope...');
 
@@ -2311,46 +2411,60 @@ async function resolvePrompt() {
       return;
     }
 
-    const resTime = document.getElementById('resTime');
-    if (resTime) resTime.textContent = data.latency_ms;
-
     const out = document.getElementById('resolveOutput');
+    const latText = data.latency_ms != null ? `${data.latency_ms}ms` : '<15ms';
     if (out) {
-      const targetFiles = data.resolved_files.join(', ') || 'None';
-      const symbols = data.resolved_symbols.join(' · ') || 'None';
-      const tests = data.test_files.join(', ') || 'None';
+      const targetFiles = data.resolved_files?.map(f => `<code>${escapeHtml(f)}</code>`).join(' ') || 'None';
+      const symbols = data.resolved_symbols?.map(s => `<code>${escapeHtml(s)}</code>`).join(' ') || 'None';
+      const tests = data.test_files?.map(t => `<code>${escapeHtml(t)}</code>`).join(' ') || 'None';
 
       out.innerHTML = `
         <div class="row" style="margin-top:16px">
-          <span class="tag green">RESOLVED (${data.latency_ms}ms)</span>
-          <span class="muted mono">Tokens: ${data.token_count} / ${budget} · Candidate Symbols: ${data.candidates?.length || 0}</span>
+          <span class="tag green">RESOLVED (${latText})</span>
+          <span class="muted mono">Mode: ${escapeHtml(data.mode)} · Candidates: ${data.candidates?.length || 0}</span>
         </div>
-        <div class="result-list">
+        <div class="result-list" style="margin-top:12px">
           <div class="result">
             <span class="tag cyan">TARGET FILES</span>
-            <code>${targetFiles}</code>
-            <span class="score">top ranked</span>
+            <div>${targetFiles}</div>
           </div>
           <div class="result">
-            <span class="tag cyan">AST SYMBOLS</span>
-            <code>${symbols}</code>
-            <span class="score">FTS5 AST score</span>
+            <span class="tag cyan">RESOLVED SYMBOLS</span>
+            <div>${symbols}</div>
           </div>
           <div class="result">
             <span class="tag green">CO-LOCATED TESTS</span>
-            <code>${tests}</code>
-            <span class="score">colocated</span>
+            <div>${tests}</div>
           </div>
         </div>
       `;
     }
 
-    const env = document.getElementById('envelopePreview');
-    if (env) {
-      env.textContent = data.provenance_summary || `# CHRONOS ZERO-PATH REPOSITORY CONTEXT ENVELOPE\n\nTARGET_FILES:\n  - ${data.resolved_files.join('\n  - ')}\n\nTARGET_SYMBOLS:\n  - ${data.resolved_symbols.join('\n  - ')}`;
+    // Populate candidate signals
+    const provBody = document.getElementById('provenanceTableBody');
+    if (provBody) {
+      provBody.innerHTML = '';
+      if (!data.candidates || data.candidates.length === 0) {
+        provBody.innerHTML = '<tr><td colspan="2" class="muted" style="text-align:center;padding:12px;">No matching AST nodes scored above threshold.</td></tr>';
+      } else {
+        data.candidates.forEach(c => {
+          (c.signals || []).forEach(sig => {
+            const tr = provBody.insertRow();
+            tr.innerHTML = `
+              <td><b>${escapeHtml(c.name)}</b>: <span class="muted">${escapeHtml(sig.signal)}</span></td>
+              <td class="mono" style="color:var(--green)">+${sig.weight.toFixed(1)}</td>
+            `;
+          });
+        });
+      }
     }
 
-    toast(`Context resolved in ${data.latency_ms}ms!`);
+    const env = document.getElementById('envelopePreview');
+    if (env) {
+      env.textContent = data.provenance_summary || '# No envelope summary returned.';
+    }
+
+    toast(`Context resolved in ${latText}!`);
   } catch (e) {
     toast(`Resolution request error: ${e.message}`);
   }
@@ -2364,7 +2478,7 @@ function copyEnvelope() {
   }
 }
 
-// 3. AST Graph Explorer
+// 3. AST Graph Explorer & Subgraph Rendering
 async function loadGraph() {
   if (!window._currentRepoId) return;
   try {
@@ -2372,11 +2486,14 @@ async function loadGraph() {
     if (!res.ok) return;
     const data = await res.json();
 
-    const nodeTag = document.querySelector('#page-graph .pagehead .tag.cyan');
+    const nodeTag = document.getElementById('graphNodesCountTag');
     if (nodeTag && data.total_nodes) nodeTag.textContent = `${data.total_nodes.toLocaleString()} NODES`;
 
-    const edgeTag = document.querySelector('#page-graph .pagehead .tag:nth-child(2)');
+    const edgeTag = document.getElementById('graphEdgesCountTag');
     if (edgeTag && data.total_edges) edgeTag.textContent = `${data.total_edges.toLocaleString()} EDGES`;
+
+    initGitCommits();
+    searchGraphNode();
   } catch (e) {
     console.error('Failed to load graph summary:', e);
   }
@@ -2384,52 +2501,147 @@ async function loadGraph() {
 
 async function searchGraphNode() {
   if (!window._currentRepoId) return;
-  const q = document.getElementById('symbolQuery').value.trim();
-  if (!q) return;
+  const sym = document.getElementById('symbolQuery').value.trim();
+  const depth = parseInt(document.getElementById('depthSelect')?.value || "3", 10);
+  if (!sym) return;
 
   try {
-    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/nodes?query=${encodeURIComponent(q)}&limit=10`);
-    if (!res.ok) return;
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/subgraph?symbol=${encodeURIComponent(sym)}&depth=${depth}`);
     const data = await res.json();
-    if (data.nodes && data.nodes.length > 0) {
-      const node = data.nodes[0];
-      selectGraphNode(null, node.name, node.kind.toUpperCase(), node.language || 'Python', node.path, [], []);
-      toast(`Found matching AST node: ${node.name} (${node.kind})`);
+    if (data.center) {
+      renderSvgGraph(data);
+      updateNodeInspector(data.center, data.callers, data.callees, data.impacted);
+      toast(`Graph centered on: ${data.center.name}`);
     } else {
-      toast(`No AST nodes matching "${q}".`);
+      const container = document.getElementById('graphContainer');
+      if (container) {
+        container.innerHTML = `<div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:340px;">No AST node matching "${escapeHtml(sym)}" found in knowledge graph.</div>`;
+      }
+      toast(`No AST nodes matching "${sym}".`);
     }
   } catch (e) {
     toast(`Graph search error: ${e.message}`);
   }
 }
 
-function selectGraphNode(element, title, kind, lang, path, callers, callees) {
-  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-  if (element) element.classList.add('selected');
+function renderSvgGraph(data) {
+  const container = document.getElementById('graphContainer');
+  if (!container) return;
 
-  document.getElementById('nodeTitle').textContent = title;
-  document.getElementById('nodeKindTag').textContent = kind;
-  document.getElementById('nodeLang').textContent = `${lang.toUpperCase()} · ${kind}`;
-  document.getElementById('nodePath').textContent = path;
-  document.getElementById('symbolQuery').value = title;
+  const center = data.center;
+  const callers = data.callers || [];
+  const callees = data.callees || [];
+  const impacted = data.impacted || [];
 
-  document.getElementById('nodeDesc').textContent = 
-    `Symbol ${title} in ${path}. Click inspect actions below to traverse the bi-temporal graph.`;
+  const width = 720;
+  const height = 340;
+  const cx = 360;
+  const cy = 170;
+
+  let svgHtml = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:100%;display:block;" aria-label="Interactive AST node graph">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#00f2ff88"/>
+      </marker>
+      <marker id="arrow-green" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b98188"/>
+      </marker>
+    </defs>
+    <g id="edges">`;
+
+  // Draw callers (left column)
+  const callerNodes = callers.slice(0, 5);
+  const callerYStep = height / (callerNodes.length + 1);
+  callerNodes.forEach((c, idx) => {
+    const x = 110;
+    const y = Math.round(callerYStep * (idx + 1));
+    svgHtml += `<path d="M ${x + 40} ${y} C ${x + 120} ${y}, ${cx - 100} ${cy}, ${cx - 40} ${cy}" stroke="#00f2ff66" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>`;
+  });
+
+  // Draw callees (right column)
+  const calleeNodes = callees.slice(0, 5);
+  const calleeYStep = height / (calleeNodes.length + 1);
+  calleeNodes.forEach((c, idx) => {
+    const x = 610;
+    const y = Math.round(calleeYStep * (idx + 1));
+    svgHtml += `<path d="M ${cx + 40} ${cy} C ${cx + 100} ${cy}, ${x - 120} ${y}, ${x - 40} ${y}" stroke="#10b98166" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>`;
+  });
+
+  svgHtml += `</g><g id="nodes">`;
+
+  // Render caller circles
+  callerNodes.forEach((c, idx) => {
+    const x = 110;
+    const y = Math.round(callerYStep * (idx + 1));
+    const label = (c.name || 'caller').slice(0, 14);
+    svgHtml += `
+      <g class="node" style="cursor:pointer;" onclick="inspectSymbol('${escapeHtml(c.name)}')">
+        <circle cx="${x}" cy="${y}" r="26" fill="#101726" stroke="#00f2ff88" stroke-width="1.5"/>
+        <text x="${x}" y="${y + 4}" fill="#edf1fa" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
+      </g>
+    `;
+  });
+
+  // Render callee circles
+  calleeNodes.forEach((c, idx) => {
+    const x = 610;
+    const y = Math.round(calleeYStep * (idx + 1));
+    const label = (c.name || 'callee').slice(0, 14);
+    svgHtml += `
+      <g class="node" style="cursor:pointer;" onclick="inspectSymbol('${escapeHtml(c.name)}')">
+        <circle cx="${x}" cy="${y}" r="26" fill="#0d241d" stroke="#10b98188" stroke-width="1.5"/>
+        <text x="${x}" y="${y + 4}" fill="#edf1fa" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
+      </g>
+    `;
+  });
+
+  // Render Center node
+  const centerLabel = (center.name || 'Symbol').slice(0, 16);
+  svgHtml += `
+    <g class="node selected" style="cursor:pointer;">
+      <circle cx="${cx}" cy="${cy}" r="42" fill="#08373e" stroke="var(--cyan)" stroke-width="2.5" filter="drop-shadow(0 0 10px rgba(0,242,255,0.3))"/>
+      <text x="${cx}" y="${cy - 2}" fill="#c4fbff" text-anchor="middle" font-size="12" font-weight="600" font-family="monospace">${escapeHtml(centerLabel)}</text>
+      <text x="${cx}" y="${cy + 14}" fill="var(--muted)" text-anchor="middle" font-size="9" font-family="sans-serif">${escapeHtml(center.kind || 'NODE')}</text>
+    </g>
+  `;
+
+  svgHtml += `</g></svg>`;
+  container.innerHTML = svgHtml;
+}
+
+function updateNodeInspector(node, callers, callees, impacted) {
+  document.getElementById('nodeTitle').textContent = node.name;
+  document.getElementById('nodeKindTag').textContent = (node.kind || 'SYMBOL').toUpperCase();
+  document.getElementById('nodeLang').textContent = `${(node.language || 'Python').toUpperCase()} · ${(node.kind || 'SYMBOL').toUpperCase()}`;
+  document.getElementById('nodePath').textContent = node.path || '—';
+  document.getElementById('symbolQuery').value = node.name;
+
+  const desc = node.docstring || (node.signature ? `Signature: ${node.signature}` : `AST entity in ${node.path}`);
+  const callersCount = callers ? callers.length : 0;
+  const calleesCount = callees ? callees.length : 0;
+  const impactCount = impacted ? impacted.length : 0;
+
+  document.getElementById('nodeDesc').innerHTML = `
+    ${escapeHtml(desc)}<br>
+    <small style="color:var(--text-dim);margin-top:6px;display:block;">
+      Callers: <b>${callersCount}</b> · Dependencies: <b>${calleesCount}</b> · Transitive Blast Radius: <b>${impactCount}</b>
+    </small>
+  `;
+}
+
+function inspectSymbol(symName) {
+  document.getElementById('symbolQuery').value = symName;
+  searchGraphNode();
 }
 
 async function invokeCallers() {
   if (!window._currentRepoId) return;
   const sym = document.getElementById('symbolQuery').value.trim();
-  if (!sym) return;
   try {
     const res = await fetch(`/api/repo/${window._currentRepoId}/graph/callers?symbol=${encodeURIComponent(sym)}`);
     const data = await res.json();
     const count = data.callers?.length || 0;
     toast(`as_of_callers: ${count} callers located for ${sym}`);
-    if (count > 0) {
-      const names = data.callers.slice(0, 3).map(c => c.name).join(', ');
-      document.getElementById('nodeDesc').textContent = `Callers of ${sym} (${count} total): ${names}`;
-    }
   } catch (e) {
     toast(`Error querying callers: ${e.message}`);
   }
@@ -2438,16 +2650,11 @@ async function invokeCallers() {
 async function invokeCallees() {
   if (!window._currentRepoId) return;
   const sym = document.getElementById('symbolQuery').value.trim();
-  if (!sym) return;
   try {
     const res = await fetch(`/api/repo/${window._currentRepoId}/graph/callees?symbol=${encodeURIComponent(sym)}`);
     const data = await res.json();
     const count = data.callees?.length || 0;
     toast(`as_of_callees: ${count} functions called by ${sym}`);
-    if (count > 0) {
-      const names = data.callees.slice(0, 3).map(c => c.name).join(', ');
-      document.getElementById('nodeDesc').textContent = `Dependencies of ${sym} (${count} total): ${names}`;
-    }
   } catch (e) {
     toast(`Error querying callees: ${e.message}`);
   }
@@ -2456,23 +2663,139 @@ async function invokeCallees() {
 async function updateBlastRadius(depth) {
   if (!window._currentRepoId) return;
   const sym = document.getElementById('symbolQuery').value.trim();
-  if (!sym) return;
   try {
     const res = await fetch(`/api/repo/${window._currentRepoId}/graph/impact?symbol=${encodeURIComponent(sym)}&max_depth=${depth}`);
     const data = await res.json();
     const count = data.impacted?.length || 0;
     toast(`Transitive blast radius: ${count} downstream AST nodes impacted at Depth ${depth}`);
-    if (count > 0) {
-      const names = data.impacted.slice(0, 4).map(c => c.name).join(', ');
-      document.getElementById('nodeDesc').textContent = `Downstream blast radius (${count} symbols at depth ${depth}): ${names}`;
-    }
+    searchGraphNode();
   } catch (e) {
     toast(`Error computing impact: ${e.message}`);
   }
 }
 
-function compareGitCommits() {
-  toast('Temporal diff loaded for current commit: 0 structural breaking changes detected.');
+// Git & AST Diff Switcher
+function showDiffView(view) {
+  document.getElementById('tabGitDiff')?.classList.toggle('active', view === 'git');
+  document.getElementById('tabAstDiff')?.classList.toggle('active', view === 'ast');
+  document.getElementById('diffViewGit')?.classList.toggle('hidden', view !== 'git');
+  document.getElementById('diffViewAst')?.classList.toggle('hidden', view !== 'ast');
+}
+
+async function initGitCommits() {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/git/commits?limit=15`);
+    const data = await res.json();
+    const commits = data.commits || [];
+
+    const baseSel = document.getElementById('gitBaseCommit');
+    const targetSel = document.getElementById('gitTargetCommit');
+    if (!baseSel || !targetSel) return;
+
+    baseSel.innerHTML = '';
+    targetSel.innerHTML = '';
+
+    commits.forEach((c, i) => {
+      const opt1 = document.createElement('option');
+      opt1.value = c.hash;
+      opt1.textContent = `${c.hash} · ${c.date} (${c.message.slice(0, 32)})`;
+
+      const opt2 = document.createElement('option');
+      opt2.value = c.hash;
+      opt2.textContent = `${c.hash} · ${c.date} (${c.message.slice(0, 32)})`;
+
+      baseSel.appendChild(opt1);
+      targetSel.appendChild(opt2);
+    });
+
+    if (commits.length > 1) {
+      baseSel.selectedIndex = 1;
+      targetSel.selectedIndex = 0;
+    }
+  } catch (e) {
+    console.error('Failed to init git commits:', e);
+  }
+}
+
+async function compareGitRevisions() {
+  if (!window._currentRepoId) return;
+  const base = document.getElementById('gitBaseCommit')?.value;
+  const target = document.getElementById('gitTargetCommit')?.value;
+  if (!base || !target) return;
+
+  const tbody = document.getElementById('gitDiffBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="muted" style="text-align:center;padding:12px;">Comparing git commits...</td></tr>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/git/diff?base=${encodeURIComponent(base)}&target=${encodeURIComponent(target)}`);
+    const data = await res.json();
+    if (tbody) {
+      tbody.innerHTML = '';
+      if (!data.changes || data.changes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" class="muted" style="text-align:center;padding:16px;">No file changes detected between revisions.</td></tr>';
+      } else {
+        data.changes.forEach(ch => {
+          const tr = tbody.insertRow();
+          const tagClass = ch.status === 'ADDED' ? 'green' : (ch.status === 'DELETED' ? 'red' : 'amber');
+          tr.innerHTML = `
+            <td><span class="tag ${tagClass}">${escapeHtml(ch.status)}</span></td>
+            <td class="mono">${escapeHtml(ch.file)}</td>
+          `;
+        });
+      }
+    }
+    toast(`Git diff: ${data.total_changes || 0} modified files between ${base} and ${target}`);
+  } catch (err) {
+    toast(`Git diff error: ${err.message}`);
+  }
+}
+
+async function compareAstSnapshots() {
+  if (!window._currentRepoId) return;
+  const t1 = document.getElementById('astT1')?.value.trim();
+  const t2 = document.getElementById('astT2')?.value.trim();
+  if (!t1 || !t2) {
+    toast('Please enter valid timestamps T1 and T2.');
+    return;
+  }
+
+  const tbody = document.getElementById('astDiffBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center;padding:12px;">Querying AST knowledge graph delta...</td></tr>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/graph/diff?t1=${encodeURIComponent(t1)}&t2=${encodeURIComponent(t2)}`);
+    const data = await res.json();
+    if (tbody) {
+      tbody.innerHTML = '';
+      const added = data.added_edges || [];
+      const removed = data.removed_edges || [];
+      if (added.length === 0 && removed.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center;padding:16px;">No AST edge mutations between snapshots. (${data.unchanged_count || 0} unchanged edges)</td></tr>`;
+      } else {
+        added.forEach(e => {
+          const tr = tbody.insertRow();
+          tr.innerHTML = `
+            <td><span class="tag green">ADDED</span></td>
+            <td class="mono">${escapeHtml(e.src)}</td>
+            <td class="mono">${escapeHtml(e.dst)}</td>
+            <td><span class="tag">${escapeHtml(e.type)}</span></td>
+          `;
+        });
+        removed.forEach(e => {
+          const tr = tbody.insertRow();
+          tr.innerHTML = `
+            <td><span class="tag red">REMOVED</span></td>
+            <td class="mono">${escapeHtml(e.src)}</td>
+            <td class="mono">${escapeHtml(e.dst)}</td>
+            <td><span class="tag">${escapeHtml(e.type)}</span></td>
+          `;
+        });
+      }
+    }
+  } catch (err) {
+    toast(`AST diff error: ${err.message}`);
+  }
 }
 
 // 4. Intent Lock Management
@@ -2483,7 +2806,7 @@ async function loadLocks() {
     if (!res.ok) return;
     const data = await res.json();
 
-    const tbody = document.querySelector('#lockTable tbody');
+    const tbody = document.getElementById('lockTableBody');
     if (tbody) {
       tbody.innerHTML = '';
       if (!data.locks || data.locks.length === 0) {
@@ -2492,22 +2815,22 @@ async function loadLocks() {
         data.locks.forEach(l => {
           const tr = tbody.insertRow();
           tr.innerHTML = `
-            <td class="mono">${l.node_id}</td>
-            <td>${l.agent_id} <span class="muted">/ ${l.session_id}</span></td>
-            <td>${l.intent}</td>
-            <td class="mono countdown" data-sec="300">Active</td>
+            <td class="mono">${escapeHtml(l.node_id)}</td>
+            <td>${escapeHtml(l.agent_id)} <span class="muted">/ ${escapeHtml(l.session_id)}</span></td>
+            <td>${escapeHtml(l.intent)}</td>
+            <td class="mono">${escapeHtml(l.expires_at ? l.expires_at.split('T')[1]?.split('.')[0] : 'Active')}</td>
             <td><span class="tag amber">LEASED</span></td>
-            <td><button onclick="releaseLock('${l.node_id}', '${l.agent_id}', '${l.session_id}')">Release</button></td>
+            <td><button onclick="releaseLock('${escapeHtml(l.node_id)}', '${escapeHtml(l.agent_id)}', '${escapeHtml(l.session_id)}')">Release</button></td>
           `;
         });
       }
     }
 
     const badge = document.getElementById('leaseCountBadge');
-    if (badge) badge.textContent = `${data.count} ACTIVE LEASES`;
+    if (badge) badge.textContent = `${data.count || 0} ACTIVE LEASES`;
 
     const navBadge = document.getElementById('navLockCount');
-    if (navBadge) navBadge.textContent = data.count;
+    if (navBadge) navBadge.textContent = data.count || 0;
   } catch (e) {
     console.error('Failed to load locks:', e);
   }
@@ -2565,6 +2888,28 @@ async function loadMemory() {
   if (!window._currentRepoId) return;
   try {
     const tier = window._activeTier === 'All' ? '' : window._activeTier;
+    const statsRes = await fetch(`/api/repo/${window._currentRepoId}/memory/stats`);
+    if (statsRes.ok) {
+      const stats = await statsRes.json();
+      document.getElementById('countTierAll').textContent = stats.total_memories || 0;
+      document.getElementById('countTierCore').textContent = stats.by_tier?.core || 0;
+      document.getElementById('countTierLearned').textContent = stats.by_tier?.learned || 0;
+      document.getElementById('countTierProcedural').textContent = stats.by_tier?.procedural || 0;
+      document.getElementById('countTierEpisodic').textContent = stats.by_tier?.episodic || 0;
+      document.getElementById('countTierWorking').textContent = stats.by_tier?.working || 0;
+
+      const nsSel = document.getElementById('namespaceSelect');
+      if (nsSel && stats.namespaces) {
+        nsSel.innerHTML = '';
+        stats.namespaces.forEach(ns => {
+          const opt = document.createElement('option');
+          opt.value = ns;
+          opt.textContent = `Namespace: ${ns}`;
+          nsSel.appendChild(opt);
+        });
+      }
+    }
+
     const res = await fetch(`/api/repo/${window._currentRepoId}/memory?tier=${encodeURIComponent(tier)}&limit=50`);
     if (!res.ok) return;
     const data = await res.json();
@@ -2581,15 +2926,15 @@ async function loadMemory() {
           card.dataset.tier = m.tier;
           card.innerHTML = `
             <div class="row">
-              <span class="tag violet">${m.tier.toUpperCase()}</span>
-              <span class="tag green">${m.verification_status?.toUpperCase() || 'VERIFIED'}</span>
+              <span class="tag violet">${escapeHtml(m.tier.toUpperCase())}</span>
+              <span class="tag green">${escapeHtml(m.outcome || 'SUCCESS')}</span>
             </div>
-            <h3>${m.content.slice(0, 52)}</h3>
-            <p>${m.content}</p>
+            <h3>${escapeHtml(m.content.slice(0, 52))}</h3>
+            <p>${escapeHtml(m.content)}</p>
             <div class="row">
-              <span class="muted mono">#${m.id} · importance ${m.importance || 0.5}</span>
+              <span class="muted mono">#${m.id} · importance ${(m.importance || 0.5).toFixed(2)}</span>
               <span class="spacer"></span>
-              <span class="muted mono">${m.created_at ? m.created_at.split('T')[0] : 'recent'}</span>
+              <span class="muted mono">${m.created_at ? escapeHtml(m.created_at.split('T')[0]) : 'recent'}</span>
             </div>
             <div class="meter"><span style="width:${Math.round((m.importance || 0.5) * 100)}%"></span></div>
           `;
@@ -2609,6 +2954,53 @@ document.querySelectorAll('#memoryTabs button').forEach(b => {
     loadMemory();
   });
 });
+
+function filterMemory() {
+  const q = document.getElementById('memorySearch')?.value.trim();
+  if (q) {
+    recallMemory(q);
+  } else {
+    loadMemory();
+  }
+}
+
+async function recallMemory(query) {
+  if (!window._currentRepoId) return;
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/memory/recall`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query, tier: window._activeTier, limit: 20 })
+    });
+    const data = await res.json();
+    const grid = document.getElementById('memoryGrid');
+    if (grid) {
+      grid.innerHTML = '';
+      if (!data.results || data.results.length === 0) {
+        grid.innerHTML = `<div class="muted mono" style="grid-column:span 2;padding:24px;text-align:center;">No memory records matching query "${escapeHtml(query)}".</div>`;
+      } else {
+        data.results.forEach(m => {
+          const card = document.createElement('div');
+          card.className = 'memory-card';
+          card.innerHTML = `
+            <div class="row">
+              <span class="tag violet">${escapeHtml((m.tier || 'learned').toUpperCase())}</span>
+              <span class="tag green">RECALLED</span>
+            </div>
+            <h3>${escapeHtml(m.content.slice(0, 52))}</h3>
+            <p>${escapeHtml(m.content)}</p>
+            <div class="row">
+              <span class="muted mono">#${m.id} · importance ${(m.importance || 0.5).toFixed(2)}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+  } catch (e) {
+    toast(`Recall error: ${e.message}`);
+  }
+}
 
 document.getElementById('rememberForm')?.addEventListener('submit', async e => {
   e.preventDefault();
@@ -2659,15 +3051,14 @@ async function loadSecurity() {
         data.gate_approvals.forEach((app, idx) => {
           const div = document.createElement('div');
           div.className = 'event';
-          div.id = `approval-${idx}`;
           div.innerHTML = `
             <div class="event-icon warn">⏸</div>
             <div class="event-text">
-              <b>${app.agent_id} · gate request</b>
-              <small>${app.path_pattern} · protected surface</small>
+              <b>${escapeHtml(app.agent_id)} · gate request</b>
+              <small>${escapeHtml(app.path_pattern)} · protected surface</small>
               <div class="row" style="margin-top:7px">
-                <button class="primary" onclick="resolveApproval('${idx}', true, '${app.agent_id}', '${app.path_pattern}')">Approve Action</button>
-                <button class="danger-btn" onclick="resolveApproval('${idx}', false, '${app.agent_id}', '${app.path_pattern}')">Reject / Terminate</button>
+                <button class="primary" onclick="resolveApproval(true, '${escapeHtml(app.agent_id)}', '${escapeHtml(app.path_pattern)}')">Approve Action</button>
+                <button class="danger-btn" onclick="resolveApproval(false, '${escapeHtml(app.agent_id)}', '${escapeHtml(app.path_pattern)}')">Reject / Terminate</button>
               </div>
             </div>
             <time>pending</time>
@@ -2678,15 +3069,36 @@ async function loadSecurity() {
     }
 
     const secBadge = document.getElementById('securityBadge');
-    if (secBadge) secBadge.textContent = `${data.pending_approvals_count} PENDING APPROVALS`;
+    if (secBadge) secBadge.textContent = `${data.pending_approvals_count || 0} PENDING APPROVALS`;
     const navGate = document.getElementById('navGateCount');
-    if (navGate) navGate.textContent = data.pending_approvals_count;
+    if (navGate) navGate.textContent = data.pending_approvals_count || 0;
+
+    // Telemetry stats
+    const tel = data.telemetry || {};
+    document.getElementById('secEvaluated').textContent = tel.available ? tel.evaluated_count.toLocaleString() : '—';
+    document.getElementById('secDenied').textContent = tel.available ? tel.denied_count.toLocaleString() : '—';
+    document.getElementById('secSignoffs').textContent = tel.available ? tel.signoffs_count.toLocaleString() : '—';
+    document.getElementById('secIntercepts').textContent = tel.available ? tel.boundary_intercepts.toLocaleString() : '—';
+
+    const secTag = document.getElementById('secStatusTag');
+    if (secTag) {
+      if (!tel.available) {
+        secTag.className = 'tag';
+        secTag.textContent = 'TELEMETRY UNAVAILABLE';
+      } else if (tel.status === 'HEALTHY') {
+        secTag.className = 'tag green';
+        secTag.textContent = 'TELEMETRY ACTIVE (CHAIN VERIFIED)';
+      } else {
+        secTag.className = 'tag red';
+        secTag.textContent = 'INTEGRITY DEGRADED';
+      }
+    }
   } catch (e) {
     console.error('Failed to load security:', e);
   }
 }
 
-async function resolveApproval(elemIdx, isApproved, agentId, pathPattern) {
+async function resolveApproval(isApproved, agentId, pathPattern) {
   if (!window._currentRepoId) return;
   const endpoint = isApproved ? 'approve' : 'reject';
   try {
@@ -2710,8 +3122,9 @@ async function resolveApproval(elemIdx, isApproved, agentId, pathPattern) {
 // 7. Cryptographic Audit Ledger
 async function loadAudit() {
   if (!window._currentRepoId) return;
+  const filter = document.getElementById('auditFilter')?.value || 'All';
   try {
-    const res = await fetch(`/api/repo/${window._currentRepoId}/audit/records?limit=40`);
+    const res = await fetch(`/api/repo/${window._currentRepoId}/audit/records?limit=50&status=${encodeURIComponent(filter)}`);
     if (!res.ok) return;
     const data = await res.json();
 
@@ -2723,61 +3136,64 @@ async function loadAudit() {
       } else {
         data.records.forEach((r, idx) => {
           const tr = tbody.insertRow();
-          tr.dataset.status = r.status?.toUpperCase() || 'ALLOW';
+          const isAllow = (r.status || '').toUpperCase() === 'ALLOW';
           tr.innerHTML = `
             <td class="mono">#${r.entry_index || (idx + 1)}</td>
-            <td class="mono">${r.timestamp ? r.timestamp.split('T')[1]?.split('.')[0] || r.timestamp : '—'}</td>
-            <td>${r.event_type || 'event'}</td>
-            <td>${r.agent_id || 'system'}</td>
-            <td class="mono">${r.target || r.action || '—'}</td>
-            <td><span class="tag ${r.status?.toUpperCase() === 'ALLOW' ? 'green' : 'red'}">${r.status?.toUpperCase() || 'ALLOW'}</span></td>
-            <td class="mono">${r.hash ? r.hash.slice(0, 8) + '…' + r.hash.slice(-4) : '—'}</td>
+            <td class="mono">${r.timestamp ? escapeHtml(r.timestamp.split('T')[1]?.split('.')[0] || r.timestamp) : '—'}</td>
+            <td>${escapeHtml(r.event_type || 'event')}</td>
+            <td>${escapeHtml(r.agent_id || 'system')}</td>
+            <td class="mono">${escapeHtml(r.target || r.action || '—')}</td>
+            <td><span class="tag ${isAllow ? 'green' : 'red'}">${escapeHtml(r.status || 'ALLOW')}</span></td>
+            <td class="mono">${r.hash ? escapeHtml(r.hash.slice(0, 8) + '…' + r.hash.slice(-4)) : '—'}</td>
           `;
         });
       }
     }
+
+    verifyAuditChain(false);
   } catch (e) {
     console.error('Failed to load audit records:', e);
   }
 }
 
-async function verifyAuditChain() {
+async function verifyAuditChain(showToast = true) {
   if (!window._currentRepoId) return;
-  const statusEl = document.getElementById('auditChainStatus');
-  const badge = document.getElementById('auditStatus');
-
-  if (badge) {
-    badge.className = 'tag amber';
-    badge.textContent = 'VALIDATING CHAIN...';
-  }
-  if (statusEl) {
-    statusEl.textContent = 'CHECKING SHA-256 BLOCKS...';
-    statusEl.style.color = 'var(--amber)';
-  }
-
   try {
     const res = await fetch(`/api/repo/${window._currentRepoId}/audit/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
     const data = await res.json();
+    const badge = document.getElementById('auditStatus');
+    const statusEl = document.getElementById('auditChainStatus');
+    const detailEl = document.getElementById('auditChainDetail');
+    const iconEl = document.getElementById('auditCheckIcon');
 
     if (badge) {
       badge.className = data.is_valid ? 'tag green' : 'tag red';
       badge.textContent = data.is_valid ? 'INTEGRITY VERIFIED' : 'INTEGRITY FAILED';
     }
     if (statusEl) {
-      statusEl.textContent = data.is_valid ? `PASSED (${data.count} Records Intact)` : `FAILED (${data.message})`;
+      statusEl.textContent = data.is_valid ? 'PASSED' : 'FAILED';
       statusEl.style.color = data.is_valid ? 'var(--green)' : 'var(--red)';
     }
+    if (detailEl) {
+      detailEl.textContent = data.message || `${data.count || 0} events verified.`;
+    }
+    if (iconEl) {
+      iconEl.textContent = data.is_valid ? '✓' : '✕';
+      iconEl.style.color = data.is_valid ? 'var(--green)' : 'var(--red)';
+    }
 
-    toast(data.is_valid ? `Cryptographic SHA-256 hash chain verified: ${data.count} records intact!` : `Audit chain error: ${data.message}`);
+    if (showToast) {
+      toast(data.is_valid ? `Cryptographic audit chain verified: ${data.count} records intact!` : `Verification alert: ${data.message}`);
+    }
   } catch (err) {
-    toast(`Verification request error: ${err.message}`);
+    if (showToast) toast(`Verification request error: ${err.message}`);
   }
 }
 
-// Global search bar shortcuts
+// Global search bar
 document.getElementById('globalSearch')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const q = e.target.value.toLowerCase().trim();
@@ -2786,7 +3202,11 @@ document.getElementById('globalSearch')?.addEventListener('keydown', e => {
     if (/lock|lease|concur/i.test(q)) showPage('locks');
     else if (/audit|hash|tamper|ledger/i.test(q)) showPage('audit');
     else if (/memory|lesson|invari|root/i.test(q)) showPage('memory');
-    else if (/graph|ast|caller|callee|impact/i.test(q)) showPage('graph');
+    else if (/graph|ast|caller|callee|impact/i.test(q)) {
+      showPage('graph');
+      document.getElementById('symbolQuery').value = e.target.value;
+      searchGraphNode();
+    }
     else if (/gate|security|firewall|protect/i.test(q)) showPage('security');
     else {
       showPage('resolver');
@@ -2804,7 +3224,809 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Boot Dashboard
+// First-Run Indexing
+async function triggerIndex() {
+  if (!window._currentRepoId) return;
+  const btn = document.getElementById('btnIndexNow');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Indexing Codebase AST...';
+  }
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      toast(`Indexing Complete! ${data.node_count} AST nodes and ${data.edge_count} edges.`);
+      await initRepositories();
+      setActiveRepository(window._currentRepoId);
+    } else {
+      toast(`Indexing failed: ${data.error || 'Unknown error'}`);
+    }
+  } catch (e) {
+    toast(`Indexing request error: ${e.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚡ Index Repository Now';
+    }
+  }
+}
+
+// Repository Initialization & Switcher
+// =========================================================================
+// 8. RUNS & TRACE EXPLORER
+// =========================================================================
+
+async function loadRuns() {
+  if (!window._currentRepoId) return;
+  const status = document.getElementById('runsFilterStatus')?.value || 'ALL';
+  const arm = document.getElementById('runsFilterArm')?.value || 'ALL';
+  const search = encodeURIComponent(document.getElementById('runsSearch')?.value || '');
+  const tbody = document.getElementById('runsTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:18px;">Loading execution traces...</td></tr>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/runs?status=${status}&arm=${arm}&search=${search}&limit=100`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const runs = data.runs || [];
+
+    // Update Nav Count
+    const navBadge = document.getElementById('navRunCount');
+    if (navBadge) navBadge.textContent = data.total || runs.length;
+
+    // Update Showing Count
+    const countEl = document.getElementById('runsShowingCount');
+    if (countEl) countEl.textContent = `Showing ${runs.length} of ${data.total || runs.length} runs`;
+
+    // Compute Stat Cards
+    let successCount = 0;
+    let totalDur = 0;
+    let totalTokens = 0;
+    runs.forEach(r => {
+      if (r.status === 'SUCCESS') successCount++;
+      totalDur += (r.duration_seconds || 0);
+      totalTokens += (r.total_tokens || 0);
+    });
+
+    const totalEl = document.getElementById('runsTotalCount');
+    if (totalEl) totalEl.textContent = data.total || runs.length;
+
+    const rateEl = document.getElementById('runsSuccessRate');
+    if (rateEl) {
+      const rate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : 0;
+      rateEl.textContent = `${rate}%`;
+    }
+    const rateSub = document.getElementById('runsSuccessSub');
+    if (rateSub) rateSub.textContent = `${successCount} passed / ${runs.length - successCount} other`;
+
+    const avgDurEl = document.getElementById('runsAvgDuration');
+    if (avgDurEl) {
+      avgDurEl.textContent = runs.length > 0 ? formatDuration(totalDur / runs.length) : '—';
+    }
+
+    const tokEl = document.getElementById('runsTotalTokens');
+    if (tokEl) tokEl.textContent = totalTokens.toLocaleString();
+
+    tbody.innerHTML = '';
+    if (runs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No runs recorded. Click "⚡ Sync Benchmark Runs" to ingest canonical benchmark traces.</td></tr>';
+      return;
+    }
+
+    runs.forEach(r => {
+      const tr = document.createElement('tr');
+      const isTreat = r.arm === 'treatment';
+      const armTag = r.arm ? `<span class="tag ${isTreat ? 'cyan' : 'amber'}">${escapeHtml(r.arm.toUpperCase())}</span>` : '—';
+      const statusClass = r.status === 'SUCCESS' ? 'green' : (r.status === 'FAILED' ? 'red' : 'blue');
+      const started = r.started_at ? r.started_at.replace('T', ' ').substring(0, 19) : '—';
+      const pTok = (r.prompt_tokens || 0).toLocaleString();
+      const cTok = (r.completion_tokens || 0).toLocaleString();
+      const tTok = (r.total_tokens || 0).toLocaleString();
+
+      tr.innerHTML = `
+        <td class="mono" style="color:var(--cyan);font-weight:600;cursor:pointer" onclick="viewRunTrace('${escapeHtml(r.run_id)}')" title="View execution trace">${escapeHtml(r.run_id)}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.task_description || r.task_id)}">${escapeHtml(r.task_id || r.task_description || '—')}</td>
+        <td>${armTag}</td>
+        <td class="mono muted" style="font-size:10.5px">${escapeHtml(r.model_id || '—')}</td>
+        <td><span class="tag ${statusClass}">${escapeHtml(r.status)}</span></td>
+        <td class="mono">${formatDuration(r.duration_seconds)}</td>
+        <td class="mono muted" style="font-size:10.5px" title="Prompt / Completion / Total">${pTok} / ${cTok} / <strong>${tTok}</strong></td>
+        <td class="mono muted" style="font-size:10px">${escapeHtml(started)}</td>
+        <td><button class="btn" style="padding:3px 8px;font-size:10px" onclick="viewRunTrace('${escapeHtml(r.run_id)}')">Trace</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;color:var(--red);padding:18px;">Error loading runs: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+async function viewRunTrace(runId) {
+  if (!window._currentRepoId || !runId) return;
+  const modal = document.getElementById('runDetailModal');
+  const wf = document.getElementById('modalRunWaterfall');
+  const statsEl = document.getElementById('modalRunStats');
+  const ctxBtn = document.getElementById('modalRunContextBtn');
+
+  if (!modal || !wf) return;
+  wf.innerHTML = '<div class="muted mono" style="padding:16px">Loading span waterfall...</div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/runs/${runId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const run = await res.json();
+
+    document.getElementById('modalRunId').textContent = run.run_id;
+    document.getElementById('modalRunTask').textContent = run.task_description || run.task_id || 'Agent Execution Task';
+
+    const pTok = (run.prompt_tokens || 0).toLocaleString();
+    const cTok = (run.completion_tokens || 0).toLocaleString();
+    const tTok = (run.total_tokens || 0).toLocaleString();
+
+    statsEl.innerHTML = `
+      <div class="stat"><div class="stat-label">Status</div><div class="stat-value" style="color:var(--${run.status === 'SUCCESS' ? 'green' : 'red'})">${escapeHtml(run.status)}</div><div class="stat-sub">${escapeHtml(run.arm || 'standard')}</div></div>
+      <div class="stat"><div class="stat-label">Duration</div><div class="stat-value">${formatDuration(run.duration_seconds)}</div><div class="stat-sub">Wall clock time</div></div>
+      <div class="stat"><div class="stat-label">Total Tokens</div><div class="stat-value">${tTok}</div><div class="stat-sub">${pTok} in / ${cTok} out</div></div>
+      <div class="stat"><div class="stat-label">Model</div><div class="stat-value mono" style="font-size:13px">${escapeHtml(run.model_id || '—')}</div><div class="stat-sub">${escapeHtml(run.provider_name || 'agy')}</div></div>
+    `;
+
+    // Linked Context Envelope Button
+    if (run.context_envelopes && run.context_envelopes.length > 0) {
+      const envId = run.context_envelopes[0].envelope_id;
+      ctxBtn.style.display = 'inline-block';
+      ctxBtn.onclick = () => {
+        toggleModal('runDetailModal');
+        showContextEnvelope(envId);
+      };
+    } else {
+      ctxBtn.style.display = 'none';
+    }
+
+    // Render Span Waterfall Steps
+    const events = run.events || [];
+    wf.innerHTML = '';
+    if (events.length === 0) {
+      wf.innerHTML = '<div class="muted mono" style="padding:16px">No structured span events recorded for this run.</div>';
+      return;
+    }
+
+    let t0 = null;
+    try {
+      t0 = new Date(events[0].timestamp).getTime();
+    } catch (_) {}
+
+    events.forEach(ev => {
+      let offsetStr = '+0.00s';
+      if (t0 != null) {
+        try {
+          const tCur = new Date(ev.timestamp).getTime();
+          const diffSec = Math.max(0, (tCur - t0) / 1000);
+          offsetStr = `+${diffSec.toFixed(2)}s`;
+        } catch (_) {}
+      }
+
+      const isFail = ev.event_type.includes('fail') || ev.event_type.includes('deny');
+      const stepDiv = document.createElement('div');
+      stepDiv.className = `waterfall-step ${isFail ? 'fail' : ''}`;
+
+      const pldJson = JSON.stringify(ev.payload || {}, null, 2);
+
+      let stepDurBadge = '';
+      if (ev.payload && ev.payload.duration_seconds != null) {
+        stepDurBadge = `<span class="tag green" style="font-size:9.5px;margin-left:6px">${formatDuration(ev.payload.duration_seconds)}</span>`;
+      }
+
+      stepDiv.innerHTML = `
+        <div class="row" style="margin-bottom:4px">
+          <span class="tag ${isFail ? 'red' : 'blue'}" style="font-weight:600">${escapeHtml(ev.event_type)}</span>
+          ${stepDurBadge}
+          <span class="mono muted" style="font-size:10px">Step #${ev.seq} · ${offsetStr}</span>
+          <span class="spacer"></span>
+          <span class="mono muted" style="font-size:9.5px">${escapeHtml(ev.timestamp.replace('T', ' ').substring(0, 19))}</span>
+        </div>
+        <div class="mono" style="font-size:10.5px;color:#c0cbe0;background:#0b0e16;padding:6px 10px;border-radius:4px;overflow-x:auto;">
+          <pre style="margin:0;white-space:pre-wrap;">${escapeHtml(pldJson)}</pre>
+        </div>
+      `;
+      wf.appendChild(stepDiv);
+    });
+
+  } catch (e) {
+    wf.innerHTML = `<div class="muted mono" style="color:var(--red);padding:16px">Failed to load run details: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function syncBenchmarkRuns() {
+  if (!window._currentRepoId) return;
+  try {
+    toast("Syncing canonical benchmark runs into registry...");
+    const res = await fetch(`/api/repo/${window._currentRepoId}/runs/sync_benchmarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    toast(data.message || `Synced ${data.synced_count} runs`);
+    loadRuns();
+  } catch (e) {
+    toast(`Sync failed: ${e.message}`);
+  }
+}
+
+// =========================================================================
+// 9. CONTEXT INSPECTOR
+// =========================================================================
+
+async function loadContextInspector() {
+  await loadContextEnvelopesList();
+}
+
+async function loadContextEnvelopesList() {
+  if (!window._currentRepoId) return;
+  const select = document.getElementById('contextEnvelopeSelect');
+  const diffBase = document.getElementById('diffBaseSelect');
+  const diffTarget = document.getElementById('diffTargetSelect');
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/context?limit=50`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const envelopes = data.envelopes || [];
+
+    if (select) {
+      select.innerHTML = '';
+      if (diffBase) diffBase.innerHTML = '';
+      if (diffTarget) diffTarget.innerHTML = '';
+
+      if (envelopes.length === 0) {
+        select.innerHTML = '<option value="">No recorded context envelopes. Run Zero-Path resolution first.</option>';
+        document.getElementById('contextOverviewBody').innerHTML = '<div class="muted mono" style="padding:24px;text-align:center;">No context envelopes recorded yet. Use the Zero-Path Resolver tab to resolve task context.</div>';
+        return;
+      }
+
+      envelopes.forEach((env, idx) => {
+        const promptShort = env.prompt.length > 50 ? env.prompt.substring(0, 50) + '...' : env.prompt;
+        const opt = document.createElement('option');
+        opt.value = env.envelope_id;
+        opt.textContent = `[${env.envelope_id}] ${promptShort} (${env.actual_tokens || 0} tok)`;
+        select.appendChild(opt);
+
+        if (diffBase) {
+          const bOpt = opt.cloneNode(true);
+          diffBase.appendChild(bOpt);
+        }
+        if (diffTarget) {
+          const tOpt = opt.cloneNode(true);
+          diffTarget.appendChild(tOpt);
+        }
+      });
+
+      // Default target to 2nd if available
+      if (diffTarget && envelopes.length > 1) {
+        diffTarget.selectedIndex = 1;
+      }
+
+      // Auto-load first envelope
+      loadContextDetail(envelopes[0].envelope_id);
+    }
+  } catch (e) {
+    console.error('Failed to list context envelopes:', e);
+  }
+}
+
+async function loadContextDetail(envId) {
+  if (!window._currentRepoId || !envId) return;
+  const overview = document.getElementById('contextOverviewBody');
+  const targets = document.getElementById('contextTargetsBody');
+  const memories = document.getElementById('contextMemoriesBody');
+  const candidatesBody = document.getElementById('contextCandidatesBody');
+  const budgetBadge = document.getElementById('contextBudgetBadge');
+
+  overview.innerHTML = '<div class="muted mono" style="padding:16px;text-align:center;">Loading context envelope...</div>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/context/${envId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const env = await res.json();
+
+    window._activeEnvelope = env;
+
+    // Overview card & Budget utilization
+    const actTok = env.actual_tokens || 0;
+    const budTok = env.token_budget || 1500;
+    const pct = Math.min(100, Math.round((actTok / budTok) * 100));
+
+    if (budgetBadge) {
+      budgetBadge.innerHTML = `<span class="tag cyan">${actTok} / ${budTok} tokens (${pct}%)</span>`;
+    }
+
+    overview.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="row">
+          <strong class="mono" style="color:var(--cyan)">Envelope ID: ${escapeHtml(env.envelope_id)}</strong>
+          <span class="spacer"></span>
+          <span class="tag purple">${escapeHtml(env.mode || 'Deterministic AST + BM25')}</span>
+          <span class="mono muted" style="font-size:10px">${escapeHtml(env.created_at ? env.created_at.substring(0, 19).replace('T', ' ') : '—')}</span>
+        </div>
+        <div style="background:#090c13;padding:10px 14px;border-radius:6px;border:1px solid #1a2233">
+          <div class="mono muted" style="font-size:10px;margin-bottom:4px">INJECTED TASK DIRECTIVE:</div>
+          <div style="font-size:12.5px;color:#e1ebff">${escapeHtml(env.prompt)}</div>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:4px;font-size:11px">
+            <span class="muted">Token Budget Utilization:</span>
+            <span class="mono" style="font-weight:600">${actTok} / ${budTok} tokens</span>
+          </div>
+          <div class="meter" style="height:8px"><span style="width:${pct}%;background:${pct > 90 ? 'var(--amber)' : 'var(--cyan)'}"></span></div>
+        </div>
+      </div>
+    `;
+
+    // Targets & Symbols
+    const resolvedFiles = env.resolved_files || [];
+    const resolvedSymbols = env.resolved_symbols || [];
+    const testFiles = env.test_files || [];
+
+    document.getElementById('contextTargetCount').textContent = `${resolvedFiles.length} Target Files`;
+
+    let targetHtml = '<div style="margin-bottom:10px"><strong style="color:#9ab0d3;font-size:11px">TARGET FILES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
+    if (resolvedFiles.length === 0) targetHtml += '<li class="muted">None selected</li>';
+    resolvedFiles.forEach(f => {
+      targetHtml += `<li class="mono" style="margin-bottom:4px"><a href="#" onclick="return false;" style="color:var(--cyan)">📄 ${escapeHtml(f)}</a></li>`;
+    });
+    targetHtml += '</ul></div>';
+
+    targetHtml += '<div style="margin-bottom:10px"><strong style="color:#9ab0d3;font-size:11px">SEED AST SYMBOLS:</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">';
+    if (resolvedSymbols.length === 0) targetHtml += '<span class="muted">None</span>';
+    resolvedSymbols.forEach(s => {
+      targetHtml += `<span class="tag blue mono" style="font-size:10px">◈ ${escapeHtml(s)}</span>`;
+    });
+    targetHtml += '</div></div>';
+
+    targetHtml += '<div><strong style="color:#9ab0d3;font-size:11px">CO-LOCATED TEST SUITES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
+    if (testFiles.length === 0) targetHtml += '<li class="muted">None co-located</li>';
+    testFiles.forEach(tf => {
+      targetHtml += `<li class="mono" style="margin-bottom:4px"><span style="color:#5ce6a1">🧪 ${escapeHtml(tf)}</span></li>`;
+    });
+    targetHtml += '</ul></div>';
+
+    targets.innerHTML = targetHtml;
+
+    // Epistemic Memories
+    const mems = env.memory_entries || [];
+    document.getElementById('contextMemCount').textContent = `${mems.length} Memories`;
+
+    if (mems.length === 0) {
+      memories.innerHTML = '<div class="muted mono" style="padding:14px;text-align:center;">No past epistemic lessons recalled for this intent.</div>';
+    } else {
+      let mHtml = '<div style="display:flex;flex-direction:column;gap:8px">';
+      mems.forEach(m => {
+        mHtml += `
+          <div style="background:#0c101a;padding:8px 12px;border-radius:6px;border:1px solid #1c2538">
+            <div class="row" style="margin-bottom:3px">
+              <span class="tag violet">${escapeHtml(m.tier || 'learned')}</span>
+              <span class="mono muted" style="font-size:9.5px">${escapeHtml(m.source || 'agentmem')}</span>
+            </div>
+            <div style="font-size:11.5px;color:#d5e0f5">${escapeHtml(m.summary || m.content || '')}</div>
+          </div>
+        `;
+      });
+      mHtml += '</div>';
+      memories.innerHTML = mHtml;
+    }
+
+    // Candidates Ranking Signals Table
+    const candidates = env.candidates || [];
+    document.getElementById('contextCandidatesCount').textContent = `${candidates.length} Candidates`;
+    candidatesBody.innerHTML = '';
+
+    if (candidates.length === 0) {
+      candidatesBody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px;">No ranked candidates available for this envelope.</td></tr>';
+      return;
+    }
+
+    const maxScore = Math.max(...candidates.map(c => c.score || 0), 1);
+
+    candidates.forEach(c => {
+      const tr = document.createElement('tr');
+      const score = (c.score || 0).toFixed(2);
+      const scorePct = Math.round((c.score / maxScore) * 100);
+
+      const signalsHtml = (c.signals || []).map(s => {
+        return `<span class="tag cyan" style="font-size:9.5px;margin-right:4px;padding:1px 5px;" title="Weight: ${s.weight}">${escapeHtml(s.signal)}</span>`;
+      }).join('') || (c.reasons || []).map(r => `<span class="tag blue" style="font-size:9.5px">${escapeHtml(r)}</span>`).join('');
+
+      tr.innerHTML = `
+        <td class="mono" style="font-weight:600;color:var(--text)">${escapeHtml(c.name || c.node_id)}</td>
+        <td class="mono muted" style="font-size:10.5px">${escapeHtml(c.path || '—')}</td>
+        <td><span class="tag purple" style="font-size:9.5px">${escapeHtml(c.kind || 'Symbol')}</span></td>
+        <td class="mono muted" style="font-size:10.5px">${escapeHtml(c.source || 'AST Graph')}</td>
+        <td class="mono">
+          <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${scorePct}%"></div></div>
+          <strong>${score}</strong>
+        </td>
+        <td><div style="display:flex;flex-wrap:wrap;gap:3px">${signalsHtml}</div></td>
+      `;
+      candidatesBody.appendChild(tr);
+    });
+
+  } catch (e) {
+    overview.innerHTML = `<div class="muted mono" style="color:var(--red);padding:16px">Failed to load envelope: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function showContextEnvelope(envId) {
+  showPage('context');
+  const sel = document.getElementById('contextEnvelopeSelect');
+  if (sel) sel.value = envId;
+  loadContextDetail(envId);
+}
+
+function openContextDiffModal() {
+  const modal = document.getElementById('contextDiffModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+async function computeContextDiff() {
+  const base = document.getElementById('diffBaseSelect')?.value;
+  const target = document.getElementById('diffTargetSelect')?.value;
+  const container = document.getElementById('diffResultsBody');
+
+  if (!base || !target) {
+    toast("Select both Base and Target context envelopes to compare.");
+    return;
+  }
+  if (base === target) {
+    toast("Select two different context envelopes to compare.");
+    return;
+  }
+
+  container.innerHTML = '<div class="muted mono" style="text-align:center;padding:24px;">Computing context diff...</div>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/context/diff?base=${base}&target=${target}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const diff = await res.json();
+
+    const tokDelta = diff.tokens.delta;
+    const tokClass = tokDelta > 0 ? 'red' : (tokDelta < 0 ? 'green' : 'blue');
+    const tokSign = tokDelta > 0 ? `+${tokDelta}` : `${tokDelta}`;
+
+    let html = `
+      <div class="stats" style="grid-template-columns: repeat(3, 1fr)">
+        <div class="stat"><div class="stat-label">Base Tokens</div><div class="stat-value">${diff.tokens.base}</div><div class="stat-sub">${escapeHtml(diff.base_envelope_id)}</div></div>
+        <div class="stat"><div class="stat-label">Target Tokens</div><div class="stat-value">${diff.tokens.target}</div><div class="stat-sub">${escapeHtml(diff.target_envelope_id)}</div></div>
+        <div class="stat"><div class="stat-label">Token Delta</div><div class="stat-value" style="color:var(--${tokClass})">${tokSign}</div><div class="stat-sub">Tokens difference</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head"><h2>Target Files Diff</h2></div>
+          <div class="panel-body mono" style="font-size:11px">
+            <div style="margin-bottom:6px"><span class="diff-add">+ Added (${diff.files.added.length}):</span> ${diff.files.added.map(f => `<span class="tag green">${escapeHtml(f)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+            <div style="margin-bottom:6px"><span class="diff-del">- Removed (${diff.files.removed.length}):</span> ${diff.files.removed.map(f => `<span class="tag red">${escapeHtml(f)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+            <div><span class="muted mono">Common (${diff.files.retained.length}):</span> ${diff.files.retained.map(f => `<span class="tag blue">${escapeHtml(f)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Symbols Diff</h2></div>
+          <div class="panel-body mono" style="font-size:11px">
+            <div style="margin-bottom:6px"><span class="diff-add">+ Added (${diff.symbols.added.length}):</span> ${diff.symbols.added.map(s => `<span class="tag green">${escapeHtml(s)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+            <div style="margin-bottom:6px"><span class="diff-del">- Removed (${diff.symbols.removed.length}):</span> ${diff.symbols.removed.map(s => `<span class="tag red">${escapeHtml(s)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+            <div><span class="muted mono">Common (${diff.symbols.retained.length}):</span> ${diff.symbols.retained.map(s => `<span class="tag blue">${escapeHtml(s)}</span>`).join(' ') || '<span class="muted">None</span>'}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Candidate score deltas
+    const cDiffs = diff.candidate_score_diffs || [];
+    if (cDiffs.length > 0) {
+      html += `
+        <div class="panel">
+          <div class="panel-head"><h2>Candidate Score Deltas</h2><span class="tag cyan">${cDiffs.length} evaluated</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Candidate</th><th>Status</th><th>Base Score</th><th>Target Score</th><th>Score Delta</th></tr></thead>
+              <tbody>
+      `;
+      cDiffs.forEach(cd => {
+        const dClass = cd.status === 'ADDED' ? 'green' : (cd.status === 'REMOVED' ? 'red' : 'amber');
+        const dSign = cd.score_delta > 0 ? `+${cd.score_delta}` : `${cd.score_delta}`;
+        html += `
+          <tr>
+            <td class="mono"><strong>${escapeHtml(cd.name)}</strong></td>
+            <td><span class="tag ${dClass}">${escapeHtml(cd.status)}</span></td>
+            <td class="mono">${cd.score_base != null ? cd.score_base : '—'}</td>
+            <td class="mono">${cd.score_target != null ? cd.score_target : '—'}</td>
+            <td class="mono" style="font-weight:600;color:var(--${cd.score_delta > 0 ? 'green' : (cd.score_delta < 0 ? 'red' : 'muted')})">${dSign}</td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table></div></div>`;
+    }
+
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div class="muted mono" style="color:var(--red);text-align:center;padding:16px;">Failed to compute diff: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// =========================================================================
+// 10. EVALUATION STUDIO
+// =========================================================================
+
+async function loadEvaluationStudio() {
+  if (!window._currentRepoId) return;
+  const select = document.getElementById('evalExperimentSelect');
+  if (!select) return;
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/evaluations`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const experiments = data.experiments || [];
+
+    select.innerHTML = '';
+    if (experiments.length === 0) {
+      select.innerHTML = '<option value="">No benchmark evaluations found for repository</option>';
+      document.getElementById('evalTasksTableBody').innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">No evaluation dataset found in repository benchmarks/data directory.</td></tr>';
+      return;
+    }
+
+    experiments.forEach(exp => {
+      const opt = document.createElement('option');
+      opt.value = exp.id;
+      opt.textContent = `${exp.title || exp.id} (${exp.model_name || 'Benchmark'})`;
+      select.appendChild(opt);
+    });
+
+    loadEvaluationDetail(experiments[0].id);
+  } catch (e) {
+    console.error('Failed to load evaluations list:', e);
+  }
+}
+
+async function loadEvaluationDetail(expId) {
+  if (!window._currentRepoId || !expId) return;
+  const tbody = document.getElementById('evalTasksTableBody');
+  tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">Loading paired task evaluations...</td></tr>';
+
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/evaluations/${expId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    window._currentEvalData = data;
+
+    // Stat Cards
+    const summary = data.summary || {};
+    const eff = summary.efficacy_metrics || {};
+    const pairedTasks = data.paired_tasks || [];
+
+    // Success Rate Card
+    const baseSuccess = eff.baseline_success_rate != null ? Math.round(eff.baseline_success_rate * 100) : null;
+    const treatSuccess = eff.treatment_success_rate != null ? Math.round(eff.treatment_success_rate * 100) : null;
+    const successCard = document.getElementById('evalSuccessRate');
+    if (successCard) {
+      if (baseSuccess != null && treatSuccess != null) {
+        successCard.textContent = `${treatSuccess}% (vs ${baseSuccess}%)`;
+      } else {
+        successCard.textContent = `${pairedTasks.length} Paired Tasks`;
+      }
+    }
+    const successSub = document.getElementById('evalSuccessSub');
+    if (successSub) {
+      successSub.textContent = `Baseline ${eff.baseline_success_count || '—'} / Treatment ${eff.treatment_success_count || '—'} tasks`;
+    }
+
+    // Token Reduction Card
+    const tokReduction = eff.token_reduction_pct != null ? eff.token_reduction_pct : (data.token_stats ? data.token_stats.overall_token_saving_pct : null);
+    const tokCard = document.getElementById('evalTokenReduction');
+    if (tokCard) {
+      tokCard.textContent = tokReduction != null ? `${tokReduction.toFixed(1)}%` : '—';
+    }
+    const tokSub = document.getElementById('evalTokenSub');
+    if (tokSub && data.token_stats) {
+      tokSub.textContent = `${(data.token_stats.baseline_total || 0).toLocaleString()} base → ${(data.token_stats.treatment_total || 0).toLocaleString()} treat`;
+    }
+
+    // Latency Distribution Card
+    const latCard = document.getElementById('evalDurationDelta');
+    const latStats = data.latency_stats || {};
+    if (latCard) {
+      const durDelta = eff.duration_delta_sec != null ? eff.duration_delta_sec : (latStats.treatment && latStats.baseline && latStats.treatment.p50 != null && latStats.baseline.p50 != null ? (latStats.treatment.p50 - latStats.baseline.p50).toFixed(1) : null);
+      latCard.textContent = durDelta != null ? `${durDelta > 0 ? '+' : ''}${durDelta}s` : '—';
+    }
+    const latSub = document.getElementById('evalDurationSub');
+    if (latSub && latStats.treatment && latStats.baseline) {
+      latSub.textContent = `p50: ${latStats.baseline.p50 || '—'}s base → ${latStats.treatment.p50 || '—'}s treat`;
+    }
+
+    // Regressions / Improvements Card
+    const regCard = document.getElementById('evalRegressionsCount');
+    if (regCard) {
+      regCard.textContent = `${data.regressions_count || 0} Reg / ${data.improvements_count || 0} Imp`;
+    }
+    const regSub = document.getElementById('evalRegressionsSub');
+    if (regSub) {
+      regSub.textContent = `${pairedTasks.length} total paired runs evaluated`;
+    }
+
+    renderPairedTasksTable();
+
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;color:var(--red);padding:24px;">Error loading evaluation: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderPairedTasksTable() {
+  const data = window._currentEvalData;
+  if (!data) return;
+  const filter = document.getElementById('evalFilterClassification')?.value || 'ALL';
+  const tbody = document.getElementById('evalTasksTableBody');
+  if (!tbody) return;
+
+  const paired = data.paired_tasks || [];
+  const filtered = paired.filter(p => {
+    if (filter === 'ALL') return true;
+    return p.classification === filter;
+  });
+
+  tbody.innerHTML = '';
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">No paired tasks match filter "${escapeHtml(filter)}".</td></tr>`;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const tr = document.createElement('tr');
+    const cl = p.classification;
+    const clTag = cl === 'REGRESSION' ? '<span class="tag red">REGRESSION</span>' :
+                  (cl === 'IMPROVEMENT' ? '<span class="tag green">IMPROVEMENT</span>' :
+                  (cl === 'BOTH_SUCCESS' ? '<span class="tag blue">BOTH PASSED</span>' : '<span class="tag amber">BOTH FAILED</span>'));
+
+    const b = p.baseline || {};
+    const t = p.treatment || {};
+
+    const bTokens = (b.total_tokens || 0).toLocaleString();
+    const tTokens = (t.total_tokens || 0).toLocaleString();
+    const tokSavings = p.token_savings_pct != null ? `${p.token_savings_pct.toFixed(1)}%` : '—';
+    const tokClass = p.token_savings_pct > 0 ? 'green' : (p.token_savings_pct < 0 ? 'red' : 'muted');
+
+    const bDur = formatDuration(b.duration_seconds);
+    const tDur = formatDuration(t.duration_seconds);
+
+    let durBadge = '—';
+    if (p.duration_delta_sec != null) {
+      const delta = p.duration_delta_sec;
+      const isFaster = delta < 0;
+      const sign = delta > 0 ? '+' : '';
+      const cls = isFaster ? 'green' : (delta > 0 ? 'red' : 'muted');
+      durBadge = `<span class="tag ${cls}">${sign}${delta.toFixed(1)}s</span>`;
+    }
+
+    tr.innerHTML = `
+      <td class="mono" style="font-weight:600;color:var(--text)">${escapeHtml(p.task_id)}</td>
+      <td>${clTag}</td>
+      <td class="mono muted" style="font-size:11.5px">
+        ${bTokens} → <strong style="color:var(--text)">${tTokens}</strong>
+        <span class="tag ${tokClass}" style="margin-left:6px;font-size:10px">${tokSavings}</span>
+      </td>
+      <td class="mono" style="font-size:11.5px">
+        <span class="muted">${bDur}</span> → <strong style="color:var(--cyan)">${tDur}</strong>
+      </td>
+      <td>${durBadge}</td>
+      <td>
+        <button class="btn" style="padding:3px 7px;font-size:10px" onclick="viewRunTrace('${escapeHtml(t.run_id)}')" title="View Chronos treatment trace">Chronos Trace</button>
+        <button class="btn" style="padding:3px 7px;font-size:10px" onclick="viewRunTrace('${escapeHtml(b.run_id)}')" title="View baseline trace">Baseline Trace</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function exportEvaluation(fmt) {
+  if (!window._currentRepoId) return;
+  const expId = document.getElementById('evalExperimentSelect')?.value;
+  if (!expId) {
+    toast("Please select an evaluation experiment to export.");
+    return;
+  }
+  toast(`Exporting ${expId} as ${fmt.toUpperCase()}...`);
+  window.location.href = `/api/repo/${window._currentRepoId}/evaluations/${expId}/export?format=${fmt}`;
+}
+
+async function initRepositories() {
+  try {
+    const res = await fetch('/api/repos');
+    if (!res.ok) return;
+    const data = await res.json();
+    window._reposList = data.repos || [];
+
+    const switcher = document.getElementById('repoSwitcher');
+    if (switcher) {
+      switcher.innerHTML = '';
+      window._reposList.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.name}`;
+        switcher.appendChild(opt);
+      });
+    }
+
+    const match = window.location.pathname.match(/\/repo\/([^/?#]+)/);
+    let targetId = match ? match[1] : (data.default_repo_id || (window._reposList[0]?.id));
+
+    if (targetId) {
+      setActiveRepository(targetId);
+    }
+  } catch (e) {
+    console.error('Failed to init repos:', e);
+  }
+}
+
+function setActiveRepository(repoId) {
+  window._currentRepoId = repoId;
+  const repo = window._reposList.find(r => r.id === repoId) || {
+    id: repoId,
+    name: repoId.split('-')[0] || "Repository",
+    root: "",
+    canonical_root: "",
+    is_indexed: false,
+    branch: "main",
+    commit: "HEAD",
+  };
+  window._currentRepo = repo;
+
+  const switcher = document.getElementById('repoSwitcher');
+  if (switcher && switcher.value !== repoId) switcher.value = repoId;
+
+  const titleEl = document.getElementById('activeRepoTitle');
+  if (titleEl) titleEl.textContent = `◉ ${repo.name} / ${repo.branch || 'main'}`;
+
+  const commitEl = document.getElementById('activeRepoCommit');
+  if (commitEl) commitEl.textContent = repo.commit || 'HEAD';
+
+  const rootEl = document.getElementById('activeRepoRoot');
+  if (rootEl) {
+    rootEl.textContent = repo.canonical_root || repo.root || '';
+    rootEl.title = repo.canonical_root || repo.root || '';
+  }
+
+  const tagEl = document.getElementById('activeRepoTag');
+  if (tagEl) {
+    if (repo.is_indexed) {
+      tagEl.className = 'tag green';
+      tagEl.textContent = 'READY';
+    } else {
+      tagEl.className = 'tag amber';
+      tagEl.textContent = 'UNINDEXED';
+    }
+  }
+
+  const banner = document.getElementById('unindexedBanner');
+  if (banner) {
+    banner.classList.toggle('hidden', Boolean(repo.is_indexed));
+  }
+
+  loadCurrentPageData();
+}
+
+function switchRepository(repoId) {
+  if (!repoId) return;
+  history.pushState(null, '', `/repo/${repoId}`);
+  setActiveRepository(repoId);
+  toast(`Switched repository context to: ${window._currentRepo?.name || repoId}`);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initRepositories();
 });

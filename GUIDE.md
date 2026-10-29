@@ -137,7 +137,30 @@ If not configured automatically by `install.sh`, add Chronos to your IDE's MCP c
 
 ---
 
-### Recipe 2: Autonomous Problem Solving via CLI (`chronos run`)
+### Recipe 2: Chronos Control Plane & Observability Suite (`chronos ui`)
+
+Launch the local web dashboard for deep visibility into agent execution, context assembly, and comparative benchmarks:
+
+```bash
+# Launch the dashboard with automatic browser opening (binds to port 8765)
+chronos ui
+
+# Specify a custom port or prevent automatic browser launch
+chronos ui --port 9000 --no-browser
+
+# Launch scoped to a specific repository
+chronos ui --repo /path/to/another/repo
+```
+
+The Chronos Control Plane includes:
+1. **Runs & Trace Explorer:** Searchable executions with duration, token counts, and progressive event span waterfalls.
+2. **Context Inspector:** Inspect the exact context envelopes delivered to agents, including AST ranking signals and memory tiers.
+3. **Evaluation Studio:** Side-by-side benchmark comparison (Baseline vs. Chronos) with paired latency, token savings, and CSV/JSON export.
+4. **Mission Telemetry & Audit Chain:** Real-time tamper-evident SHA-256 hash chain verification and active lease management.
+
+---
+
+### Recipe 3: Autonomous Problem Solving via CLI (`chronos run`)
 
 Execute end-to-end coding tasks with an OpenHands autonomous agent protected by Chronos pre-execution governance:
 
@@ -161,7 +184,7 @@ chronos run "Implement regex-based symbol pattern filtering" --model=gemini-3.8-
 
 ---
 
-### Recipe 3: Epistemic Living Memory (`chronos memory`)
+### Recipe 4: Epistemic Living Memory (`chronos memory`)
 
 Chronos maintains cross-session memory with 5 tiers (`core`, `learned`, `episodic`, `working`, `procedural`), recency decay, and verification weighting:
 
@@ -184,7 +207,7 @@ chronos memory stats
 
 ---
 
-### Recipe 4: Opt-In OpenHands CodeScout-1.7B SLM Localization
+### Recipe 5: Opt-In OpenHands CodeScout-1.7B SLM Localization
 
 For monorepos or complex natural-language tasks where keywords do not match filenames, toggle the CodeScout-1.7B neural localization engine:
 

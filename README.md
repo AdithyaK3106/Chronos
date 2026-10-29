@@ -1,9 +1,15 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Chronos Logo" width="140" height="140">
+</p>
+
 # ⏳ Chronos
 
 **Bi-Temporal Repository Intelligence, Autonomous Context Resolution & Multi-Agent Governance Engine**  
 *Agent-agnostic platform supporting OpenHands SDK, Model Context Protocol (MCP), Cursor, Claude Code, Windsurf, LangGraph, AutoGen, and custom AI agents.*
 
-[![Tests](https://img.shields.io/badge/tests-101%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-135%20passed-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-0.3.0-cyan.svg)](pyproject.toml)
+[![Control Plane](https://img.shields.io/badge/Control%20Plane-Live%20Dashboard-blue.svg)](chronos/server/chronos_control_plane.html)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Protocol](https://img.shields.io/badge/MCP-FastMCP%203.x-purple.svg)](chronos/server/mcp_server.py)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -43,6 +49,7 @@ Current AI coding agents suffer from four critical production bottlenecks:
 - 🤖 **OpenHands CodeScout-1.7B SLM Localization (Opt-In):** Optional neural semantic file resolver with strict anti-hallucination validation (rejecting non-existent and ambiguous duplicate basenames) and a fail-fast circuit breaker with instant AST fallback.
 - 🛡 **Fail-Closed Security Firewall:** Intercepts agent actions pre-execution at the tool boundary. Blocks unauthorized edits, path escapes, and security breaches before disk modification can occur.
 - 🔒 **Sub-File AST Concurrency Leasing:** Bi-temporal write leases at the class/function level prevent parallel agents from clobbering each other's work.
+- 📊 **Engineering Control Plane & Observability Suite (`chronos ui`):** Full-stack local dashboard providing a **Runs & Trace Explorer** (trace waterfall spans, token metrics, error breakdown), **Context Inspector** (token envelopes, symbol ranking provenance, memory tier breakdown), and an **Evaluation Studio** (side-by-side benchmark comparison, latency/token speedups, and CSV/JSON export).
 - 🔀 **Universal Agent Fabric:** Connects seamlessly to **any** agent via the Model Context Protocol (FastMCP 3.x), pure Python SDK, or the autonomous CLI runner.
 
 ---

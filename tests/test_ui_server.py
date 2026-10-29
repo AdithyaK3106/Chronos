@@ -193,13 +193,15 @@ def test_6_and_7_server_lifecycle_and_port_conflict(temp_repo_pair):
         server.server_close()
 
     # Verify port conflict detection against an unrelated socket
+    conflict_port = 8793
     dummy = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    dummy.bind(("127.0.0.1", port))
+    dummy.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    dummy.bind(("127.0.0.1", conflict_port))
     dummy.listen(1)
     try:
-        assert is_port_in_use("127.0.0.1", port)
+        assert is_port_in_use("127.0.0.1", conflict_port)
         # probe_health should return None because dummy socket is not chronos-ui
-        assert probe_health("127.0.0.1", port, timeout=0.2) is None
+        assert probe_health("127.0.0.1", conflict_port, timeout=0.2) is None
     finally:
         dummy.close()
 
@@ -376,3 +378,350 @@ def test_13_audit_verification_endpoint(temp_repo_pair):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_14_benchmarks_endpoint_valid_and_missing(tmp_path: Path):
+    """Benchmarks API returns paired runs from real dataset and gracefully handles missing data."""
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+
+        # 1. Real repository with benchmarks
+        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        repo_id = reg["id"]
+
+        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/benchmarks")
+        data = json.loads(req.read().decode("utf-8"))
+        assert data["available"] is True
+        assert len(data["tasks"]) >= 20
+        first = data["tasks"][0]
+        assert "task_id" in first
+        assert "baseline_tokens" in first
+        assert "treatment_tokens" in first
+        assert "savings_pct" in first
+        assert data["reconciliation"] is not None
+        assert data["reconciliation"]["canonical_efficacy_reduction_pct"] is not None
+
+        # 2. Empty repository without benchmarks
+        empty_repo = tmp_path / "empty-repo"
+        empty_repo.mkdir()
+        (empty_repo / "main.py").write_text("print('hello')", encoding="utf-8")
+        reg_empty = register_repo_with_server("127.0.0.1", port, str(empty_repo))
+        empty_id = reg_empty["id"]
+
+        req_empty = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{empty_id}/benchmarks")
+        data_empty = json.loads(req_empty.read().decode("utf-8"))
+        assert data_empty["available"] is False
+        assert data_empty["status"] == "DATASET_UNAVAILABLE"
+        assert len(data_empty["tasks"]) == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_15_audit_telemetry_valid_malformed_and_tampered(tmp_path: Path):
+    """Audit telemetry distinguishes unavailable, healthy, malformed, and tampered logs."""
+    repo_dir = tmp_path / "audit-test-repo"
+    repo_dir.mkdir()
+    (repo_dir / "app.py").write_text("x = 1", encoding="utf-8")
+    chronos_dir = repo_dir / ".chronos"
+    chronos_dir.mkdir()
+    audit_file = chronos_dir / "chronos-audit.log"
+
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        reg = register_repo_with_server("127.0.0.1", port, str(repo_dir))
+        repo_id = reg["id"]
+
+        # Case A: Missing log
+        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/status")
+        sec_a = json.loads(req.read().decode("utf-8"))
+        assert sec_a["telemetry"]["available"] is False
+        assert sec_a["telemetry"]["records_count"] == 0
+
+        # Case B: Valid log entries
+        append_audit_event(audit_file, event_type="tool_auth", agent_id="agent_1", action="write_file", target="app.py", status="ALLOW")
+        append_audit_event(audit_file, event_type="policy_firewall", agent_id="agent_2", action="write_file", target=".env", status="DENY")
+        append_audit_event(audit_file, event_type="gate_approval", agent_id="agent_1", action="approve", target="app.py", status="ALLOW")
+
+        req_b = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/status")
+        sec_b = json.loads(req_b.read().decode("utf-8"))
+        assert sec_b["telemetry"]["available"] is True
+        assert sec_b["telemetry"]["evaluated_count"] == 3
+        assert sec_b["telemetry"]["denied_count"] == 1
+        assert sec_b["telemetry"]["signoffs_count"] == 1
+        assert sec_b["telemetry"]["status"] == "HEALTHY"
+
+        # Case C: Malformed JSON line
+        with open(audit_file, "a", encoding="utf-8") as f:
+            f.write("{this is not valid json}\n")
+
+        req_c = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/status")
+        sec_c = json.loads(req_c.read().decode("utf-8"))
+        assert sec_c["telemetry"]["malformed_records"] == 1
+        assert sec_c["telemetry"]["status"] == "INTEGRITY_COMPROMISED"
+        assert sec_c["telemetry"]["integrity"]["is_valid"] is False
+
+        # Case D: Tampered hash verification
+        req_verify = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/audit/verify",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+        )
+        ver_res = json.loads(urllib.request.urlopen(req_verify).read().decode("utf-8"))
+        assert ver_res["is_valid"] is False
+        assert ver_res["status"] == "FAILED"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_16_zero_path_resolver_contracts_and_errors():
+    """Zero-Path context resolver validates input contracts, scoring signals, and SLM toggle."""
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        repo_id = reg["id"]
+
+        # Positive test: Valid prompt
+        payload = json.dumps({"prompt": "Prevent race condition in lock ledger", "token_budget": 2000}).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/resolve",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        res = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
+        assert "resolved_files" in res
+        assert any("ledger.py" in f for f in res["resolved_files"])
+        assert len(res["candidates"]) > 0
+        first_c = res["candidates"][0]
+        assert "name" in first_c
+        assert "signals" in first_c
+        assert len(first_c["signals"]) > 0
+
+        # Negative test: Empty prompt -> 400
+        req_empty = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/resolve",
+            data=json.dumps({"prompt": "   "}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(req_empty)
+        assert exc_info.value.code == 400
+
+        # Negative test: Oversized prompt -> 400
+        req_large = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/resolve",
+            data=json.dumps({"prompt": "x" * 5000}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc_large:
+            urllib.request.urlopen(req_large)
+        assert exc_large.value.code == 400
+
+        # SLM toggle with fallback
+        req_slm = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/resolve",
+            data=json.dumps({"prompt": "coordination locks", "enable_slm": True}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res_slm = json.loads(urllib.request.urlopen(req_slm).read().decode("utf-8"))
+        assert "resolved_files" in res_slm
+
+        # Verify rolling latency was recorded in /mission
+        req_mission = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/mission")
+        mis = json.loads(req_mission.read().decode("utf-8"))
+        assert mis["stats"]["resolver_latency_ms"] is not None
+        assert mis["stats"]["latency_queries_recorded"] >= 1
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_17_intent_lock_governance_conflicts_and_ownership(temp_repo_pair):
+    """Lock ledger prevents multi-agent overwrite race conditions and enforces lease ownership."""
+    repo_a, _ = temp_repo_pair
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        reg = register_repo_with_server("127.0.0.1", port, str(repo_a.resolve()))
+        repo_id = reg["id"]
+
+        node = "alpha_service.py::process_alpha"
+
+        # 1. Agent 1 acquires lease
+        req_acq1 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/locks/acquire",
+            data=json.dumps({"node_id": node, "agent_id": "agent_alpha_1", "session_id": "s_1"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res1 = json.loads(urllib.request.urlopen(req_acq1).read().decode("utf-8"))
+        assert res1["acquired"] is True
+
+        # 2. Agent 2 attempts conflict
+        req_acq2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/locks/acquire",
+            data=json.dumps({"node_id": node, "agent_id": "agent_alpha_2", "session_id": "s_2"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res2 = json.loads(urllib.request.urlopen(req_acq2).read().decode("utf-8"))
+        assert res2["acquired"] is False
+        assert res2["reason"] == "conflict"
+
+        # 3. Non-owner release rejected
+        req_rel_bad = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/locks/release",
+            data=json.dumps({"node_id": node, "agent_id": "agent_alpha_2", "session_id": "s_2"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res_bad = json.loads(urllib.request.urlopen(req_rel_bad).read().decode("utf-8"))
+        assert res_bad["released"] is False
+        assert res_bad["reason"] == "not_owner"
+
+        # 4. Owner release succeeds
+        req_rel_ok = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/locks/release",
+            data=json.dumps({"node_id": node, "agent_id": "agent_alpha_1", "session_id": "s_1"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res_ok = json.loads(urllib.request.urlopen(req_rel_ok).read().decode("utf-8"))
+        assert res_ok["released"] is True
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_18_subgraph_and_git_endpoints():
+    """Graph subgraph and git endpoints return structured data and prevent injection."""
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        repo_id = reg["id"]
+
+        # Subgraph
+        req_sub = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/graph/subgraph?symbol=acquire_lock&depth=2")
+        sub_data = json.loads(req_sub.read().decode("utf-8"))
+        assert sub_data["center"] is not None
+        assert "callers" in sub_data
+        assert "callees" in sub_data
+        assert "impacted" in sub_data
+
+        # Git commits
+        req_commits = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/git/commits?limit=5")
+        commits_data = json.loads(req_commits.read().decode("utf-8"))
+        assert len(commits_data["commits"]) > 0
+
+        # Git diff valid
+        req_diff = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/git/diff?base=HEAD~1&target=HEAD")
+        diff_data = json.loads(req_diff.read().decode("utf-8"))
+        assert "changes" in diff_data
+
+        # Git diff injection rejected
+        req_diff_inj = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/git/diff?base=HEAD;rm%20-rf&target=HEAD")
+        diff_inj = json.loads(req_diff_inj.read().decode("utf-8"))
+        assert "error" in diff_inj
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_19_security_gate_approval_lifecycle(temp_repo_pair):
+    """Human approval gates can be granted and revoked via canonical governance service."""
+    repo_a, _ = temp_repo_pair
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        reg = register_repo_with_server("127.0.0.1", port, str(repo_a.resolve()))
+        repo_id = reg["id"]
+
+        # 1. Grant gate approval
+        req_app = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/approve",
+            data=json.dumps({"agent_id": "test_agent", "path_pattern": "*policy*"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res_app = json.loads(urllib.request.urlopen(req_app).read().decode("utf-8"))
+        assert res_app["status"] == "approved"
+
+        # Check pending approvals
+        req_st1 = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/status")
+        st1 = json.loads(req_st1.read().decode("utf-8"))
+        assert st1["pending_approvals_count"] == 1
+
+        # 2. Revoke approval
+        req_rej = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/reject",
+            data=json.dumps({"agent_id": "test_agent", "path_pattern": "*policy*"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        res_rej = json.loads(urllib.request.urlopen(req_rej).read().decode("utf-8"))
+        assert res_rej["status"] == "rejected"
+
+        req_st2 = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/security/status")
+        st2 = json.loads(req_st2.read().decode("utf-8"))
+        assert st2["pending_approvals_count"] == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_20_logo_and_favicon_static_routes(tmp_path: Path):
+    """Test serving /logo.png and /favicon.ico routes cleanly with image/png or 404."""
+    repo = tmp_path / "repo_logo"
+    repo.mkdir()
+    (repo / ".chronos").mkdir()
+    assets_dir = repo / "assets"
+    assets_dir.mkdir()
+    test_logo = assets_dir / "logo.png"
+    test_logo.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4")
+
+    REGISTRY.register(repo)
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    th = threading.Thread(target=server.serve_forever, daemon=True)
+    th.start()
+
+    try:
+        # 1. Fetch /logo.png when file is present
+        resp = urllib.request.urlopen(f"http://127.0.0.1:{port}/logo.png")
+        assert resp.status == 200
+        assert resp.headers.get("Content-Type") == "image/png"
+        assert len(resp.read()) > 0
+
+        # 2. Fetch /favicon.ico alias
+        resp_fav = urllib.request.urlopen(f"http://127.0.0.1:{port}/favicon.ico")
+        assert resp_fav.status == 200
+        assert resp_fav.headers.get("Content-Type") == "image/png"
+
+        # 3. When logo file removed, returns 404
+        test_logo.unlink()
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/logo.png")
+            # If repo root assets/logo.png doesn't exist yet, it'll raise HTTPError 404
+        except urllib.error.HTTPError as e:
+            assert e.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()
+

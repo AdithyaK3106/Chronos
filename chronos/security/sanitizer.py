@@ -97,6 +97,9 @@ def validate_path_access(
 
     return True, "Allowed"
 
+# Regex pattern for dictionary keys that contain sensitive credentials
+SENSITIVE_KEY_RE = re.compile(r"^(password|secret|api_key|apikey|private_key)$", re.IGNORECASE)
+
 def redact_secrets(val: Any) -> Any:
     """Recursively scrub secrets from strings, dictionaries, or lists."""
     if isinstance(val, str):
@@ -105,7 +108,13 @@ def redact_secrets(val: Any) -> Any:
             cleaned = pat.sub(repl, cleaned)
         return cleaned
     elif isinstance(val, dict):
-        return {k: redact_secrets(v) for k, v in val.items()}
+        result = {}
+        for k, v in val.items():
+            cleaned_v = redact_secrets(v)
+            if isinstance(k, str) and SENSITIVE_KEY_RE.search(k) and cleaned_v == v and isinstance(v, str):
+                cleaned_v = "[REDACTED]"
+            result[k] = cleaned_v
+        return result
     elif isinstance(val, list):
         return [redact_secrets(item) for item in val]
     return val

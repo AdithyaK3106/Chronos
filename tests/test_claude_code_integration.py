@@ -254,3 +254,10 @@ def test_live_check_reports_a_broken_command():
     live = cc.live_check('"/nonexistent/chronos" hook claude pre')
     assert live["ok"] is False
     assert not any(c["ok"] for c in live["checks"].values())
+
+
+def test_is_chronos_hook_recognises_windows_launcher():
+    """Regression: on Windows the launcher is chronos.exe; install/status/uninstall missed it."""
+    assert cc.is_chronos_hook(r'"D:\a\venv\Scripts\chronos.exe" hook claude pre')
+    assert cc.is_chronos_hook(r'C:\venv\Scripts\CHRONOS.EXE hook claude prompt')
+    assert not cc.is_chronos_hook("echo mine")

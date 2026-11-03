@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import Any
 
 # Matches both the current form (`.../chronos hook claude pre`) and the legacy
-# interpreter form (`python -m chronos.cli.main hook claude pre`).
-HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main)?[\"']?\s+hook\s+claude\s+(?:pre|prompt)\b")
+# interpreter form (`python -m chronos.cli.main hook claude pre`), and Windows' `chronos.exe`.
+HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main|\.exe)?[\"']?\s+hook\s+claude\s+(?:pre|prompt)\b", re.IGNORECASE)
 PATH_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit", "Grep"}
 PRE_MATCHER = "|".join(sorted(PATH_TOOLS))
 MIN_INJECT_SCORE = float(os.environ.get("CHRONOS_MIN_INJECT_SCORE", "12"))

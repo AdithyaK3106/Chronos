@@ -235,12 +235,13 @@ class ObjectiveEvaluator:
 
         # Prefer the target repo's own test virtualenv; fall back to the running interpreter.
         test_venv = getattr(self, "_test_venv", None)
-        if test_venv and (Path(test_venv) / "bin").is_dir():
-            venv_bin = str(Path(test_venv) / "bin")
+        venv_scripts = Path(test_venv) / ("Scripts" if os.name == "nt" else "bin") if test_venv else None
+        if venv_scripts is not None and venv_scripts.is_dir():
+            venv_bin = str(venv_scripts)
             env["VIRTUAL_ENV"] = str(test_venv)
         else:
             venv_bin = str(Path(sys.executable).parent)
-        env["PATH"] = f"{venv_bin}:{env.get('PATH', '')}"
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
         # Expand relative .venv/bin/ references if worktree has no local .venv
         # Only relative references: an absolute path that merely contains ".venv/bin/" must not
@@ -256,7 +257,7 @@ class ObjectiveEvaluator:
                 pythonpath_parts.append(str(cand))
         if env.get("PYTHONPATH"):
             pythonpath_parts.append(env["PYTHONPATH"])
-        env["PYTHONPATH"] = ":".join(pythonpath_parts)
+        env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
         try:
             res = subprocess.run(

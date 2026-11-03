@@ -257,4 +257,11 @@ both engines, interleaved under equal load.
 - **Install side effect, cleaned up:** the Cupcake repo pins Rust 1.91, and rustup started
   downloading it into `~/.rustup` before I stopped it. I removed the broken partial toolchain with
   `rustup toolchain uninstall`; your stable toolchain is unchanged.
-- codebase-memory-mcp arm: not started (needs Gemini runs; deferred until the benchmark finishes).
+- **codebase-memory-mcp: blocked by the environment, not started.** Installed 0.12.1 in scratch (the
+  PyPI wrapper downloads a **330 MB** binary, checksum-verified). Every command exits with "could not
+  load saved runtime settings". Cause, found by tracing: its daemon requires a private settings dir
+  with **no group-writable ancestor**. `/data` is a FUSE mount that ignores `chmod`, and an ancestor
+  of the `/tmp` scratch path is `0775`. The only compliant place on this machine is under your real
+  home (`~/.cache/codebase-memory-mcp`), outside tonight's scratch-only rule, so I stopped (the plan's
+  "fails twice, record and move on"). **Decision for you:** allow it under `~/.cache` (or a `0700`
+  dir on an ext4 path) to run the comparison arm.

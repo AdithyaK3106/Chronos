@@ -71,5 +71,6 @@ the Grep check and integration with locks/audit. Worth borrowing:
 - Its system-path protections (`/etc/`, `~/.ssh/`) as part of a stricter default for paths outside
   the repo (see decision 4).
 
-Not done: the **codebase-memory-mcp** benchmark arm. It needs Gemini runs, which would have competed
-with the 24-task benchmark for rate limits and skewed both.
+Not done: the **codebase-memory-mcp** arm. 0.12.1 refuses to start unless its settings directory has
+no group-writable ancestor; on this machine that is only possible under the real home directory,
+which was out of bounds tonight. See the morning report.

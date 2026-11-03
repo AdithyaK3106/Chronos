@@ -1,5 +1,9 @@
 """Integration tests for Turn 1 Zero-Path Context Envelope Delivery in OpenHands."""
 
+import pytest
+
+pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+
 from pathlib import Path
 import pytest
 

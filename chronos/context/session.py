@@ -54,16 +54,24 @@ class ChronosSessionBootstrap:
         session_id: str = "default_session",
         token_budget: int = 1500,
         repo_namespace: Optional[str] = None,
+        refresh_index: bool = True,
+        acquire_leases: bool = True,
     ) -> Dict[str, Any]:
-        """Assemble bi-temporal AST graph context, rules, and leases before first model turn."""
+        """Assemble bi-temporal AST graph context, rules, and leases before first model turn.
+
+        Set ``refresh_index=False`` when the caller has just synced the graph itself, to
+        avoid re-parsing the whole repository a second time.
+        """
         target_files = target_files or []
 
-        # 1. Index repository AST and ingest into graph store
-        try:
-            nodes, edges = index_repository(self.repo_path)
-            self.graph_store.ingest(nodes, edges)
-        except Exception:
-            nodes = []
+        # 1. Index repository AST and reconcile it into the graph store
+        nodes: list = []
+        if refresh_index:
+            try:
+                nodes, edges = index_repository(self.repo_path)
+                self.graph_store.sync_repository(nodes, edges)
+            except Exception:
+                nodes = []
 
         # 2. Deterministically resolve target files, symbols, and tests from prompt (Zero-Path)
         resolution: ResolutionResult = self.resolver.resolve(
@@ -79,11 +87,18 @@ class ChronosSessionBootstrap:
 
         # Fallback to direct path search if zero-path resolution returned empty and explicit target_files were provided
         if not resolved_symbols and target_files:
-            for n in nodes:
-                norm_node_path = Path(n.path).as_posix()
+            try:
+                stored_nodes = [
+                    (r["id"], r["name"], r["path"])
+                    for r in self.con.execute("SELECT id, name, path FROM code_nodes").fetchall()
+                ]
+            except Exception:
+                stored_nodes = [(n.id, n.name, n.path) for n in nodes]
+            for node_id, name, path in stored_nodes:
+                norm_node_path = Path(path).as_posix()
                 if any(Path(tf).as_posix() in norm_node_path or norm_node_path.endswith(Path(tf).as_posix()) for tf in target_files):
-                    resolved_symbols.append(n.name)
-                    target_nodes.append(n.id)
+                    resolved_symbols.append(name)
+                    target_nodes.append(node_id)
 
         # Adaptive Injection: detect whether user task targets specific files/functions
         is_targeted = bool(resolved_files) or bool(target_files) or bool(resolved_symbols) or any(
@@ -109,7 +124,7 @@ class ChronosSessionBootstrap:
 
         # 5. Acquire initial AST node leases for target nodes ONLY if authorized/approved
         acquired_leases: List[str] = []
-        for node_id in target_nodes[:5]:
+        for node_id in (target_nodes[:5] if acquire_leases else []):
             # Extract path from node_id (format: path::name::kind)
             node_path = node_id.split("::")[0] if "::" in node_id else ""
             if node_path:

@@ -1,5 +1,9 @@
 """Unit and integration test suite for chronos-bench universal harness."""
 
+import pytest
+
+pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+
 import os
 from pathlib import Path
 import subprocess

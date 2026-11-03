@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, tanish]
+  pull_request:
+
+jobs:
+  # The core install (hooks, MCP, indexer, firewall) must work on every OS without OpenHands.
+  # Tests run against the built wheel, not the source tree, so packaging mistakes fail here.
+  core:
+    name: core (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build wheel
+        run: uv build --wheel -o dist
+      - name: Install core wheel only (no agent extra)
+        shell: bash
+        run: |
+          uv venv --python ${{ matrix.python }} .ci-venv
+          VIRTUAL_ENV=.ci-venv uv pip install "$(ls dist/*.whl)[test]"
+      - name: OpenHands must be absent
+        shell: bash
+        run: |
+          PY=.ci-venv/bin/python; [ -f "$PY" ] || PY=.ci-venv/Scripts/python.exe
+          "$PY" -c "import importlib.util as u, sys; sys.exit(1 if u.find_spec('openhands') else 0)"
+      - name: Test suite against the installed wheel
+        shell: bash
+        run: |
+          PYTEST=.ci-venv/bin/pytest; [ -f "$PYTEST" ] || PYTEST=.ci-venv/Scripts/pytest.exe
+          "$PYTEST" -q -p no:cacheprovider
+      - name: Live hook canary
+        shell: bash
+        run: |
+          CHRONOS=.ci-venv/bin/chronos; [ -f "$CHRONOS" ] || CHRONOS=.ci-venv/Scripts/chronos.exe
+          "$CHRONOS" doctor --live --repo .
+
+  # Everything, including the OpenHands agent and benchmark harness tests.
+  full:
+    name: full (ubuntu, all extras)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install with all extras
+        run: |
+          uv venv --python 3.13 .ci-venv
+          VIRTUAL_ENV=.ci-venv uv pip install -e ".[all,test]"
+      - name: Test suite
+        env:
+          OPENHANDS_SUPPRESS_BANNER: "1"
+        run: .ci-venv/bin/python -m pytest -q -p no:cacheprovider

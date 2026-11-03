@@ -1,5 +1,9 @@
 """Vertical Slice Integration Test: OpenHands SDK Agent with Chronos Governance."""
 
+import pytest
+
+pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+
 from pathlib import Path
 import pytest
 from openhands.sdk.testing import TestLLM

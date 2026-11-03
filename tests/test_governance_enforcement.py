@@ -1,5 +1,9 @@
 """Comprehensive tests for Chronos P0 security enforcement, P1 AST scoping, and P2 incremental sync."""
 
+import pytest
+
+pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+
 from pathlib import Path
 import sqlite3
 import pytest

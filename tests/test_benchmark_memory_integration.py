@@ -1,5 +1,9 @@
 """Integration tests for Epistemic Living Memory in the Chronos Benchmark Harness."""
 
+import pytest
+
+pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+
 import json
 from pathlib import Path
 import tempfile

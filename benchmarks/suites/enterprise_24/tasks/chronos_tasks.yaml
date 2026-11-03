@@ -3,61 +3,89 @@ tasks:
     repository_id: "chronos"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Fix circular reference recursion edge case in chronos/context/graph.py so that mutually recursive functions do not cause infinite recursion during traversal."
+    # v2 prompt: v1 claimed infinite recursion, which the depth-bounded CTE never does; the real defects are that impact finds no transitive callers for bare-name edges at all, and once it does, cycles repeat callers and report the symbol as its own caller.
+    prompt: "Fix as_of_impact() in chronos/context/graph.py for recursive code. Edges store the callee as a bare name (ASTEdge dst='is_odd'), as as_of_callers() expects, but the recursive traversal joins on node ids, so it finds no transitive callers; and once it does, mutually recursive functions (is_even <-> is_odd) and self-recursive ones make the traversal cycle until max_depth, reporting the queried function as its own caller and the same callers again at every depth. Return each transitive caller once, at its shortest depth (<= max_depth), never the queried symbol itself, as dicts with id, name, path, kind and depth."
     target_files:
       - "chronos/context/graph.py"
     verification_commands:
       - "pytest tests/test_context_graph.py -k test_bitemporal_graph_queries -q"
     regression_commands:
       - "pytest tests/test_context_graph.py -q"
+    acceptance_tests:
+      - "acceptance/chronos/test_chronos_task_01_recursive_impact.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "chronos_task_02"
     repository_id: "chronos"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Prevent race condition in lock ledger when lock release coincides with lock heartbeat renewal in chronos/coordination/ledger.py."
+    # v2 prompt: v1 named a race but no interface; every ledger call already runs in BEGIN IMMEDIATE, the real race is that heartbeats renew through acquire_lock() and so resurrect a lock released just before.
+    prompt: "Fix the release-vs-heartbeat race in chronos/coordination/ledger.py: heartbeats renew leases through acquire_lock(), so a heartbeat that arrives just after release_lock() silently re-creates the released lock. Add renew_lock(con, node_id, agent_id, session_id, ttl=DEFAULT_TTL) -> dict for heartbeats: in one BEGIN IMMEDIATE transaction it extends expires_at only if the lock still exists, is unexpired and is held by the same agent_id and session_id, returning {'renewed': True, 'expires_at': ...}; otherwise it changes nothing and returns {'renewed': False, 'reason': 'not_held'}. Record a 'renew' provenance event only on success. Also make release_lock() refuse (reason 'not_owner') a lock held by a different session of the same agent."
     target_files:
       - "chronos/coordination/ledger.py"
     verification_commands:
       - "pytest tests/test_coordination.py -k test_concurrent_lock_race -q"
     regression_commands:
       - "pytest tests/test_coordination.py -q"
+    acceptance_tests:
+      - "acceptance/chronos/test_chronos_task_02_release_vs_heartbeat.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "chronos_task_03"
     repository_id: "chronos"
     suite: "efficacy"
     category: "feature"
-    prompt: "Implement regex-based symbol pattern filtering in query_symbols() within chronos/context/graph.py."
+    # v2 prompt: v1 asked to extend query_symbols(), which does not exist at the baseline; the contract of the new method is stated.
+    prompt: "Add regex-based symbol search to chronos/context/graph.py: SQLiteGraphStore.query_symbols(pattern: str | None = None, kind: str | None = None, limit: int = 100) -> list[dict] returns indexed code nodes (id, name, path, kind) whose name matches the Python regular expression pattern (re.search), optionally only of the given kind, sorted by name and at most limit rows. pattern=None returns all symbols; an invalid regular expression raises ValueError."
     target_files:
       - "chronos/context/graph.py"
     verification_commands:
       - "pytest tests/test_context_graph.py -k test_ast_indexing -q"
+    acceptance_tests:
+      - "acceptance/chronos/test_chronos_task_03_query_symbols.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "chronos_task_04"
     repository_id: "chronos"
     suite: "efficacy"
     category: "feature"
-    prompt: "Add JSON Schema export utility for active security rules in chronos/verification/rule_store.py."
+    # v2 prompt: v1 named no function or document shape; the hidden test needs them.
+    prompt: "Add a JSON Schema export for active security rules to chronos/verification/rule_store.py: export_rules_json_schema(con, path=None) -> dict returns a JSON Schema (draft 2020-12, '$schema': 'https://json-schema.org/draft/2020-12/schema') document of type 'array' whose 'items' object schema has properties rule_id, language, rule_text, yaml_pattern, status, promoted_at and promoted_by and requires rule_id, language and status. Include the currently active (blocking) rules, with only those fields and sorted by rule_id, under 'examples'. When path is given, also write the document there as JSON."
     target_files:
       - "chronos/verification/rule_store.py"
     verification_commands:
       - "pytest tests/test_verification.py -k test_rule_lifecycle -q"
+    acceptance_tests:
+      - "acceptance/chronos/test_chronos_task_04_rules_json_schema.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "chronos_task_05"
     repository_id: "chronos"
     suite: "efficacy"
     category: "refactor"
-    prompt: "Decouple direct SQLite connection handling in chronos/audit/logger.py into a reusable connection context manager."
+    # v2 prompt: v1 pointed at chronos/audit/logger.py, which has no SQLite connection handling (it is a JSONL file); the manual connection handling is in the CLI and MCP server.
+    prompt: "Add a reusable connection context manager to chronos/core/db.py: connection(db_path) yields a connection from get_connection(db_path) and always closes it, even when the body raises. Use it instead of the manual get_connection() / con.close() pairs in chronos/cli/main.py (init, doctor, sync) and the try/finally blocks of the MCP tools in chronos/server/mcp_server.py, so no connection is closed by hand there any more. Behaviour must not change."
     target_files:
-      - "chronos/audit/logger.py"
+      - "chronos/core/db.py"
+      - "chronos/cli/main.py"
+      - "chronos/server/mcp_server.py"
+    # v1 verified with an unrelated audit test; a refactor across three modules is checked against the whole baseline suite.
     verification_commands:
-      - "pytest tests/test_audit.py -k test_tamper_detection -q"
+      - "pytest tests/ -q"
     regression_commands:
       - "pytest tests/ -q"
+    acceptance_tests:
+      - "acceptance/chronos/test_chronos_task_05_connection_cm.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "chronos_task_06"

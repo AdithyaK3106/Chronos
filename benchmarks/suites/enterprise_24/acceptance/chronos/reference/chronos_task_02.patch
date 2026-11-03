@@ -1,0 +1,60 @@
+diff --git a/chronos/coordination/ledger.py b/chronos/coordination/ledger.py
+index 0591a84..71ed043 100644
+--- a/chronos/coordination/ledger.py
++++ b/chronos/coordination/ledger.py
+@@ -133,7 +133,7 @@ def release_lock(
+             con.execute("ROLLBACK")
+             return {"released": False, "reason": "not_locked"}
+ 
+-        if row["agent_id"] != agent_id:
++        if row["agent_id"] != agent_id or row["session_id"] != session_id:
+             con.execute("ROLLBACK")
+             return {
+                 "released": False,
+@@ -156,6 +156,46 @@ def release_lock(
+             pass
+         raise
+ 
++def renew_lock(
++    con: sqlite3.Connection,
++    node_id: str,
++    agent_id: str,
++    session_id: str,
++    ttl: int = DEFAULT_TTL,
++) -> dict[str, Any]:
++    """Heartbeat: extend a lease that this agent and session still hold. Never (re)creates a lock.
++
++    Heartbeats used to go through acquire_lock(), so one arriving just after release_lock()
++    re-created the released lock. This only updates an existing, unexpired row owned by the caller.
++    """
++    now = _utc_now()
++    now_str = _iso(now)
++    expires_str = _iso(now + timedelta(seconds=ttl))
++    con.execute("BEGIN IMMEDIATE")
++    try:
++        cur = con.execute(
++            "UPDATE intent_locks SET expires_at = ? "
++            "WHERE node_id = ? AND agent_id = ? AND session_id = ? AND expires_at >= ?",
++            (expires_str, node_id, agent_id, session_id, now_str),
++        )
++        if cur.rowcount != 1:
++            con.execute("ROLLBACK")
++            return {"renewed": False, "reason": "not_held", "node_id": node_id}
++        con.execute(
++            "INSERT INTO provenance_events (node_id, agent_id, session_id, action, reason, timestamp) "
++            "VALUES (?, ?, ?, 'renew', 'heartbeat', ?)",
++            (node_id, agent_id, session_id, now_str),
++        )
++        con.execute("COMMIT")
++        return {"renewed": True, "node_id": node_id, "agent_id": agent_id, "expires_at": expires_str}
++    except Exception:
++        try:
++            con.execute("ROLLBACK")
++        except Exception:
++            pass
++        raise
++
++
+ def check_conflicts(con: sqlite3.Connection, node_ids: list[str]) -> dict[str, Any]:
+     """Check lock status for a list of nodes, sweeping expired ones."""
+     now_str = _iso(_utc_now())

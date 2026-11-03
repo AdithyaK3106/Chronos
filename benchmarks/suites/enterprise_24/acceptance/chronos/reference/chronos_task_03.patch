@@ -1,0 +1,42 @@
+diff --git a/chronos/context/graph.py b/chronos/context/graph.py
+index c04d254..46b435b 100644
+--- a/chronos/context/graph.py
++++ b/chronos/context/graph.py
+@@ -9,6 +9,7 @@ Features:
+   `valid_at <= t AND (invalid_at IS NULL OR invalid_at > t)`
+ """
+ 
++import re
+ import sqlite3
+ from abc import ABC, abstractmethod
+ from datetime import datetime, timezone
+@@ -91,6 +92,29 @@ class SQLiteGraphStore(GraphStore):
+                 pass
+             raise
+ 
++    def query_symbols(self, pattern: str | None = None, kind: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
++        """Indexed symbols whose name matches the regular expression `pattern` (re.search), sorted by name.
++
++        Raises ValueError for an invalid pattern. SQLite has no built-in REGEXP, so filter in Python.
++        """
++        try:
++            rx = re.compile(pattern) if pattern else None
++        except re.error as exc:
++            raise ValueError(f"Invalid symbol pattern {pattern!r}: {exc}") from exc
++        sql = "SELECT id, name, path, kind FROM code_nodes"
++        params: list[Any] = []
++        if kind:
++            sql += " WHERE kind = ?"
++            params.append(kind)
++        sql += " ORDER BY name ASC"
++        out = []
++        for r in self.con.execute(sql, params):
++            if rx is None or rx.search(r["name"]):
++                out.append(dict(r))
++                if len(out) >= limit:
++                    break
++        return out
++
+     def as_of_callers(self, symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:
+         t = _normalize_iso(as_of)
+         # Direct callers: edges where dst resolves to symbol_name

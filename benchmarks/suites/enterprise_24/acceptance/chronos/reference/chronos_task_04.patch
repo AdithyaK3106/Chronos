@@ -1,0 +1,53 @@
+diff --git a/chronos/verification/rule_store.py b/chronos/verification/rule_store.py
+index fb6d343..f34e0b9 100644
+--- a/chronos/verification/rule_store.py
++++ b/chronos/verification/rule_store.py
+@@ -7,7 +7,9 @@ Lifecycle states:
+ - 'blocking': promoted by human or policy gate; strictly blocks commits/tool calls.
+ """
+ 
++import json
+ import sqlite3
++from pathlib import Path
+ from datetime import datetime, timezone
+ from typing import Any
+ 
+@@ -63,3 +65,38 @@ def list_rules(con: sqlite3.Connection, status: str | None = None) -> list[dict[
+ 
+ def get_active_blocking_rules(con: sqlite3.Connection) -> list[dict[str, Any]]:
+     return list_rules(con, status=BLOCKING)
++
++
++RULE_EXPORT_FIELDS = ("rule_id", "language", "rule_text", "yaml_pattern", "status", "promoted_at", "promoted_by")
++
++
++def export_rules_json_schema(con: sqlite3.Connection, path: str | Path | None = None) -> dict[str, Any]:
++    """JSON Schema (draft 2020-12) for active security rules, with the current blocking rules as examples.
++
++    If `path` is given, the document is also written there as JSON.
++    """
++    nullable = {"type": ["string", "null"]}
++    rules = sorted(get_active_blocking_rules(con), key=lambda r: r["rule_id"])
++    doc: dict[str, Any] = {
++        "$schema": "https://json-schema.org/draft/2020-12/schema",
++        "title": "Chronos active security rules",
++        "type": "array",
++        "items": {
++            "type": "object",
++            "properties": {
++                "rule_id": {"type": "string"},
++                "language": {"type": "string"},
++                "rule_text": {"type": "string"},
++                "yaml_pattern": nullable,
++                "status": {"type": "string", "enum": [BLOCKING]},
++                "promoted_at": nullable,
++                "promoted_by": nullable,
++            },
++            "required": ["rule_id", "language", "status"],
++            "additionalProperties": False,
++        },
++        "examples": [{k: r[k] for k in RULE_EXPORT_FIELDS} for r in rules],
++    }
++    if path is not None:
++        Path(path).write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
++    return doc

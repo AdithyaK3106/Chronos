@@ -1,0 +1,218 @@
+diff --git a/chronos/cli/main.py b/chronos/cli/main.py
+index f128829..a380a71 100644
+--- a/chronos/cli/main.py
++++ b/chronos/cli/main.py
+@@ -9,7 +9,7 @@ from chronos.audit.logger import verify_audit_chain
+ from chronos.context.graph import SQLiteGraphStore
+ from chronos.context.indexer import index_repository
+ from chronos.core.config import ChronosConfig
+-from chronos.core.db import get_connection
++from chronos.core.db import connection
+ 
+ def main():
+     parser = argparse.ArgumentParser(description="Chronos: Bi-temporal intelligence and AI governance")
+@@ -46,8 +46,8 @@ def main():
+         chronos_dir.mkdir(parents=True, exist_ok=True)
+         rules_dir = chronos_dir / "rules"
+         rules_dir.mkdir(parents=True, exist_ok=True)
+-        con = get_connection(db_file)
+-        con.close()
++        with connection(db_file):
++            pass
+         print(f"Initialized Chronos in {chronos_dir}")
+         sys.exit(0)
+ 
+@@ -59,10 +59,9 @@ def main():
+         print(f"Chronos Dir     : {'OK' if chronos_dir.is_dir() else 'Missing (.chronos/)'}")
+         
+         try:
+-            con = get_connection(db_file)
+-            row = con.execute("SELECT count(*) as c FROM sqlite_master WHERE type='table'").fetchone()
++            with connection(db_file) as con:
++                row = con.execute("SELECT count(*) as c FROM sqlite_master WHERE type='table'").fetchone()
+             print(f"SQLite WAL DB   : OK ({row['c']} tables)")
+-            con.close()
+         except Exception as e:
+             print(f"SQLite WAL DB   : FAILED ({e})")
+             status_ok = False
+@@ -84,12 +83,10 @@ def main():
+         sys.exit(0 if status_ok else 1)
+ 
+     elif args.command == "sync":
+-        con = get_connection(db_file)
+-        store = SQLiteGraphStore(con)
+         print(f"Indexing repository {repo_root}...")
+-        nodes, edges = index_repository(repo_root)
+-        store.ingest(nodes, edges)
+-        con.close()
++        with connection(db_file) as con:
++            nodes, edges = index_repository(repo_root)
++            SQLiteGraphStore(con).ingest(nodes, edges)
+         print(f"Successfully synced {len(nodes)} AST nodes and {len(edges)} relation edges.")
+         sys.exit(0)
+ 
+diff --git a/chronos/core/db.py b/chronos/core/db.py
+index 74af2ef..6bd8b5a 100644
+--- a/chronos/core/db.py
++++ b/chronos/core/db.py
+@@ -1,9 +1,10 @@
+ """Unified SQLite database connection and schema management."""
+ 
+ import sqlite3
++from contextlib import contextmanager
+ import threading
+ from pathlib import Path
+-from typing import Union
++from typing import Iterator, Union
+ 
+ SCHEMA = """
+ -- Intent Locks (Wedge 3)
+@@ -116,3 +117,13 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
+     
+     con.executescript(SCHEMA)
+     return con
++
++
++@contextmanager
++def connection(db_path: Union[str, Path] = ":memory:") -> Iterator[sqlite3.Connection]:
++    """`with connection(path) as con:` -- a get_connection() connection that is always closed."""
++    con = get_connection(db_path)
++    try:
++        yield con
++    finally:
++        con.close()
+diff --git a/chronos/server/mcp_server.py b/chronos/server/mcp_server.py
+index 2c7de74..3df9132 100644
+--- a/chronos/server/mcp_server.py
++++ b/chronos/server/mcp_server.py
+@@ -14,7 +14,7 @@ from chronos.coordination.ledger import (
+     release_lock,
+ )
+ from chronos.core.config import ChronosConfig
+-from chronos.core.db import get_connection
++from chronos.core.db import connection
+ 
+ cfg = ChronosConfig.load()
+ root = Path(cfg.repo_path).resolve()
+@@ -23,48 +23,33 @@ audit_log = root / cfg.audit_log_path
+ 
+ mcp = FastMCP("chronos")
+ 
+-def _get_con():
+-    return get_connection(db_file)
+-
+ @mcp.tool()
+ def as_of_callers(symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:
+     """Return callers of a function or class as of a specific point in time."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         store = SQLiteGraphStore(con)
+         return store.as_of_callers(symbol_name, as_of=as_of)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def as_of_callees(symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:
+     """Return functions called by a symbol as of a specific point in time."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         store = SQLiteGraphStore(con)
+         return store.as_of_callees(symbol_name, as_of=as_of)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def as_of_impact(symbol_name: str, as_of: str | None = None, max_depth: int = 3) -> list[dict[str, Any]]:
+     """Compute downstream blast radius / transitive callers of modifying a symbol."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         store = SQLiteGraphStore(con)
+         return store.as_of_impact(symbol_name, as_of=as_of, max_depth=max_depth)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def as_of_diff(t1: str, t2: str) -> dict[str, Any]:
+     """Compute structural AST differences between two points in time."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         store = SQLiteGraphStore(con)
+         return store.as_of_diff(t1, t2)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def chronos_acquire_lock(
+@@ -75,8 +60,7 @@ def chronos_acquire_lock(
+     ttl: int = 300,
+ ) -> dict[str, Any]:
+     """Acquire an atomic lease on a sub-file AST node to prevent multi-agent collisions."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         result = acquire_lock(con, node_id, agent_id, session_id, intent, ttl=ttl)
+         append_audit_event(
+             log_path=audit_log,
+@@ -88,8 +72,6 @@ def chronos_acquire_lock(
+             reason=intent if result.get("acquired") else "conflict",
+         )
+         return result
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def chronos_release_lock(
+@@ -98,8 +80,7 @@ def chronos_release_lock(
+     session_id: str,
+ ) -> dict[str, Any]:
+     """Release a held AST node lock."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         result = release_lock(con, node_id, agent_id, session_id)
+         append_audit_event(
+             log_path=audit_log,
+@@ -111,36 +92,25 @@ def chronos_release_lock(
+             reason=result.get("reason", "released"),
+         )
+         return result
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def chronos_check_conflicts(node_ids: list[str]) -> dict[str, Any]:
+     """Check lock status for a list of AST node IDs."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         return check_conflicts(con, node_ids)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def chronos_list_locks() -> list[dict[str, Any]]:
+     """List all currently active non-expired AST node locks."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         return list_active_locks(con)
+-    finally:
+-        con.close()
+ 
+ @mcp.tool()
+ def chronos_assemble_context(symbols: list[str], token_budget: int = 4000) -> dict[str, Any]:
+     """Assemble graph-aware repository context within a token budget."""
+-    con = _get_con()
+-    try:
++    with connection(db_file) as con:
+         store = SQLiteGraphStore(con)
+         return assemble_context(symbols, store, token_budget=token_budget)
+-    finally:
+-        con.close()
+ 
+ def main():
+     mcp.run()

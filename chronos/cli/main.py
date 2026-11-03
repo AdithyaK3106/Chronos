@@ -12,15 +12,57 @@ import time
 import urllib.request
 from typing import Any
 
-from chronos.audit.logger import verify_audit_chain
-from chronos.cli.ui import add_ui_subparser, launch_ui
-from chronos.context.graph import SQLiteGraphStore
-from chronos.context.indexer import index_repository
-from chronos.core.config import ChronosConfig
-from chronos.core.db import get_connection
+# Heavy modules (dashboard server, indexer, graph) are imported inside main(), after the
+# `chronos hook ...` fast path: hooks run as a new process on every agent tool call.
+
+
+def _optional_dist_version(dist: str) -> str | None:
+    """Installed version of an optional distribution, or None (without importing it)."""
+    from importlib import metadata
+
+    try:
+        return metadata.version(dist)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def bench_main():
+    """Entry point for `chronos-bench`: explain the missing extra instead of a traceback."""
+    if not _optional_dist_version("openhands-sdk"):
+        print(
+            "`chronos-bench` drives OpenHands agents, which are an optional extra.\n"
+            "Install it with:  pip install 'chronos-agent[bench]'",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    from benchmarks.cli import main as _bench
+
+    sys.exit(_bench())
+
+
+def _hook_fast_path(argv: list[str]) -> None:
+    """`chronos hook claude <pre|prompt>`: skip argparse setup and unrelated imports."""
+    if len(argv) == 3 and argv[0] == "hook" and argv[1] == "claude" and argv[2] in ("pre", "prompt"):
+        from chronos.integrations.claude_code import run_hook
+
+        code, out, err = run_hook(argv[2], sys.stdin.read())
+        if out:
+            sys.stdout.write(out + "\n")
+        if err:
+            sys.stderr.write(err)
+        sys.exit(code)
 
 
 def main():
+    _hook_fast_path(sys.argv[1:])
+
+    from chronos.audit.logger import verify_audit_chain
+    from chronos.cli.ui import add_ui_subparser, launch_ui
+    from chronos.context.graph import SQLiteGraphStore
+    from chronos.context.indexer import index_repository
+    from chronos.core.config import ChronosConfig
+    from chronos.core.db import get_connection
+
     parser = argparse.ArgumentParser(description="Chronos: Bi-temporal intelligence and AI governance")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -34,6 +76,7 @@ def main():
     # doctor
     p_doc = subparsers.add_parser("doctor", help="Check database, toolchain, and SLM engine health")
     p_doc.add_argument("--repo", default=".", help="Repository root path")
+    p_doc.add_argument("--live", action="store_true", help="Also run a canary event through the real Claude Code hook command")
 
     # sync
     p_sync = subparsers.add_parser("sync", help="Index repository AST into bi-temporal graph")
@@ -61,6 +104,14 @@ def main():
     p_run.add_argument("--agent-id", default="chronos_dev_agent", help="Agent identity ID")
     p_run.add_argument("--max-iterations", type=int, default=20, help="Maximum agent turns")
     p_run.add_argument("--timeout", type=int, default=300, help="Task timeout in seconds")
+    p_run.add_argument(
+        "--allow-terminal",
+        action="store_true",
+        help=(
+            "Give the agent a terminal tool so it can run tests/builds. WARNING: shell commands are "
+            "not path-checked by the Chronos firewall (only the tool allowlist applies)."
+        ),
+    )
     p_run.add_argument("--enable-slm", dest="enable_slm", action="store_true", default=None, help="Opt-in to CodeScout-1.7B SLM localization")
     p_run.add_argument("--no-slm", dest="enable_slm", action="store_false", help="Disable SLM localization")
     p_run.add_argument("--slm-backend", choices=["openai_compatible", "ollama", "agy"], default=None, help="SLM serving backend")
@@ -121,6 +172,25 @@ def main():
     p_res.add_argument("--slm-endpoint", default=None, help="Base URL for SLM server")
     p_res.add_argument("--slm-model", default=None, help="Model identifier")
 
+    # hook (internal; invoked by Claude Code hooks, reads the event JSON from stdin)
+    p_hook = subparsers.add_parser("hook", help="Internal: host-agent hook entry point")
+    p_hook.add_argument("host", choices=["claude"])
+    p_hook.add_argument("event", choices=["pre", "prompt"])
+
+    # claude (installer)
+    p_cl = subparsers.add_parser("claude", help="Install/inspect the Claude Code integration (hooks + MCP)")
+    p_cl.add_argument("action", choices=["install", "uninstall", "status"])
+    p_cl.add_argument("--scope", choices=["user", "project"], default="user")
+    p_cl.add_argument("--repo", default=".", help="Repository (used for --scope project)")
+    p_cl.add_argument("--no-mcp", action="store_true", help="Install hooks only")
+
+    # gate (human approval of protected-module edits)
+    p_gate = subparsers.add_parser("gate", help="Manage protected-module approvals")
+    p_gate.add_argument("action", choices=["grant", "revoke", "list"])
+    p_gate.add_argument("pattern", nargs="?", default=None, help="Path pattern, e.g. 'auth.py' or 'src/auth/*'")
+    p_gate.add_argument("--agent", default="claude_code", help="Agent identity the approval applies to")
+    p_gate.add_argument("--repo", default=".", help="Repository root path")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -138,6 +208,29 @@ def main():
             stop=getattr(args, "stop", False),
         )
         sys.exit(code)
+
+    if args.command == "hook":
+        from chronos.integrations.claude_code import run_hook
+        code, out, err = run_hook(args.event, sys.stdin.read())
+        if out:
+            sys.stdout.write(out + "\n")
+        if err:
+            sys.stderr.write(err)
+        sys.exit(code)
+
+    if args.command == "claude":
+        from chronos.integrations import claude_code as cc
+        repo = Path(args.repo).resolve()
+        if args.action == "install":
+            for line in cc.install(args.scope, repo, with_mcp=not args.no_mcp):
+                print(line)
+            print("Enable a repo with `chronos init` + `chronos sync`; repos without .chronos/ are untouched.")
+        elif args.action == "uninstall":
+            for line in cc.uninstall(args.scope, repo):
+                print(line)
+        else:
+            print(json.dumps(cc.status(args.scope, repo), indent=2))
+        sys.exit(0)
 
     repo_root = Path(getattr(args, "repo", ".")).resolve()
     chronos_dir = repo_root / ".chronos"
@@ -159,14 +252,18 @@ def main():
         print(f"Repository Root : {repo_root}")
         print(f"Chronos Dir     : {'OK' if chronos_dir.is_dir() else 'Missing (.chronos/)'}")
         
-        try:
-            con = get_connection(db_file)
-            row = con.execute("SELECT count(*) as c FROM sqlite_master WHERE type='table'").fetchone()
-            print(f"SQLite WAL DB   : OK ({row['c']} tables)")
-            con.close()
-        except Exception as e:
-            print(f"SQLite WAL DB   : FAILED ({e})")
-            status_ok = False
+        # Diagnose only: never create .chronos/ or a database as a side effect.
+        if not db_file.is_file():
+            print("SQLite WAL DB   : Not created yet (run `chronos init` in this repository)")
+        else:
+            try:
+                con = get_connection(db_file)
+                row = con.execute("SELECT count(*) as c FROM sqlite_master WHERE type='table'").fetchone()
+                print(f"SQLite WAL DB   : OK ({row['c']} tables)")
+                con.close()
+            except Exception as e:
+                print(f"SQLite WAL DB   : FAILED ({e})")
+                status_ok = False
 
         try:
             import tree_sitter
@@ -175,12 +272,12 @@ def main():
             print("Tree-Sitter     : Missing")
             status_ok = False
 
-        try:
-            import openhands.sdk
-            print("OpenHands SDK   : OK (v1.58.2)")
-        except ImportError:
-            print("OpenHands SDK   : Missing")
-            status_ok = False
+        # Optional: only `chronos run` and `chronos-bench` need OpenHands.
+        oh_version = _optional_dist_version("openhands-sdk")
+        if oh_version:
+            print(f"OpenHands SDK   : OK (v{oh_version}, optional)")
+        else:
+            print("OpenHands SDK   : Not installed (optional; needed only for `chronos run`: pip install 'chronos-agent[agent]')")
 
         # SLM Diagnostics
         cfg = ChronosConfig.load(repo_root)
@@ -236,6 +333,20 @@ def main():
                     pass
         if not npu_detected:
             print("NPU Detected    : None (Unverified / No accelerator found)")
+
+        if args.live:
+            from chronos.integrations.claude_code import live_check
+
+            live = live_check()
+            print("\nLive Hook Canary (Claude Code):")
+            print("------------------------------")
+            print(f"Command         : {live['command']}")
+            for name, c in live["checks"].items():
+                detail = c.get("decision") or c.get("error") or "allow"
+                print(f"{name:<16}: {'OK' if c.get('ok') else 'FAILED'} ({detail}, {c.get('ms', '?')} ms)")
+                if c.get("stderr"):
+                    print(f"                  {c['stderr']}")
+            status_ok = status_ok and live["ok"]
 
         sys.exit(0 if status_ok else 1)
 
@@ -299,13 +410,17 @@ def main():
         store = SQLiteGraphStore(con)
         print(f"Indexing repository {repo_root}...")
         nodes, edges = index_repository(repo_root)
-        store.ingest(nodes, edges)
+        sync_stats = store.sync_repository(nodes, edges)
         con.close()
         print(f"Successfully synced {len(nodes)} AST nodes and {len(edges)} relation edges.")
+        print(
+            f"  +{sync_stats['edges_added']} new edges, {sync_stats['edges_invalidated']} invalidated, "
+            f"{sync_stats['nodes_removed']} stale nodes removed, {sync_stats['duplicates_removed']} duplicate edges purged."
+        )
         sys.exit(0)
 
     elif args.command == "resolve":
-        from runtime.session import ChronosSessionBootstrap
+        from chronos.context.session import ChronosSessionBootstrap
         cfg = ChronosConfig.load(repo_root)
 
         # Apply CLI flag overrides to SLM configuration
@@ -341,11 +456,23 @@ def main():
         sys.exit(0)
 
     elif args.command == "serve":
+        # mcp_server loads its config at import time, so pin the repo BEFORE importing it.
+        # When launched by an IDE/agent without --repo, find the enclosing repo from the cwd.
+        from chronos.core.repo import discover_repo_root
+        serve_root = discover_repo_root(repo_root)
+        os.environ["CHRONOS_REPO_PATH"] = str(serve_root)
         from chronos.server.mcp_server import main as run_mcp
-        sys.stderr.write(f"Starting Chronos FastMCP Server for {repo_root}...\n")
+        sys.stderr.write(f"Starting Chronos FastMCP Server for {serve_root}...\n")
         run_mcp()
 
     elif args.command == "run":
+        if not _optional_dist_version("openhands-sdk"):
+            print(
+                "`chronos run` needs the OpenHands agent runtime, which is an optional extra.\n"
+                "Install it with:  pip install 'chronos-agent[agent]'   (or: uv tool install 'chronos-agent[agent]')",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         chronos_dir.mkdir(parents=True, exist_ok=True)
         con = get_connection(db_file)
 
@@ -353,10 +480,13 @@ def main():
         print(f"📦 Indexing repository: {repo_root}...")
         store = SQLiteGraphStore(con)
         nodes, edges = index_repository(repo_root)
-        store.ingest(nodes, edges)
+        store.sync_repository(nodes, edges)
 
         # 2. Configure developer permissions
         from chronos.security.permissions import set_permissions
+        allowed_tools = ["file_editor", "finish", "think"]
+        if args.allow_terminal:
+            allowed_tools.append("terminal")
         set_permissions(
             con,
             agent_id=args.agent_id,
@@ -364,7 +494,7 @@ def main():
                 "allowed_paths": ["**"],
                 "denied_paths": [".git/**", ".env*", "*secret*"],
                 "read_only": False,
-                "allowed_tools": ["file_editor", "finish", "think"],
+                "allowed_tools": allowed_tools,
             },
         )
 
@@ -394,6 +524,7 @@ def main():
         bootstrap_res = runtime.bootstrap.bootstrap_session(
             task_prompt=args.prompt,
             agent_id=args.agent_id,
+            refresh_index=False,  # graph was synced in step 1
         )
         resolved_files = bootstrap_res.get("resolved_files", [])
         resolved_symbols = bootstrap_res.get("resolved_symbols", [])
@@ -431,14 +562,27 @@ def main():
                 llm_kwargs["base_url"] = resolved_base
             llm = LLM(**llm_kwargs)
 
+        agent_tools = [Tool(name=FileEditorTool.name)]
+        if args.allow_terminal:
+            from openhands.tools.terminal import TerminalTool
+            agent_tools.append(Tool(name=TerminalTool.name))
+            print("⚠️  Terminal tool enabled: shell commands bypass Chronos path checks.\n")
+
         agent = runtime.create_agent(
             llm=llm,
             agent_id=args.agent_id,
-            tools=[Tool(name=FileEditorTool.name)],
+            tools=agent_tools,
         )
 
         # 5. Execute Conversation with iteration cap & watchdog
-        convo = Conversation(agent=agent, workspace=str(repo_root))
+        from runtime.openhands_adapter import new_task_id
+        task_id = new_task_id()
+        conversation_events: list[Any] = []
+        convo = Conversation(
+            agent=agent,
+            workspace=str(repo_root),
+            callbacks=[conversation_events.append],
+        )
         convo.max_iteration_per_run = args.max_iterations
         convo.send_message(bootstrap_res["augmented_prompt"])
 
@@ -458,15 +602,61 @@ def main():
         watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
         watchdog_thread.start()
 
+        task_outcome = "success"
+        task_error = None
         try:
             convo.run()
+            status = getattr(getattr(convo, "state", None), "execution_status", None)
+            if status is not None:
+                status_str = str(getattr(status, "value", status)).lower()
+                if "error" in status_str or "stuck" in status_str:
+                    task_outcome = "failure"
+        except Exception as exc:
+            task_outcome = "failure"
+            task_error = str(exc)
+            raise
         finally:
             done_event.set()
+            if timed_out and task_outcome == "success":
+                task_outcome = "failure"
+                task_error = task_error or f"Timed out after {args.timeout}s"
+            # 6. Post-task memory distillation (idempotent per task_id, never raises)
+            saved = runtime.record_task_outcome(
+                task_id=task_id,
+                task_prompt=args.prompt,
+                agent_id=args.agent_id,
+                outcome=task_outcome,
+                files_modified=list(resolved_files),
+                events=conversation_events,
+                error_message=task_error,
+            )
+            if saved:
+                print(f"\n🧠 Recorded {len(saved)} memories for {task_id}.")
+            con.close()
 
-        con.close()
         print("\n🏁 Task execution complete.")
         if timed_out:
             print(f"⚠️ Task reached timeout threshold ({args.timeout}s).")
+        sys.exit(0)
+
+    elif args.command == "gate":
+        from chronos.security.gates import grant_gate_approval, revoke_gate_approval
+        con = get_connection(db_file)
+        if args.action == "list":
+            rows = con.execute("SELECT agent_id, path_pattern, approved_by, created_at, expires_at FROM gate_approvals ORDER BY created_at").fetchall()
+            for r in rows:
+                print(f"{r['agent_id']}  {r['path_pattern']}  (by {r['approved_by']}, {r['created_at']}, expires {r['expires_at'] or 'never'})")
+            print(f"{len(rows)} approval(s)")
+        elif not args.pattern:
+            print("Usage: chronos gate grant|revoke <pattern> [--agent ID]", file=sys.stderr)
+            sys.exit(1)
+        elif args.action == "grant":
+            grant_gate_approval(con, args.agent, args.pattern, approved_by="cli_user")
+            print(f"Granted '{args.pattern}' to agent '{args.agent}'")
+        else:
+            revoke_gate_approval(con, args.agent, args.pattern)
+            print(f"Revoked '{args.pattern}' from agent '{args.agent}'")
+        con.close()
         sys.exit(0)
 
     elif args.command == "audit" and args.subcommand == "verify":

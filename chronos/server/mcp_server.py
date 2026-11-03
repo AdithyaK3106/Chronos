@@ -153,7 +153,7 @@ def chronos_resolve_zero_path_context(prompt: str, token_budget: int = 2000) -> 
     """Deterministically resolve repository AST context, provenance, and tests from natural-language prompt."""
     con = _get_con()
     try:
-        from runtime.session import ChronosSessionBootstrap
+        from chronos.context.session import ChronosSessionBootstrap
         boot = ChronosSessionBootstrap(repo_path=_get_root(), con=con)
         res = boot.bootstrap_session(task_prompt=prompt, token_budget=token_budget)
         return {
@@ -273,32 +273,20 @@ def chronos_check_gate(path: str, agent_id: str = "primary_agent") -> dict[str, 
     """Check if modifying a sensitive path requires human-in-the-loop gate approval."""
     con = _get_con()
     try:
-        import fnmatch
         from pathlib import Path
-        from chronos.security.gates import DEFAULT_PROTECTED_PATTERNS, is_gate_approved
+        from chronos.security.gates import find_protected_module, is_gate_approved
 
+        # Same rules as the firewall, including .chronos/protected.yml.
+        match = find_protected_module(path, _get_root())
         norm = Path(path).as_posix()
-        is_sensitive = False
-        matched_pattern = ""
-        for pat in DEFAULT_PROTECTED_PATTERNS:
-            if (
-                fnmatch.fnmatch(norm, pat)
-                or fnmatch.fnmatch(Path(norm).name, pat)
-                or fnmatch.fnmatch(norm, f"**/{pat}")
-                or norm == pat
-                or norm.endswith(pat.lstrip("/"))
-            ):
-                is_sensitive = True
-                matched_pattern = pat
-                break
-
-        if not is_sensitive:
+        if match is None:
             return {
                 "sensitive": False,
                 "approved": True,
                 "path": path,
                 "matched_pattern": None,
             }
+        matched_pattern = match[1]
 
         approved = is_gate_approved(con, agent_id, norm)
         return {
@@ -317,7 +305,8 @@ def chronos_check_gate(path: str, agent_id: str = "primary_agent") -> dict[str, 
 
 
 def main():
-    mcp.run()
+    # No startup banner: hosts launch this over stdio and show stderr in their logs.
+    mcp.run(show_banner=False)
 
 if __name__ == "__main__":
     main()

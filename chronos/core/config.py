@@ -5,8 +5,26 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
+
+
+class PolicyConfig(BaseModel):
+    """How enforcement decisions are presented to the developer."""
+
+    protected_modules: Literal["ask", "deny"] = Field(
+        default="ask",
+        description="Edits to protected modules (auth, policy, security, ...): ask the developer "
+        "in the agent UI, or deny until `chronos gate grant`. Secrets are always denied.",
+    )
+    on_hook_error: Literal["ask", "deny", "allow"] = Field(
+        default="ask",
+        description="If the hook itself fails: ask (visible, not a lockout), deny (strict), or "
+        "allow (silent fail-open, not recommended).",
+    )
+    max_context_chars: int = Field(
+        default=6000, description="Upper bound on injected context, to limit prompt injection surface."
+    )
 
 
 class SLMConfig(BaseModel):
@@ -52,6 +70,7 @@ class ChronosConfig(BaseModel):
     auth_mode: str = "strict"      # 'strict' or 'permissive'
     context_token_budget: int = 4000
     slm: SLMConfig = Field(default_factory=SLMConfig)
+    policy: PolicyConfig = Field(default_factory=PolicyConfig)
 
     @classmethod
     def load(cls, base_dir: str | Path | None = None) -> "ChronosConfig":

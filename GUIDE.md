@@ -19,6 +19,25 @@ curl -fsSL https://raw.githubusercontent.com/chronos-agent/chronos/main/install.
 ./install.sh
 ```
 
+#### Install as a tool (no clone needed)
+
+The core install (hooks, MCP server, indexer, resolver, firewall, memory, dashboard) is about 73 MB and
+does not include the OpenHands agent stack. Add extras only if you need them:
+
+```bash
+uv tool install chronos-agent                  # core: Claude Code hooks + MCP, `chronos sync/resolve/ui`
+uv tool install 'chronos-agent[agent]'         # + `chronos run` (headless OpenHands agent, ~2 GB)
+uv tool install 'chronos-agent[all]'           # + agent runtime and the Kuzu graph backend
+# pipx works the same way:  pipx install 'chronos-agent[agent]'
+# From a local checkout:    uv tool install /path/to/chronos
+```
+
+> The distribution is named **`chronos-agent`** because `chronos` on PyPI is an unrelated project.
+> The import name and the command are still `chronos`. It is not published to PyPI yet; until it
+> is, install from a checkout.
+
+`./install.sh` (from a clone) is the contributor setup and installs everything, including test tools.
+
 #### Customization Options & Scriptable Flags
 You can run the installer interactively or pass flags for unattended / CI setup:
 
@@ -134,6 +153,60 @@ If not configured automatically by `install.sh`, add Chronos to your IDE's MCP c
 - *"Find all direct callers of `release_lock` across the repo."* → Agent calls `as_of_callers`.
 - *"Acquire an AST write lease on `src/auth.py::login_handler` before editing."* → Agent calls `chronos_acquire_lock`.
 - *"Recall any past gotchas or invariants about graph traversal."* → Agent calls `chronos_recall`.
+
+#### 4. Claude Code: governance + automatic context (hooks + MCP)
+
+MCP alone is *advisory*: the agent chooses whether to call Chronos. For enforcement and automatic
+context injection, install the Claude Code hooks too (one command, idempotent, reversible):
+
+```bash
+chronos claude install --scope user      # hooks in ~/.claude/settings.json + `claude mcp add chronos`
+chronos claude status                    # what is installed
+chronos claude uninstall --scope user    # remove cleanly
+
+cd your-repo && chronos init && chronos sync   # opt a repo in (repos without .chronos/ are never touched)
+```
+
+What you get inside an opted-in repo:
+
+| Hook | Effect |
+|---|---|
+| `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials), path escapes, and edits to code another agent has locked. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
+| `UserPromptSubmit` | Injects the matching symbols, callers/callees, tests and recalled memories, only when the match is strong (threshold `CHRONOS_MIN_INJECT_SCORE`, default 12). It is labelled as untrusted reference data and capped in size, because it quotes repository text. |
+
+Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`
+are protected; `author.py` and `AUTHORS` are not. Add your own in `.chronos/protected.yml`.
+
+Choose how strict to be in `.chronos/config.json`:
+
+```json
+{ "policy": { "protected_modules": "ask", "on_hook_error": "ask", "max_context_chars": 6000 } }
+```
+
+| Setting | Values | Default |
+|---|---|---|
+| `protected_modules` | `ask` (approve in Claude Code's prompt) or `deny` (until `chronos gate grant`) | `ask` |
+| `on_hook_error` | `ask`, `deny` (strict) or `allow` (silent fail-open) | `ask` |
+| `max_context_chars` | upper bound on injected context | `6000` |
+
+Approve a protected edit (the denial message prints this command):
+
+```bash
+chronos gate grant auth.py --agent claude_code
+chronos gate list
+chronos gate revoke auth.py --agent claude_code
+```
+
+**Known limitation:** the `Bash` tool is *not* governed. With permissions bypassed, an agent can still
+modify a protected file with `sed -i`/redirects. Treat the hooks as protection against mistakes, not
+against a determined agent, until the shell policy and git/CI backstop land.
+
+Tunables: `CHRONOS_AGENT_ID`, `CHRONOS_CONTEXT_BUDGET` (tokens, default 1200),
+`CHRONOS_HOOK_FAIL_CLOSED=1` (always deny if the hook itself errors, overriding `on_hook_error`),
+`CHRONOS_HOOK_STRICT_BOUNDARY=1` (also deny paths outside the repo).
+
+`chronos claude status` shows what is installed and runs each installed hook command once, so a
+moved or broken install shows up as `"hook_commands_work": false`.
 
 ---
 

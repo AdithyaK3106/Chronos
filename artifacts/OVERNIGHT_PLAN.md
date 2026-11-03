@@ -54,8 +54,8 @@ a toggle; all current engineering views kept under **Advanced**.
 - **Done when:** `chronos ui` opens on the Overview, every Advanced view still loads, tests pass.
 
 ### M3. Evidence: acceptance tests + 24-task benchmark
-- [ ] Test venvs for chronos, Cooling project, MediAssist (scratch dirs, like `cng_venv`).
-- [ ] Hidden acceptance tests for the remaining efficacy tasks (fail on baseline, pass on a
+- [x] Test venvs for chronos, Cooling project, MediAssist (scratch dirs, like `cng_venv`).
+- [x] Hidden acceptance tests for the remaining efficacy tasks (fail on baseline, pass on a
       reference fix; fix or rewrite unfair prompts and record why).
 - [ ] Full suite run: all repos, **3 runs per task**, Flash Low, in the background.
 - [ ] Write `artifacts/BENCHMARK_REPORT_2026-11-04.md`: per-task table, totals, variance, caveats.

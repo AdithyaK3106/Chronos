@@ -29,7 +29,7 @@ tasks:
     verification_commands:
       - "pytest tests/test_training_serving_parity.py -q"
     regression_commands:
-      - "pytest tests/test_training_serving_parity.py -q"
+      - "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
     acceptance_tests:
       - "acceptance/cooling_project/test_cooling_task_02_all_missing_column.py"
     metadata:

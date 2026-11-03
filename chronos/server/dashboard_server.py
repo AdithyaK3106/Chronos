@@ -690,6 +690,11 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
         try:
             if subroute == "mission":
                 self._handle_mission(repo)
+            elif subroute == "overview":
+                from chronos.server.overview import build_overview
+
+                probe = (query.get("probe", ["1"])[0] or "1") != "0"
+                self._send_json(build_overview(REGISTRY.refresh(repo.id) or repo, probe_hooks=probe))
             elif subroute == "benchmarks":
                 self._handle_benchmarks(repo, query)
             elif subroute == "graph/summary":

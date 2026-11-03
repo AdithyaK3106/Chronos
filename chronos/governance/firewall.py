@@ -112,7 +112,7 @@ def evaluate_tool_security_detailed(
             repo_root=root,
         )
         if not is_allowed:
-            _log_decision(log_path, agent_id, tool_name, target_path or "none", "deny", reason)
+            _log_decision(log_path, agent_id, tool_name, target_path or "none", "deny", reason, category="permission")
             return False, reason, "permission"
 
         is_mutating = _is_mutating_call(tool_name, tool_input)
@@ -123,7 +123,7 @@ def evaluate_tool_security_detailed(
         if target_path and is_mutating:
             is_approved, gate_reason = check_gate_approval(target_path, root, con=con, agent_id=agent_id)
             if not is_approved:
-                _log_decision(log_path, agent_id, tool_name, target_path, "deny", gate_reason)
+                _log_decision(log_path, agent_id, tool_name, target_path, "deny", gate_reason, category="gate")
                 return False, gate_reason, "gate"
 
         # 3. Check AST node locks (explicit node_id or inferred target_path locks)
@@ -134,13 +134,13 @@ def evaluate_tool_security_detailed(
                 holder = conflict_info["locked"][node_id]["agent_id"]
                 if holder != agent_id:
                     lock_reason = f"AST node '{node_id}' is locked by agent '{holder}'"
-                    _log_decision(log_path, agent_id, tool_name, node_id, "deny", lock_reason)
+                    _log_decision(log_path, agent_id, tool_name, node_id, "deny", lock_reason, category="lock")
                     return False, lock_reason, "lock"
         elif target_path and tool_name in ("file_editor", "edit_file", "write_file"):
             if is_mutating:
                 lock_ok, lock_reason = _check_inferred_locks(con, agent_id, target_path, root)
                 if not lock_ok:
-                    _log_decision(log_path, agent_id, tool_name, target_path, "deny", lock_reason)
+                    _log_decision(log_path, agent_id, tool_name, target_path, "deny", lock_reason, category="lock")
                     return False, lock_reason, "lock"
 
         # 4. Content verification against blocking rules if content provided
@@ -149,10 +149,10 @@ def evaluate_tool_security_detailed(
             passed, violations = evaluate_rules_on_content(con, content, target_path or "unknown")
             if not passed:
                 rule_reason = f"Violated blocking rule: {violations[0]['message']}"
-                _log_decision(log_path, agent_id, tool_name, target_path or "content", "deny", rule_reason)
+                _log_decision(log_path, agent_id, tool_name, target_path or "content", "deny", rule_reason, category="rule")
                 return False, rule_reason, "rule"
 
-        if not _log_decision(log_path, agent_id, tool_name, target_path or "none", "allow", "All security checks passed"):
+        if not _log_decision(log_path, agent_id, tool_name, target_path or "none", "allow", "All security checks passed", category="allow"):
             # Fail closed: an action that cannot be recorded in the audit trail is not executed
             return False, "Audit trail unavailable or corrupted; action denied (run `chronos audit verify`)", "audit"
         return True, "Allowed", "allow"
@@ -160,7 +160,7 @@ def evaluate_tool_security_detailed(
     except Exception as e:
         # Strict fail closed
         fail_closed_reason = f"Security interceptor failed closed: {e}"
-        _log_decision(log_path, agent_id, tool_name, target_path or "error", "deny", fail_closed_reason)
+        _log_decision(log_path, agent_id, tool_name, target_path or "error", "deny", fail_closed_reason, category="error")
         return False, fail_closed_reason, "error"
 
 def evaluate_tool_security(
@@ -178,8 +178,15 @@ def evaluate_tool_security(
     return allowed, reason
 
 
-def _log_decision(log_path: str | Path | None, agent_id: str, tool_name: str, target: str, status: str, reason: str) -> bool:
-    """Append a decision to the audit trail. Returns False if it could not be recorded."""
+def _log_decision(
+    log_path: str | Path | None, agent_id: str, tool_name: str, target: str, status: str, reason: str,
+    category: str = "",
+) -> bool:
+    """Append a decision to the audit trail. Returns False if it could not be recorded.
+
+    `category` is the deciding check (allow, permission, gate, lock, rule, error) so readers such as
+    `chronos ui` can tell a protected-module hold (which Claude Code turns into "ask") from a hard deny.
+    """
     if not log_path:
         return True
     try:
@@ -191,6 +198,7 @@ def _log_decision(log_path: str | Path | None, agent_id: str, tool_name: str, ta
             target=target,
             status=status,
             reason=reason,
+            metadata={"category": category} if category else None,
         )
         return True
     except Exception:

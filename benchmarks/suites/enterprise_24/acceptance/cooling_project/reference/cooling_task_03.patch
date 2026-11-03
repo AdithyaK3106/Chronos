@@ -1,0 +1,42 @@
+diff --git a/src/cooling_policy.py b/src/cooling_policy.py
+index 014aa19..baf3a58 100644
+--- a/src/cooling_policy.py
++++ b/src/cooling_policy.py
+@@ -16,6 +16,19 @@ class CoolingState(Enum):
+     RECOVERY = "RECOVERY"
+     FAILSAFE = "FAILSAFE"
+ 
++FAILSAFE_FAN_SPEED = 100.0
++
++
++def apply_fan_hysteresis(current_speed: float, target_speed: float, band: float = 5.0) -> float:
++    """Suppress fan steps smaller than `band` percentage points, so jittery targets do not make the
++    fan oscillate. A failsafe target (100%) always passes immediately; band <= 0 disables it."""
++    if band <= 0 or target_speed >= FAILSAFE_FAN_SPEED:
++        return target_speed
++    if abs(target_speed - current_speed) < band:
++        return current_speed
++    return target_speed
++
++
+ class CoolingPolicyEngine:
+     """
+     Intelligent Adaptive Laptop Cooling Controller.
+@@ -26,6 +39,7 @@ class CoolingPolicyEngine:
+         self.current_state = CoolingState.BALANCED
+         self.current_fan_speed = 30.0
+         self.target_fan_speed = 30.0
++        self.fan_hysteresis_band = 5.0
+         
+         self.last_update_time = time.time()
+         
+@@ -397,6 +411,9 @@ class CoolingPolicyEngine:
+             self.target_fan_speed = 30.0
+             self.stabilization_active = False
+ 
++        # 4b. Hysteresis band: ignore small target changes to suppress rapid oscillation
++        self.target_fan_speed = apply_fan_hysteresis(self.current_fan_speed, self.target_fan_speed, self.fan_hysteresis_band)
++
+         # 5. ACOUSTIC COMFORT MODELING (Fan Control Smoothing)
+         ramp_up = 5.0    # max +5% RPM/sec increase
+         ramp_down = 8.0  # max -8% RPM/sec decrease

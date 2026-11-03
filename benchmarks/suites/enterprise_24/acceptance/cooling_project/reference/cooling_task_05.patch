@@ -1,0 +1,85 @@
+diff --git a/src/features.py b/src/features.py
+index b608b0e..ddc2b41 100644
+--- a/src/features.py
++++ b/src/features.py
+@@ -36,6 +36,26 @@ def validate_raw_input(raw_point: dict) -> None:
+ # FEATURE PROCESSOR (Single Source of Truth)
+ # =============================================================================
+ 
++class WindowFeatureExtractor:
++    """Rolling-window means over named channels (e.g. cpu, gpu, heat), reusable outside FeatureProcessor."""
++
++    def __init__(self, channels=("cpu", "gpu", "heat"), maxlen: int = 10):
++        self.channels = tuple(channels)
++        self._buffers = {c: deque(maxlen=maxlen) for c in self.channels}
++
++    def push(self, **values: float) -> None:
++        for channel, value in values.items():
++            self._buffers[channel].append(value)
++
++    def mean(self, channel: str, window: int) -> float:
++        vals = list(self._buffers[channel])[-window:]
++        return sum(vals) / len(vals)
++
++    def reset(self) -> None:
++        for buf in self._buffers.values():
++            buf.clear()
++
++
+ class FeatureProcessor:
+     """
+     Production-grade stateful feature engineering engine.
+@@ -55,9 +75,7 @@ class FeatureProcessor:
+         }
+         
+         # Stateful buffers for rolling windows and deltas
+-        self._buffer_cpu = deque(maxlen=10)
+-        self._buffer_gpu = deque(maxlen=10)
+-        self._buffer_heat = deque(maxlen=10)
++        self.windows = WindowFeatureExtractor(("cpu", "gpu", "heat"), maxlen=10)
+         
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+@@ -67,9 +85,7 @@ class FeatureProcessor:
+ 
+     def reset_state(self):
+         """Reset stateful buffers."""
+-        self._buffer_cpu.clear()
+-        self._buffer_gpu.clear()
+-        self._buffer_heat.clear()
++        self.windows.reset()
+         self._prev_cpu = 0.0
+         self._prev_gpu = 0.0
+         self._prev_heat = 0.0
+@@ -127,22 +143,16 @@ class FeatureProcessor:
+         heat_n = np.clip((cpu_n * 0.6) + (gpu_n * 0.4), 0.0, 1.0)
+         
+         # Update buffers
+-        self._buffer_cpu.append(cpu_n)
+-        self._buffer_gpu.append(gpu_n)
+-        self._buffer_heat.append(heat_n)
+-        
++        self.windows.push(cpu=cpu_n, gpu=gpu_n, heat=heat_n)
++
+         # 4. Rolling Windows [6-11]
+-        def get_roll(buffer, window):
+-            vals = list(buffer)[-window:]
+-            return sum(vals) / len(vals)
+-            
+-        cpu_roll_5 = get_roll(self._buffer_cpu, 5)
+-        gpu_roll_5 = get_roll(self._buffer_gpu, 5)
+-        heat_roll_5 = get_roll(self._buffer_heat, 5)
+-        
+-        cpu_roll_10 = get_roll(self._buffer_cpu, 10)
+-        gpu_roll_10 = get_roll(self._buffer_gpu, 10)
+-        heat_roll_10 = get_roll(self._buffer_heat, 10)
++        cpu_roll_5 = self.windows.mean("cpu", 5)
++        gpu_roll_5 = self.windows.mean("gpu", 5)
++        heat_roll_5 = self.windows.mean("heat", 5)
++
++        cpu_roll_10 = self.windows.mean("cpu", 10)
++        gpu_roll_10 = self.windows.mean("gpu", 10)
++        heat_roll_10 = self.windows.mean("heat", 10)
+         
+         # 5. Deltas [12-14]
+         # On first sample, delta is 0

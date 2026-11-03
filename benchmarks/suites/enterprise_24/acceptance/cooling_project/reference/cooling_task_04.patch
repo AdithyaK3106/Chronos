@@ -1,0 +1,66 @@
+diff --git a/src/thermal_mode_controller.py b/src/thermal_mode_controller.py
+index 7245206..f378dbd 100644
+--- a/src/thermal_mode_controller.py
++++ b/src/thermal_mode_controller.py
+@@ -1,5 +1,7 @@
+ import time
+ import math
++import json
++import socket
+ import logging
+ from enum import Enum
+ from collections import deque
+@@ -21,6 +23,10 @@ class WorkloadPhase(Enum):
+     COOLDOWN = 4
+     BACKGROUND_NOISE = 5
+ 
++FAILSAFE_BROADCAST_ADDR = ("255.255.255.255", 50505)
++SENSOR_TIMEOUT_S = 5.0
++
++
+ class ThermalModeController:
+     """
+     Advanced runtime predictive thermal orchestration engine.
+@@ -75,7 +81,41 @@ class ThermalModeController:
+         self.semantic_status = "SYSTEM BOOT"
+         
+         self.last_eval_time = time.time()
+-        
++        self._timeout_episode_sample = None  # last_sample_time of the silence already broadcast
++
++    def broadcast(self, packet: dict) -> None:
++        """Send a failsafe packet as a UDP broadcast. Network errors are logged, never raised."""
++        try:
++            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
++                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
++                sock.sendto(json.dumps(packet).encode("utf-8"), FAILSAFE_BROADCAST_ADDR)
++        except OSError as exc:
++            self._log("BROADCAST_FAILED", f"Failsafe packet not sent: {exc}")
++
++    def check_sensor_timeout(self, last_sample_time: float, now: float | None = None, timeout_s: float = SENSOR_TIMEOUT_S):
++        """If the sensor has been silent for more than timeout_s, go to FAILSAFE and broadcast once.
++
++        Returns the packet sent, or None (sensor fresh, or this silence was already reported).
++        """
++        now = time.time() if now is None else now
++        silence = now - last_sample_time
++        if silence <= timeout_s:
++            self._timeout_episode_sample = None
++            return None
++        if self._timeout_episode_sample == last_sample_time:
++            return None
++        self._timeout_episode_sample = last_sample_time
++        self.switch_mode(ThermalMode.FAILSAFE, reason="SENSOR_TIMEOUT")
++        packet = {
++            "type": "THERMAL_FAILSAFE",
++            "reason": "SENSOR_TIMEOUT",
++            "mode": "FAILSAFE",
++            "silence_s": round(silence, 3),
++            "timestamp": now,
++        }
++        self.broadcast(packet)
++        return packet
++
+     def _log(self, tag: str, message: str):
+         print(f"[{tag}] {message}")
+         

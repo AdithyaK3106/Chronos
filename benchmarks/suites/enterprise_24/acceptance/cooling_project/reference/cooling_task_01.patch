@@ -1,0 +1,26 @@
+diff --git a/src/telemetry_logger.py b/src/telemetry_logger.py
+index 709ac83..7ee74f0 100644
+--- a/src/telemetry_logger.py
++++ b/src/telemetry_logger.py
+@@ -147,6 +147,10 @@ def collect_disk_io(prev_counters: dict) -> tuple[float, dict]:
+ 
+         if prev_counters:
+             elapsed = current["time"] - prev_counters["time"]
++            if elapsed <= 0:
++                # Same clock tick (high-frequency read): keep the previous baseline so the bytes of
++                # this interval are counted by the next sample instead of being dropped.
++                return 0.0, prev_counters
+             if elapsed > 0:
+                 delta = (
+                     (current["read"]  - prev_counters["read"]) +
+@@ -181,6 +185,10 @@ def collect_network_io(prev_counters: dict) -> tuple[float, dict]:
+ 
+         if prev_counters:
+             elapsed = current["time"] - prev_counters["time"]
++            if elapsed <= 0:
++                # Same clock tick (high-frequency read): keep the previous baseline so the bytes of
++                # this interval are counted by the next sample instead of being dropped.
++                return 0.0, prev_counters
+             if elapsed > 0:
+                 delta = (
+                     (current["sent"] - prev_counters["sent"]) +

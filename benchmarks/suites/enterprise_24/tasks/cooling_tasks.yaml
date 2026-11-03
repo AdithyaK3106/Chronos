@@ -3,61 +3,87 @@ tasks:
     repository_id: "cooling_project"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Fix negative timestamp delta jitter when reading high-frequency CPU telemetry samples in src/telemetry_logger.py."
+    # v2 prompt: v1 said 'negative timestamp delta jitter'; the collectors already use a monotonic clock, the concrete defect is that a same-tick read drops the counter baseline.
+    prompt: "Fix high-frequency sampling in collect_disk_io() and collect_network_io() in src/telemetry_logger.py: when the elapsed monotonic time since the previous sample is zero or negative (two reads in the same clock tick), they return 0.0 but replace the stored counters with the current ones, so the bytes of that interval are lost and the next rate is too low. In that case keep the previous counters (do not advance the baseline) so the next sample measures the whole interval. Normal rates must not change."
     target_files:
       - "src/telemetry_logger.py"
     verification_commands:
       - "pytest tests/test_telemetry_direct.py -q"
     regression_commands:
       - "pytest tests/test_telemetry_direct.py -q"
+    acceptance_tests:
+      - "acceptance/cooling_project/test_cooling_task_01_same_tick_reads.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "cooling_task_02"
     repository_id: "cooling_project"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Handle divide-by-zero and zero-variance NaN imputation in rolling temperature moving average in src/preprocess.py."
+    # v2 prompt: v1 described a 'rolling temperature moving average' that preprocess.py does not have; the real gap is an all-missing sensor column leaving NaN in the data and the saved scaling state.
+    prompt: "Fix NaN imputation in preprocess_pipeline() in src/preprocess.py: missing telemetry is forward-filled and then filled with the column median, but when a sensor never reports (a column entirely empty, e.g. disk_io), its median is NaN, so NaN survives cleaning, is written to the processed dataset, and the fitted scaling state saved to preprocessor_state.pkl becomes NaN (max(nan, 1e-6) is nan), which breaks scaling at inference time. Make cleaning leave no NaN: keep forward fill and median imputation, and fall back to 0 for columns with no valid values, so the saved state is always finite."
     target_files:
       - "src/preprocess.py"
+    # v1 verified with tests/test_telemetry_inflation_fix.py, which measures live CPU readings for 10 s and fails on the untouched baseline; replaced by the deterministic parity tests that exercise preprocessing.
     verification_commands:
-      - "pytest tests/test_telemetry_inflation_fix.py -q"
+      - "pytest tests/test_training_serving_parity.py -q"
     regression_commands:
-      - "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
+      - "pytest tests/test_training_serving_parity.py -q"
+    acceptance_tests:
+      - "acceptance/cooling_project/test_cooling_task_02_all_missing_column.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "cooling_task_03"
     repository_id: "cooling_project"
     suite: "efficacy"
     category: "feature"
-    prompt: "Implement hysteresis band logic in fan step controller to suppress rapid oscillations in src/cooling_policy.py."
+    # v2 prompt: v1 did not say where or how; testing hysteresis through the time- and hardware-dependent update() loop is not deterministic, so the contract is a small helper used by update().
+    prompt: "Add hysteresis to the fan step controller in src/cooling_policy.py to suppress rapid fan oscillation. Add a module-level function apply_fan_hysteresis(current_speed: float, target_speed: float, band: float = 5.0) -> float: if the target differs from the current speed by less than band percentage points, return current_speed (no step); otherwise return target_speed. A failsafe target of 100 always passes immediately, and band <= 0 disables hysteresis. CoolingPolicyEngine gets an attribute fan_hysteresis_band = 5.0 and update() applies apply_fan_hysteresis to target_fan_speed before the fan ramp is applied."
     target_files:
       - "src/cooling_policy.py"
     verification_commands:
       - "pytest tests/test_telemetry_accuracy.py -k 'not test_cpu_survives_other_psutil_callers' -q"
+    acceptance_tests:
+      - "acceptance/cooling_project/test_cooling_task_03_fan_hysteresis.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "cooling_task_04"
     repository_id: "cooling_project"
     suite: "efficacy"
     category: "feature"
-    prompt: "Emit hardware thermal failsafe broadcast packet on sensor communication timeout in src/thermal_mode_controller.py."
+    # v2 prompt: v1 named no interface, packet format or transport; a hidden test needs them.
+    prompt: "Add a sensor communication timeout failsafe to ThermalModeController in src/thermal_mode_controller.py. Add check_sensor_timeout(last_sample_time: float, now: float | None = None, timeout_s: float = 5.0): when more than timeout_s seconds have passed since last_sample_time, switch to FAILSAFE via switch_mode(ThermalMode.FAILSAFE, reason='SENSOR_TIMEOUT') and broadcast the packet {'type': 'THERMAL_FAILSAFE', 'reason': 'SENSOR_TIMEOUT', 'mode': 'FAILSAFE', 'silence_s': <seconds of silence>, 'timestamp': now} through a new method broadcast(packet), then return the packet; otherwise return None. Send only one packet per silence (until a fresh last_sample_time arrives). broadcast() sends the packet as JSON over UDP to ('255.255.255.255', 50505) with SO_BROADCAST enabled, using the module's socket import, and logs network errors instead of raising."
     target_files:
       - "src/thermal_mode_controller.py"
     verification_commands:
       - "pytest tests/test_actual_telemetry.py -q"
+    acceptance_tests:
+      - "acceptance/cooling_project/test_cooling_task_04_sensor_timeout.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "cooling_task_05"
     repository_id: "cooling_project"
     suite: "efficacy"
     category: "refactor"
-    prompt: "Decouple rolling window feature aggregation in src/features.py into a reusable WindowFeatureExtractor class."
+    # v2 prompt: v1 named no interface for the new class; the hidden test needs its name and methods.
+    prompt: "Refactor the rolling-window aggregation in FeatureProcessor (src/features.py) into a reusable class WindowFeatureExtractor(channels=('cpu', 'gpu', 'heat'), maxlen=10) in the same module, with push(**values) (e.g. push(cpu=..., gpu=..., heat=...)), mean(channel, window) returning the mean of the last `window` values, and reset(). FeatureProcessor must hold one as self.windows and use it in process_single() and reset_state() instead of its own deques and the inner get_roll helper. Feature vectors must not change."
     target_files:
       - "src/features.py"
     verification_commands:
       - "pytest tests/test_training_serving_parity.py -q"
     regression_commands:
       - "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
+    acceptance_tests:
+      - "acceptance/cooling_project/test_cooling_task_05_window_extractor.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "cooling_task_06"

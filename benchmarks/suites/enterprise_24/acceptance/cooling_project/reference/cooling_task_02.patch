@@ -1,0 +1,14 @@
+diff --git a/src/preprocess.py b/src/preprocess.py
+index fe6dfca..537bf1b 100644
+--- a/src/preprocess.py
++++ b/src/preprocess.py
+@@ -29,6 +29,9 @@ def preprocess_pipeline(input_csv=os.path.join("..", "data", "raw", "telemetry_d
+     
+     # Batch cleaning (Safe to do in batch before feature engineering)
+     df[numeric_cols] = df[numeric_cols].ffill().fillna(df[numeric_cols].median())
++    # A sensor that never reported has a NaN median, so NaN would survive and poison the fitted
++    # scaling state (max(nan, 1e-6) is nan). Columns with no valid values fall back to 0.
++    df[numeric_cols] = df[numeric_cols].fillna(0.0)
+     
+     # 3. Fit Processor
+     # This step captures Min/Max scaling from the raw training data

@@ -1,0 +1,42 @@
+diff --git a/backend/src/app/adapters/ocr/preprocessor.py b/backend/src/app/adapters/ocr/preprocessor.py
+index a34b6ff..f1f4cd1 100644
+--- a/backend/src/app/adapters/ocr/preprocessor.py
++++ b/backend/src/app/adapters/ocr/preprocessor.py
+@@ -1,4 +1,7 @@
+ import io
++import time
++
++import structlog
+ 
+ from PIL import Image, ImageEnhance, ImageOps
+ 
+@@ -9,6 +12,9 @@ ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+ ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ 
+ 
++logger = structlog.get_logger(__name__)
++
++
+ class ImagePreprocessor:
+     """Robust image validation and preprocessing pipeline for OCR/ANPR."""
+ 
+@@ -85,6 +91,7 @@ class ImagePreprocessor:
+         3. Adaptive threshold binarization (OpenCV)
+         """
+         variants: list[tuple[str, bytes]] = []
++        started = time.perf_counter()
+ 
+         # Variant 1: Default Autocontrast & Sharpening
+         v1_bytes = self.validate_and_preprocess(image_bytes)
+@@ -129,4 +136,11 @@ class ImagePreprocessor:
+         except Exception:  # noqa: BLE001
+             pass
+ 
++        with Image.open(io.BytesIO(image_bytes)) as _img:
++            _w, _h = _img.size
++        logger.info(
++            "ocr_preprocessing_metrics",
++            latency_ms=round((time.perf_counter() - started) * 1000, 2),
++            aspect_ratio=round(_w / _h, 3) if _h else None,
++        )
+         return variants

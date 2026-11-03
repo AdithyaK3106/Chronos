@@ -17,10 +17,14 @@ repositories:
     name: "Sensor-Free Predictive Cooling Pipeline"
     path: "${COOLING_REPO_PATH:-/data/Projects/Cooling project}"
     baseline_commit: "d6b6815e1815bcaaebbcb51b05e2dea3873f465b"
+    # Optional: virtualenv with numpy, pandas, psutil, pyyaml, xgboost, scikit-learn, joblib, pytest.
+    test_venv: "${COOLING_TEST_VENV:-}"
     default_test_command: "pytest tests/test_telemetry_direct.py tests/test_training_serving_parity.py -q"
 
   - id: "mediassist"
     name: "MediAssist Bilingual Outpatient Triage"
     path: "${MEDIASSIST_REPO_PATH:-/data/Projects/MediAssist}"
     baseline_commit: "43135842555fa54f96f6d379294ee9bf0afec12b"
+    # Optional: virtualenv with pandas, pyyaml, joblib, scikit-learn, pytest.
+    test_venv: "${MEDIASSIST_TEST_VENV:-}"
     default_test_command: "pytest tests/ -q"

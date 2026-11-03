@@ -1,0 +1,16 @@
+diff --git a/backend/src/app/domain/registration_normalizer.py b/backend/src/app/domain/registration_normalizer.py
+index 7d2a778..7b7dad6 100644
+--- a/backend/src/app/domain/registration_normalizer.py
++++ b/backend/src/app/domain/registration_normalizer.py
+@@ -149,8 +149,9 @@ class IndianRegistrationNormalizer:
+         if len(chars) == 10:
+             state_code = "".join(chars[:2])
+             if state_code in VALID_INDIAN_STATES:
+-                # Pos 2..3 (RTO digits)
+-                for i in (2, 3):
++                # Pos 2..3 (RTO digits); Delhi uses a 1-digit RTO + category letter (DL 1S ...)
++                rto_positions = (2,) if state_code == "DL" and chars[3].isalpha() else (2, 3)
++                for i in rto_positions:
+                     if chars[i] in to_digits:
+                         chars[i] = to_digits[chars[i]]
+                 # Pos 4..5 (Series letters)

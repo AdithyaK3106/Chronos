@@ -39,7 +39,7 @@ def _require_bwrap() -> str:
     return bwrap
 
 
-def build_command(plan: SandboxPlan, command: list[str], bwrap: str = "bwrap") -> list[str]:
+def build_command(plan: SandboxPlan, command: list[str], bwrap: str = "bwrap", chdir: str | None = None) -> list[str]:
     """The full bwrap argv. Order matters: anchors first, then read-only and hidden binds."""
     argv = [
         bwrap,
@@ -55,7 +55,7 @@ def build_command(plan: SandboxPlan, command: list[str], bwrap: str = "bwrap") -
         argv += ["--ro-bind", str(f), str(f)]
     for f in plan.hidden:
         argv += ["--ro-bind", "/dev/null", str(f)]
-    argv += ["--chdir", os.getcwd(), "--"]
+    argv += ["--chdir", chdir or os.getcwd(), "--"]
     return argv + command
 
 

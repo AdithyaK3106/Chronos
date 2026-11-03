@@ -53,6 +53,39 @@ def _hook_fast_path(argv: list[str]) -> None:
         sys.exit(code)
 
 
+def _run_with_claude(args, repo_root: Path) -> int:
+    """`chronos run --engine claude`: Claude Code works, the tests decide, failures are fed back."""
+    from chronos.orchestrator import ClaudeEngine, run_task
+    from chronos.orchestrator.engines import EngineUnavailable
+    from chronos.sandbox.runner import SandboxUnavailable
+
+    if not args.test_command:
+        print("--engine claude needs --test '<command>': the tests decide whether the task is done.", file=sys.stderr)
+        return 2
+    model = args.model if args.model and args.model.startswith(("claude", "haiku", "sonnet", "opus")) else None
+    engine = ClaudeEngine(model=model, allow_bash=args.allow_bash, timeout_s=args.timeout)
+    try:
+        out = run_task(
+            repo_root, args.prompt, engine, args.test_command, max_rounds=args.max_rounds,
+            sandbox=not args.no_sandbox, agent_id=args.agent_id if args.agent_id != "chronos_dev_agent" else "claude_code",
+        )
+    except (EngineUnavailable, SandboxUnavailable) as exc:
+        print(f"Cannot start: {exc}", file=sys.stderr)
+        if isinstance(exc, SandboxUnavailable):
+            print("Use --no-sandbox to run without it (Chronos hooks still apply if installed).", file=sys.stderr)
+        return 2
+    for r in out.rounds:
+        status = "tests pass" if r.tests_passed else f"tests fail (exit {r.test_exit})"
+        extra = f" · engine error: {r.engine_error}" if r.engine_error else ""
+        print(f"round {r.round}: {status}{extra}")
+    cost = f" · ${out.cost_usd:.4f}" if out.cost_usd else ""
+    print(f"{'Done' if out.success else 'Not done'} in {len(out.rounds)} round(s){cost} · run {out.run_id}"
+          f"{' · sandboxed' if out.sandboxed else ''}")
+    if not out.success and out.final_test_output:
+        print("\nLast test output:\n" + out.final_test_output[-1500:])
+    return 0 if out.success else 1
+
+
 def main():
     _hook_fast_path(sys.argv[1:])
 
@@ -112,6 +145,14 @@ def main():
             "not path-checked by the Chronos firewall (only the tool allowlist applies)."
         ),
     )
+    p_run.add_argument(
+        "--engine", choices=["openhands", "claude"], default="openhands",
+        help="Agent that does the work: the built-in OpenHands agent (default) or Claude Code in headless mode",
+    )
+    p_run.add_argument("--test", dest="test_command", default=None, help="(--engine claude) Command that decides success, e.g. 'pytest -q'")
+    p_run.add_argument("--max-rounds", type=int, default=3, help="(--engine claude) Resume with test failures at most this many rounds")
+    p_run.add_argument("--no-sandbox", action="store_true", help="(--engine claude) Run without the `chronos exec` sandbox")
+    p_run.add_argument("--allow-bash", action="store_true", help="(--engine claude) Let Claude Code run shell commands")
     p_run.add_argument("--enable-slm", dest="enable_slm", action="store_true", default=None, help="Opt-in to CodeScout-1.7B SLM localization")
     p_run.add_argument("--no-slm", dest="enable_slm", action="store_false", help="Disable SLM localization")
     p_run.add_argument("--slm-backend", choices=["openai_compatible", "ollama", "agy"], default=None, help="SLM serving backend")
@@ -475,6 +516,9 @@ def main():
         from chronos.server.mcp_server import main as run_mcp
         sys.stderr.write(f"Starting Chronos FastMCP Server for {serve_root}...\n")
         run_mcp()
+
+    elif args.command == "run" and args.engine == "claude":
+        sys.exit(_run_with_claude(args, repo_root))
 
     elif args.command == "run":
         if not _optional_dist_version("openhands-sdk"):

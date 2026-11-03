@@ -1,5 +1,6 @@
 """Unified SQLite database connection and schema management."""
 
+import re
 import sqlite3
 import threading
 from pathlib import Path
@@ -102,19 +103,21 @@ CREATE VIRTUAL TABLE IF NOT EXISTS code_nodes_fts USING fts5(
 );
 
 -- Triggers to maintain code_nodes_fts in sync with code_nodes
+-- (FTS rows share the source row's rowid: FTS5 can look up rowid, but not the UNINDEXED id column,
+--  so `WHERE id = old.id` was a full scan per changed row and re-indexing became O(n^2).)
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ai AFTER INSERT ON code_nodes BEGIN
-    INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
-    VALUES (new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring)
+    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ad AFTER DELETE ON code_nodes BEGIN
-    DELETE FROM code_nodes_fts WHERE id = old.id;
+    DELETE FROM code_nodes_fts WHERE rowid = old.rowid;
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_au AFTER UPDATE ON code_nodes BEGIN
-    DELETE FROM code_nodes_fts WHERE id = old.id;
-    INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
-    VALUES (new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+    DELETE FROM code_nodes_fts WHERE rowid = old.rowid;
+    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring)
+    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
 END;
 
 -- Bi-Temporal Code Edges (Wedge 1 GraphStore)
@@ -165,18 +168,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 );
 
 CREATE TRIGGER IF NOT EXISTS trg_memories_ai AFTER INSERT ON memories BEGIN
-    INSERT INTO memories_fts(id, content, summary, tags, evidence)
-    VALUES (new.id, new.content, new.summary, new.tags, new.evidence);
+    INSERT INTO memories_fts(rowid, id, content, summary, tags, evidence)
+    VALUES (new.rowid, new.id, new.content, new.summary, new.tags, new.evidence);
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_memories_ad AFTER DELETE ON memories BEGIN
-    DELETE FROM memories_fts WHERE id = old.id;
+    DELETE FROM memories_fts WHERE rowid = old.rowid;
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_memories_au AFTER UPDATE ON memories BEGIN
-    DELETE FROM memories_fts WHERE id = old.id;
-    INSERT INTO memories_fts(id, content, summary, tags, evidence)
-    VALUES (new.id, new.content, new.summary, new.tags, new.evidence);
+    DELETE FROM memories_fts WHERE rowid = old.rowid;
+    INSERT INTO memories_fts(rowid, id, content, summary, tags, evidence)
+    VALUES (new.rowid, new.id, new.content, new.summary, new.tags, new.evidence);
 END;
 
 CREATE TABLE IF NOT EXISTS entities (
@@ -286,6 +289,56 @@ def _migrate_memories_schema(con: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+# PRAGMA user_version: 2 = FTS rows keyed by the source row's rowid (see the trigger comment).
+SCHEMA_VERSION = 2
+_FTS_TABLES = (
+    ("code_nodes", "code_nodes_fts", "id, name, path, signature, docstring",
+     "n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, '')"),
+    ("memories", "memories_fts", "id, content, summary, tags, evidence",
+     "n.id, n.content, n.summary, n.tags, n.evidence"),
+)
+_FTS_TRIGGERS = ("trg_code_nodes_ai", "trg_code_nodes_ad", "trg_code_nodes_au",
+                 "trg_memories_ai", "trg_memories_ad", "trg_memories_au")
+
+
+def _migrate_fts_to_rowid(con: sqlite3.Connection) -> None:
+    """One-time: replace id-keyed FTS triggers and rebuild the FTS tables keyed by rowid."""
+    if con.execute("PRAGMA user_version").fetchone()[0] >= SCHEMA_VERSION:
+        return
+    con.execute("BEGIN IMMEDIATE")  # concurrent hook processes: exactly one migrates
+    try:
+        if con.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
+            for trg in _FTS_TRIGGERS:
+                con.execute(f"DROP TRIGGER IF EXISTS {trg}")
+            for table, fts, fts_cols, select_cols in _FTS_TABLES:
+                con.execute(f"DELETE FROM {fts}")
+                con.execute(f"INSERT INTO {fts}(rowid, {fts_cols}) SELECT n.rowid, {select_cols} FROM {table} n")
+            for stmt in re.findall(r"CREATE TRIGGER IF NOT EXISTS trg_(?:code_nodes|memories)_a[iud]\b.*?\bEND;", SCHEMA, re.S):
+                con.execute(stmt)
+            con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+
+
+def _backfill_fts(con: sqlite3.Connection, table: str, fts: str, fts_cols: str, select_cols: str) -> None:
+    """Index rows missing from the FTS table. Runs on every connect, so it must stay cheap.
+
+    It used to `LEFT JOIN <fts> ON id`: FTS5 columns have no index, so that was O(rows^2) and took
+    ~2 minutes per connection on a 22k-symbol repo, which made every hook call time out.
+    """
+    try:
+        if con.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == con.execute(f"SELECT count(*) FROM {fts}").fetchone()[0]:
+            return
+        con.execute(
+            f"INSERT INTO {fts}(rowid, {fts_cols}) SELECT n.rowid, {select_cols} FROM {table} n "
+            f"WHERE n.rowid NOT IN (SELECT rowid FROM {fts})"
+        )
+    except Exception:
+        pass
+
+
 def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection:
     """Returns a configured SQLite connection with WAL mode and robust pragmas."""
     if str(db_path) != ":memory:":
@@ -306,28 +359,7 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
     
     con.executescript(SCHEMA)
     _migrate_memories_schema(con)
-    try:
-        con.execute(
-            """
-            INSERT INTO code_nodes_fts(id, name, path, signature, docstring)
-            SELECT n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, '')
-            FROM code_nodes n
-            LEFT JOIN code_nodes_fts f ON n.id = f.id
-            WHERE f.id IS NULL
-            """
-        )
-    except Exception:
-        pass
-    try:
-        con.execute(
-            """
-            INSERT INTO memories_fts(id, content, summary, tags, evidence)
-            SELECT m.id, m.content, m.summary, m.tags, m.evidence
-            FROM memories m
-            LEFT JOIN memories_fts f ON m.id = f.id
-            WHERE f.id IS NULL
-            """
-        )
-    except Exception:
-        pass
+    _migrate_fts_to_rowid(con)
+    for table, fts, fts_cols, select_cols in _FTS_TABLES:
+        _backfill_fts(con, table, fts, fts_cols, select_cols)
     return con

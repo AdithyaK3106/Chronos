@@ -177,11 +177,21 @@ What you get inside an opted-in repo:
 Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`
 are protected; `author.py` and `AUTHORS` are not. Add your own in `.chronos/protected.yml`.
 
-Choose how strict to be in `.chronos/config.json`:
+Choose how strict to be with a preset:
 
-```json
-{ "policy": { "protected_modules": "ask", "on_hook_error": "ask", "max_context_chars": 6000 } }
+```bash
+chronos config set policy.preset strict     # relaxed | standard (default) | strict
 ```
+
+| Preset | `protected_modules` | `on_hook_error` | `max_context_chars` |
+|---|---|---|---|
+| `relaxed` | `ask` | `allow` (fail open) | `8000` |
+| `standard` | `ask` | `ask` | `6000` |
+| `strict` | `deny` | `deny` (fail closed) | `4000` |
+
+Secrets are denied under every preset. Settings written explicitly in `.chronos/config.json` override
+the preset, e.g. `{ "policy": { "preset": "strict", "protected_modules": "ask" } }`. The individual
+settings:
 
 | Setting | Values | Default |
 |---|---|---|

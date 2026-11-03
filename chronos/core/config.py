@@ -6,11 +6,30 @@ import json
 import os
 from pathlib import Path
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+# Named policy presets. A preset only fills in fields the config does not set explicitly.
+POLICY_PRESETS: dict[str, dict[str, object]] = {
+    # Fewer interruptions: protected edits still ask, but a broken hook fails open.
+    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "max_context_chars": 8000},
+    # The defaults: ask for protected edits, ask when the hook itself fails.
+    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "max_context_chars": 6000},
+    # Fail closed: protected edits need `chronos gate grant`, hook failures deny, smaller context.
+    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "max_context_chars": 4000},
+}
 
 
 class PolicyConfig(BaseModel):
-    """How enforcement decisions are presented to the developer."""
+    """How enforcement decisions are presented to the developer.
+
+    `preset` (relaxed / standard / strict) sets all fields at once; any field set explicitly in
+    .chronos/config.json overrides the preset. Secrets are denied under every preset.
+    """
+
+    preset: Optional[Literal["relaxed", "standard", "strict"]] = Field(
+        default=None, description="Named bundle of the settings below; explicit settings override it."
+    )
 
     protected_modules: Literal["ask", "deny"] = Field(
         default="ask",
@@ -25,6 +44,16 @@ class PolicyConfig(BaseModel):
     max_context_chars: int = Field(
         default=6000, description="Upper bound on injected context, to limit prompt injection surface."
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_preset(cls, data):
+        if isinstance(data, dict) and data.get("preset"):
+            preset = POLICY_PRESETS.get(data["preset"])
+            if preset is None:
+                raise ValueError(f"Unknown policy preset {data['preset']!r}; choose from {', '.join(POLICY_PRESETS)}")
+            data = {**preset, **data}
+        return data
 
 
 class SLMConfig(BaseModel):

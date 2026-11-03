@@ -130,10 +130,14 @@ def _hook_status(root: Path, probe: bool) -> dict[str, Any]:
         "complete": {"PreToolUse", "UserPromptSubmit"} <= set(installed),
         "commands_work": (all(works) if works and None not in works else None),
         "scopes": scopes,
-        "fix": None if installed else "Run `chronos claude install` (user scope) or `chronos claude install --scope project`.",
+        "fix": None if installed else "Run `chronos claude install` (all your projects) or `chronos claude install --scope project` (this one).",
     }
     _hook_status_cache[key] = (time.monotonic(), result)
     return result
+
+
+def clear_hook_status_cache() -> None:
+    _hook_status_cache.clear()
 
 
 def _status_without_probe(cc: Any, scope: str, root: Path) -> dict[str, Any]:
@@ -177,7 +181,7 @@ def _index_status(root: Path, con: sqlite3.Connection | None, now: datetime) -> 
                         changed += os.stat(os.path.join(dirpath, fname)).st_mtime > cutoff
                     except OSError:
                         pass
-    fix = None if nodes else "Run `chronos index` here, or send a prompt in Claude Code: the hook indexes on first use."
+    fix = None if nodes else "Run `chronos sync` here, or send a prompt in Claude Code: the hook indexes on first use."
     return {
         "indexed": nodes > 0,
         "symbols": nodes,
@@ -294,8 +298,8 @@ def efficiency_section(root: Path) -> dict[str, Any]:
         return {
             "available": False,
             "empty_hint": (
-                "No benchmark results in this repository. Efficiency is only shown when it was measured: "
-                "run the paired benchmark (`chronos bench`, baseline vs Chronos) to see token and time deltas."
+                "Not measured for this repository, so no number is shown. Chronos's paired benchmark (the same "
+                "tasks with and without Chronos) runs from a Chronos source checkout: `python -m benchmarks.cli run`."
             ),
         }
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)

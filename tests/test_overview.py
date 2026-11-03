@@ -89,7 +89,13 @@ def test_overview_reports_what_the_hooks_did(repo):
     assert ctx["available"] and ctx["week"]["injections"] == 1 and ctx["week"]["tokens"] > 0
     assert any("svc.py" in f for f in ctx["latest"][0]["files"])
 
-    assert ov["efficiency"]["available"] is False and "benchmark" in ov["efficiency"]["empty_hint"]
+    assert ov["efficiency"]["available"] is False and "benchmarks.cli run" in ov["efficiency"]["empty_hint"]
+
+    # The Advanced security view counts the same events the same way.
+    from chronos.server.dashboard_server import aggregate_audit_telemetry
+
+    tel = aggregate_audit_telemetry(repo / ".chronos" / "chronos-audit.log")
+    assert (tel["denied_count"], tel["held_count"]) == (1, 1)
 
 
 def test_overview_of_an_untouched_repo_has_hints_not_numbers(tmp_path, home):
@@ -128,3 +134,22 @@ def test_overview_endpoint(repo):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_every_command_the_overview_suggests_exists(tmp_path, home):
+    """Hints must not send users to commands that do not exist (`chronos index` did not)."""
+    import re
+    import shlex
+    import subprocess
+    import sys
+
+    from chronos.server import overview
+
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    commands = set(re.findall(r"`(chronos [^`]+)`", source))
+    commands.add(build_overview(inspect_repository(tmp_path), probe_hooks=False)["protection"]["grant_command"])
+    assert len(commands) >= 5
+    for cmd in sorted(commands):
+        args = shlex.split(cmd.replace("<file-or-pattern>", "x"))[1:]
+        r = subprocess.run([sys.executable, "-m", "chronos.cli.main", *args, "--help"], capture_output=True, text=True, timeout=60)
+        assert r.returncode == 0, f"{cmd!r}: {r.stderr[-300:]}"

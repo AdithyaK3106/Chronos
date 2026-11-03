@@ -260,6 +260,7 @@ def aggregate_audit_telemetry(audit_file_path: Path | str) -> dict[str, Any]:
             "records_count": 0,
             "evaluated_count": 0,
             "denied_count": 0,
+            "held_count": 0,
             "signoffs_count": 0,
             "boundary_intercepts": 0,
             "malformed_records": 0,
@@ -271,8 +272,19 @@ def aggregate_audit_telemetry(audit_file_path: Path | str) -> dict[str, Any]:
             "disclaimer": "Observed runtime event telemetry only; does not prove absence of unmonitored execution.",
         }
 
+    from chronos.server.overview import classify_decision
+
+    # Protected-file holds are shown to the developer as a question ("ask"), not a refusal:
+    # count them apart from real denials, consistently with the Overview.
+    try:
+        from chronos.core.config import ChronosConfig
+
+        protected_mode = ChronosConfig.load(path.parent.parent).policy.protected_modules
+    except Exception:
+        protected_mode = "ask"
     evaluated = 0
     denied = 0
+    held = 0
     signoffs = 0
     intercepts = 0
     malformed = 0
@@ -286,7 +298,10 @@ def aggregate_audit_telemetry(audit_file_path: Path | str) -> dict[str, Any]:
                 evaluated += 1
                 status = str(rec.get("status", "")).upper()
                 if status == "DENY":
-                    denied += 1
+                    if classify_decision(rec, protected_mode) == "asked":
+                        held += 1
+                    else:
+                        denied += 1
 
                 ev_type = str(rec.get("event_type", "")).lower()
                 action = str(rec.get("action", "")).lower()
@@ -313,6 +328,7 @@ def aggregate_audit_telemetry(audit_file_path: Path | str) -> dict[str, Any]:
             "records_count": evaluated,
             "evaluated_count": evaluated,
             "denied_count": denied,
+            "held_count": held,
             "signoffs_count": signoffs,
             "boundary_intercepts": intercepts,
             "malformed_records": malformed,
@@ -331,6 +347,7 @@ def aggregate_audit_telemetry(audit_file_path: Path | str) -> dict[str, Any]:
             "records_count": 0,
             "evaluated_count": 0,
             "denied_count": 0,
+            "held_count": 0,
             "signoffs_count": 0,
             "boundary_intercepts": 0,
             "malformed_records": malformed,
@@ -691,10 +708,12 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
             if subroute == "mission":
                 self._handle_mission(repo)
             elif subroute == "overview":
-                from chronos.server.overview import build_overview
+                from chronos.server import overview as ov
 
+                if query.get("fresh", ["0"])[0] == "1":
+                    ov.clear_hook_status_cache()
                 probe = (query.get("probe", ["1"])[0] or "1") != "0"
-                self._send_json(build_overview(REGISTRY.refresh(repo.id) or repo, probe_hooks=probe))
+                self._send_json(ov.build_overview(REGISTRY.refresh(repo.id) or repo, probe_hooks=probe))
             elif subroute == "benchmarks":
                 self._handle_benchmarks(repo, query)
             elif subroute == "graph/summary":

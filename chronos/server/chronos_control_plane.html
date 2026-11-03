@@ -9,29 +9,59 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #08090d;
-  --surface: #0f1118;
-  --card: #151822;
-  --card-hover: #191d2a;
-  --border: #252a39;
-  --border-subtle: #1a1e2b;
-  --border-focus: #00f2ff55;
-  --muted: #8991a5;
-  --text: #edf1fa;
-  --text-dim: #b8c4d9;
-  --cyan: #00f2ff;
-  --cyan-glow: rgba(0, 242, 255, 0.18);
-  --green: #10b981;
-  --green-glow: rgba(16, 185, 129, 0.2);
-  --amber: #f59e0b;
-  --amber-glow: rgba(245, 158, 11, 0.2);
-  --red: #ef4444;
-  --red-glow: rgba(239, 68, 68, 0.2);
-  --violet: #8b5cf6;
-  --violet-glow: rgba(139, 92, 246, 0.2);
   --mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
   --sans: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --bg: #08090d; --surface: #0f1118; --card: #151822; --card-hover: #191d2a;
+  --border: #252a39; --border-subtle: #1a1e2b; --border-strong: #3b445b; --border-focus: #00f2ff55;
+  --muted: #8991a5; --text: #edf1fa; --text-dim: #b8c4d9;
+  --cyan: #00f2ff; --cyan-glow: rgba(0, 242, 255, 0.18); --cyan-bg: #0a2126; --cyan-border: #15525a; --cyan-text: #c4fbff;
+  --green: #10b981; --green-glow: rgba(16, 185, 129, 0.2); --green-bg: #0d241d; --green-border: #145a45; --green-text: #c9ffed;
+  --amber: #f59e0b; --amber-glow: rgba(245, 158, 11, 0.2); --amber-bg: #241b0d; --amber-border: #654b20; --amber-text: #fde68a;
+  --red: #ef4444; --red-glow: rgba(239, 68, 68, 0.2); --red-bg: #271116; --red-border: #612a33; --red-text: #ffb8c2;
+  --violet: #8b5cf6; --violet-glow: rgba(139, 92, 246, 0.2); --violet-bg: #1c132c; --violet-border: #4c2d7a; --violet-text: #c4a7ff;
+  --topbar-bg: rgba(11, 13, 19, 0.92); --hover-tint: rgba(255, 255, 255, 0.02);
+  color-scheme: dark;
+}
+/* Light theme: follows the OS unless the toggle picked a theme (html[data-theme]). */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+  --bg: #f5f6f8; --surface: #ffffff; --card: #ffffff; --card-hover: #f0f2f6;
+  --border: #dde1e8; --border-subtle: #e8ebf0; --border-strong: #c3c9d4; --border-focus: #0e749055;
+  --muted: #5d6676; --text: #12151c; --text-dim: #353d4c;
+  --cyan: #0e7490; --cyan-glow: rgba(14, 116, 144, 0.12); --cyan-bg: #e3f4f7; --cyan-border: #9fd5df; --cyan-text: #0b5566;
+  --green: #047857; --green-glow: rgba(4, 120, 87, 0.12); --green-bg: #e5f5ee; --green-border: #9fd9c1; --green-text: #0b5d43;
+  --amber: #b45309; --amber-glow: rgba(180, 83, 9, 0.12); --amber-bg: #fdf3e2; --amber-border: #efcd8e; --amber-text: #7a4a06;
+  --red: #b91c1c; --red-glow: rgba(185, 28, 28, 0.12); --red-bg: #fdecee; --red-border: #f2b3bb; --red-text: #8f1d2c;
+  --violet: #6d28d9; --violet-glow: rgba(109, 40, 217, 0.12); --violet-bg: #f2ecfd; --violet-border: #cfbaf5; --violet-text: #4c1d95;
+  --topbar-bg: rgba(255, 255, 255, 0.92); --hover-tint: rgba(15, 23, 42, 0.04);
+  color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f5f6f8; --surface: #ffffff; --card: #ffffff; --card-hover: #f0f2f6;
+  --border: #dde1e8; --border-subtle: #e8ebf0; --border-strong: #c3c9d4; --border-focus: #0e749055;
+  --muted: #5d6676; --text: #12151c; --text-dim: #353d4c;
+  --cyan: #0e7490; --cyan-glow: rgba(14, 116, 144, 0.12); --cyan-bg: #e3f4f7; --cyan-border: #9fd5df; --cyan-text: #0b5566;
+  --green: #047857; --green-glow: rgba(4, 120, 87, 0.12); --green-bg: #e5f5ee; --green-border: #9fd9c1; --green-text: #0b5d43;
+  --amber: #b45309; --amber-glow: rgba(180, 83, 9, 0.12); --amber-bg: #fdf3e2; --amber-border: #efcd8e; --amber-text: #7a4a06;
+  --red: #b91c1c; --red-glow: rgba(185, 28, 28, 0.12); --red-bg: #fdecee; --red-border: #f2b3bb; --red-text: #8f1d2c;
+  --violet: #6d28d9; --violet-glow: rgba(109, 40, 217, 0.12); --violet-bg: #f2ecfd; --violet-border: #cfbaf5; --violet-text: #4c1d95;
+  --topbar-bg: rgba(255, 255, 255, 0.92); --hover-tint: rgba(15, 23, 42, 0.04);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #08090d; --surface: #0f1118; --card: #151822; --card-hover: #191d2a;
+  --border: #252a39; --border-subtle: #1a1e2b; --border-strong: #3b445b; --border-focus: #00f2ff55;
+  --muted: #8991a5; --text: #edf1fa; --text-dim: #b8c4d9;
+  --cyan: #00f2ff; --cyan-glow: rgba(0, 242, 255, 0.18); --cyan-bg: #0a2126; --cyan-border: #15525a; --cyan-text: #c4fbff;
+  --green: #10b981; --green-glow: rgba(16, 185, 129, 0.2); --green-bg: #0d241d; --green-border: #145a45; --green-text: #c9ffed;
+  --amber: #f59e0b; --amber-glow: rgba(245, 158, 11, 0.2); --amber-bg: #241b0d; --amber-border: #654b20; --amber-text: #fde68a;
+  --red: #ef4444; --red-glow: rgba(239, 68, 68, 0.2); --red-bg: #271116; --red-border: #612a33; --red-text: #ffb8c2;
+  --violet: #8b5cf6; --violet-glow: rgba(139, 92, 246, 0.2); --violet-bg: #1c132c; --violet-border: #4c2d7a; --violet-text: #c4a7ff;
+  --topbar-bg: rgba(11, 13, 19, 0.92); --hover-tint: rgba(255, 255, 255, 0.02);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -49,7 +79,7 @@ button, input, textarea, select { font: inherit; }
 button {
   cursor: pointer;
   color: inherit;
-  background: #1b2030;
+  background: var(--card-hover);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 8px 12px;
@@ -61,8 +91,8 @@ button {
   transition: all 0.18s var(--ease);
 }
 button:hover {
-  border-color: #566078;
-  background: #232a3d;
+  border-color: var(--muted);
+  background: var(--border);
   transform: translateY(-1px);
 }
 button:active {
@@ -75,24 +105,24 @@ button:disabled {
 }
 
 .primary {
-  background: #08373e;
-  border-color: #0b7c89;
-  color: #c4fbff;
+  background: var(--cyan-bg);
+  border-color: var(--cyan-border);
+  color: var(--cyan-text);
   box-shadow: 0 0 16px rgba(0, 242, 255, 0.08);
 }
 .primary:hover {
-  background: #0d4a54;
+  background: var(--cyan-border);
   border-color: var(--cyan);
   box-shadow: 0 0 20px rgba(0, 242, 255, 0.22);
 }
 
 .danger-btn {
-  background: #2a1318;
-  border-color: #5c202a;
-  color: #ffb8c2;
+  background: var(--red-bg);
+  border-color: var(--red-border);
+  color: var(--red-text);
 }
 .danger-btn:hover {
-  background: #3d1a21;
+  background: var(--red-border);
   border-color: var(--red);
 }
 
@@ -104,7 +134,7 @@ button:disabled {
 
 /* Sidebar */
 .sidebar {
-  background: #0b0d13;
+  background: var(--bg);
   border-right: 1px solid var(--border);
   padding: 20px 14px;
   display: flex;
@@ -160,10 +190,10 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  background: #10131c;
+  background: var(--surface);
   transition: border-color 0.2s;
 }
-.repo:hover { border-color: #3b445b; }
+.repo:hover { border-color: var(--border-strong); }
 .repo small, .eyebrow {
   color: var(--muted);
   font-size: 9.5px;
@@ -185,12 +215,12 @@ button:disabled {
   justify-content: space-between;
   margin-top: 7px;
   padding-top: 7px;
-  border-top: 1px solid #1a1e2b;
+  border-top: 1px solid var(--card-hover);
 }
 
 .nav-label {
   padding: 0 10px;
-  color: #646d82;
+  color: var(--muted);
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -207,31 +237,32 @@ button:disabled {
   background: transparent;
   text-align: left;
   display: flex;
+  justify-content: flex-start;
   align-items: center;
   gap: 11px;
   padding: 9.5px 11px;
   border-radius: 7px;
-  color: #9ca5b9;
+  color: var(--text-dim);
   font-weight: 500;
   width: 100%;
 }
 .nav button .ico {
   width: 18px;
   text-align: center;
-  color: #7d879d;
+  color: var(--muted);
   font-size: 15px;
   transition: color 0.18s;
 }
 .nav button:hover {
-  background: #141824;
+  background: var(--card);
   color: var(--text);
-  border-color: #262c3e;
+  border-color: var(--border);
 }
-.nav button:hover .ico { color: #b6c3dd; }
+.nav button:hover .ico { color: var(--text-dim); }
 .nav button.active {
-  background: #111d27;
-  border-color: #17424b;
-  color: #eafcff;
+  background: var(--card);
+  border-color: var(--cyan-border);
+  color: var(--cyan-text);
   box-shadow: inset 2px 0 0 var(--cyan);
 }
 .nav button.active .ico {
@@ -242,16 +273,16 @@ button:disabled {
   margin-left: auto;
   font: 10px/1.2 var(--mono);
   color: var(--amber);
-  background: #241b0d;
-  border: 1px solid #654b20;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
   padding: 2px 6px;
   border-radius: 10px;
   transition: all 0.2s;
 }
 .nav .count.red {
   color: var(--red);
-  background: #271116;
-  border-color: #612a33;
+  background: var(--red-bg);
+  border-color: var(--red-border);
 }
 
 .side-bottom {
@@ -266,9 +297,9 @@ button:disabled {
   align-items: center;
   gap: 7px;
   font: 10.5px/1 var(--mono);
-  color: #bdfae2;
-  background: #0d211c;
-  border: 1px solid #145a45;
+  color: var(--green-text);
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
   padding: 4px 8px;
   border-radius: 12px;
 }
@@ -278,7 +309,7 @@ button:disabled {
   height: 7px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 10px #10b981;
+  box-shadow: 0 0 10px var(--green);
   animation: pulseDot 2s infinite ease-in-out;
 }
 @keyframes pulseDot {
@@ -295,7 +326,7 @@ button:disabled {
   align-items: center;
   gap: 16px;
   padding: 0 28px;
-  background: rgba(11, 13, 19, 0.92);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -317,7 +348,7 @@ button:disabled {
 }
 .search input {
   width: 100%;
-  background: #11141d;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 8px 12px 8px 34px;
@@ -328,7 +359,7 @@ button:disabled {
 }
 .search input:focus {
   border-color: var(--cyan);
-  background: #141824;
+  background: var(--card);
   box-shadow: 0 0 15px rgba(0, 242, 255, 0.15);
 }
 .search:before {
@@ -345,8 +376,8 @@ button:disabled {
   right: 9px;
   top: 8px;
   font: 10px var(--mono);
-  color: #555f77;
-  border: 1px solid #272d3e;
+  color: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1px 5px;
   pointer-events: none;
@@ -354,15 +385,15 @@ button:disabled {
 
 .status-badge {
   font: 10.5px var(--mono);
-  color: #b5c0d4;
+  color: var(--text-dim);
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #111520;
+  background: var(--card);
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid #1f2536;
+  border: 1px solid var(--border);
 }
 .status-badge em { font-style: normal; color: var(--green); }
 
@@ -370,8 +401,8 @@ button:disabled {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #1b2133 0%, #111420 100%);
-  border: 1px solid #343a52;
+  background: linear-gradient(135deg, var(--border) 0%, var(--card) 100%);
+  border: 1px solid var(--border-strong);
   display: grid;
   place-items: center;
   font: 11px/1 var(--mono);
@@ -426,17 +457,17 @@ button:disabled {
   border-radius: 5px;
   padding: 4px 7px;
   border: 1px solid var(--border);
-  color: #a9b2c7;
+  color: var(--text-dim);
   display: inline-flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
 }
-.tag.green { color: var(--green); border-color: #145a45; background: #0d211c; }
-.tag.amber { color: var(--amber); border-color: #654b20; background: #241b0d; }
-.tag.red   { color: var(--red);   border-color: #612a33; background: #271116; }
-.tag.cyan  { color: var(--cyan);  border-color: #15525a; background: #0d2025; }
-.tag.violet{ color: var(--violet);border-color: #4c2d7a; background: #1c132c; }
+.tag.green { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
+.tag.amber { color: var(--amber); border-color: var(--amber-border); background: var(--amber-bg); }
+.tag.red   { color: var(--red);   border-color: var(--red-border); background: var(--red-bg); }
+.tag.cyan  { color: var(--cyan);  border-color: var(--cyan-border); background: var(--cyan-bg); }
+.tag.violet{ color: var(--violet);border-color: var(--violet-border); background: var(--violet-bg); }
 
 /* Panels & Cards */
 .panel {
@@ -447,7 +478,7 @@ button:disabled {
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.panel:hover { border-color: #31374a; }
+.panel:hover { border-color: var(--border-strong); }
 
 .panel-head {
   display: flex;
@@ -456,7 +487,7 @@ button:disabled {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   gap: 12px;
-  background: #0d0f16;
+  background: var(--bg);
 }
 .panel-head h2 {
   font-size: 12.5px;
@@ -491,7 +522,7 @@ button:disabled {
 }
 .stat:hover {
   transform: translateY(-2px);
-  border-color: #3d465f;
+  border-color: var(--border-strong);
 }
 .stat:after {
   content: "";
@@ -501,7 +532,7 @@ button:disabled {
   border-radius: 50%;
   right: -30px;
   top: -35px;
-  background: var(--glow, #00f2ff);
+  background: var(--glow, var(--cyan));
   opacity: 0.08;
   filter: blur(14px);
   pointer-events: none;
@@ -564,7 +595,7 @@ button:disabled {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed #202534;
+  border-top: 1px dashed var(--border);
   pointer-events: none;
 }
 .chart:before { top: 32%; }
@@ -592,7 +623,7 @@ button:disabled {
   box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
 }
 .bar.alt {
-  background: #505973;
+  background: var(--border-strong);
   opacity: 0.65;
   box-shadow: none;
 }
@@ -600,7 +631,7 @@ button:disabled {
 .bar-label {
   position: absolute;
   bottom: -20px;
-  color: #6a748c;
+  color: var(--muted);
   font: 9.5px var(--mono);
 }
 .legend {
@@ -619,7 +650,7 @@ button:disabled {
   background: var(--cyan);
   border-radius: 2px;
 }
-.legend span+span:before { background: #505973; }
+.legend span+span:before { background: var(--border-strong); }
 
 /* Live Activity Stream */
 .activity { display: flex; flex-direction: column; }
@@ -628,25 +659,25 @@ button:disabled {
   grid-template-columns: 26px minmax(0, 1fr) auto;
   gap: 11px;
   padding: 12px 0;
-  border-bottom: 1px solid #1b1f2c;
+  border-bottom: 1px solid var(--card-hover);
   align-items: start;
   transition: background 0.15s;
 }
 .event:last-child { border-bottom: 0; }
-.event:hover { background: rgba(255, 255, 255, 0.015); }
+.event:hover { background: var(--hover-tint); }
 .event-icon {
   width: 26px;
   height: 26px;
   display: grid;
   place-items: center;
   border-radius: 6px;
-  background: #0f272e;
+  background: var(--cyan-bg);
   color: var(--cyan);
   font-size: 12px;
 }
-.event-icon.warn { background: #2a200e; color: var(--amber); }
-.event-icon.deny { background: #2e141a; color: var(--red); }
-.event-icon.ok   { background: #0e271f; color: var(--green); }
+.event-icon.warn { background: var(--amber-bg); color: var(--amber); }
+.event-icon.deny { background: var(--red-bg); color: var(--red); }
+.event-icon.ok   { background: var(--green-bg); color: var(--green); }
 .event-text {
   font-size: 11.5px;
   line-height: 1.5;
@@ -654,7 +685,7 @@ button:disabled {
 .event-text b {
   font-family: var(--mono);
   font-weight: 500;
-  color: #dce4f5;
+  color: var(--text);
 }
 .event-text small {
   display: block;
@@ -664,7 +695,7 @@ button:disabled {
 }
 .event time {
   font: 9.5px var(--mono);
-  color: #6a748c;
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -677,22 +708,22 @@ table {
 }
 th {
   text-align: left;
-  color: #727c94;
+  color: var(--muted);
   font-size: 9.5px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   font-weight: 600;
   padding: 11px 16px;
   border-bottom: 1px solid var(--border);
-  background: #0e1017;
+  background: var(--surface);
 }
 td {
   padding: 12px 16px;
-  border-bottom: 1px solid #1b1f2c;
+  border-bottom: 1px solid var(--card-hover);
   font-size: 11.5px;
   transition: background 0.15s;
 }
-tr:hover td { background: rgba(255, 255, 255, 0.02); }
+tr:hover td { background: var(--hover-tint); }
 tr:last-child td { border-bottom: 0; }
 .mono { font-family: var(--mono); font-size: 10.5px; }
 .muted { color: var(--muted); }
@@ -705,14 +736,14 @@ tr:last-child td { border-bottom: 0; }
 }
 .memory-card {
   border: 1px solid var(--border);
-  background: #11141e;
+  background: var(--surface);
   border-radius: 8px;
   padding: 14px;
   transition: all 0.2s var(--ease);
   position: relative;
 }
 .memory-card:hover {
-  border-color: #3f4762;
+  border-color: var(--border-strong);
   transform: translateY(-2px);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
 }
@@ -730,7 +761,7 @@ tr:last-child td { border-bottom: 0; }
 }
 .meter {
   height: 4px;
-  background: #252a38;
+  background: var(--border);
   border-radius: 4px;
   overflow: hidden;
   margin-top: 8px;
@@ -756,8 +787,8 @@ tr:last-child td { border-bottom: 0; }
   font-weight: 500;
 }
 .tabs button.active {
-  background: #10292f;
-  border-color: #175e67;
+  background: var(--cyan-bg);
+  border-color: var(--cyan-border);
   color: var(--cyan);
 }
 
@@ -765,7 +796,7 @@ tr:last-child td { border-bottom: 0; }
   width: 100%;
   min-height: 86px;
   resize: vertical;
-  background: #0b0d13;
+  background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -778,7 +809,7 @@ tr:last-child td { border-bottom: 0; }
 }
 .resolver-input:focus {
   border-color: var(--cyan);
-  background: #0e111a;
+  background: var(--surface);
   box-shadow: 0 0 18px rgba(0, 242, 255, 0.12);
 }
 
@@ -789,7 +820,7 @@ tr:last-child td { border-bottom: 0; }
   flex-wrap: wrap;
 }
 .field {
-  background: #0b0d13;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
@@ -808,16 +839,16 @@ tr:last-child td { border-bottom: 0; }
 }
 .preset-chip {
   font: 10px var(--mono);
-  background: #131722;
-  border: 1px solid #282f42;
-  color: #a4afc7;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 5px;
   padding: 4px 8px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .preset-chip:hover {
-  background: #192033;
+  background: var(--card-hover);
   border-color: var(--cyan);
   color: var(--cyan);
 }
@@ -830,7 +861,7 @@ tr:last-child td { border-bottom: 0; }
 }
 .result {
   border: 1px solid var(--border);
-  background: #11141d;
+  background: var(--surface);
   padding: 11px 14px;
   border-radius: 7px;
   display: flex;
@@ -838,9 +869,9 @@ tr:last-child td { border-bottom: 0; }
   gap: 12px;
   transition: border-color 0.15s;
 }
-.result:hover { border-color: #3b445c; }
+.result:hover { border-color: var(--border-strong); }
 .result code {
-  color: #b8c4d9;
+  color: var(--text-dim);
   font: 10.5px var(--mono);
   overflow-wrap: anywhere;
 }
@@ -848,8 +879,8 @@ tr:last-child td { border-bottom: 0; }
   margin-left: auto;
   color: var(--cyan);
   font: 10.5px var(--mono);
-  background: #0a2126;
-  border: 1px solid #144f57;
+  background: var(--cyan-bg);
+  border: 1px solid var(--cyan-border);
   padding: 3px 7px;
   border-radius: 5px;
 }
@@ -857,7 +888,7 @@ tr:last-child td { border-bottom: 0; }
 /* Graph Explorer */
 .graph {
   height: 340px;
-  background: radial-gradient(ellipse at 50% 50%, #111927 0%, #0a0d14 75%);
+  background: radial-gradient(ellipse at 50% 50%, var(--card) 0%, var(--bg) 75%);
   border: 1px solid var(--border);
   border-radius: 8px;
   position: relative;
@@ -869,30 +900,30 @@ tr:last-child td { border-bottom: 0; }
   transition: transform 0.2s var(--ease);
 }
 .node circle {
-  fill: #11272f;
+  fill: var(--cyan-bg);
   stroke: var(--cyan);
   stroke-width: 1.5;
   transition: all 0.2s;
 }
 .node text {
-  fill: #dbe6f6;
+  fill: var(--text);
   font: 11px var(--mono);
   text-anchor: middle;
   pointer-events: none;
   font-weight: 500;
 }
 .node:hover circle {
-  fill: #193e4a;
+  fill: var(--cyan-border);
   stroke-width: 2.2;
   filter: drop-shadow(0 0 8px var(--cyan));
 }
 .node.selected circle {
-  fill: #432571;
-  stroke: #c4a7ff;
+  fill: var(--violet-border);
+  stroke: var(--violet-text);
   stroke-width: 2.5;
   filter: drop-shadow(0 0 12px rgba(196, 167, 255, 0.6));
 }
-.node.selected text { fill: #ffffff; font-weight: 600; }
+.node.selected text { fill: var(--text); font-weight: 600; }
 .graph-side {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 250px;
@@ -905,7 +936,7 @@ tr:last-child td { border-bottom: 0; }
   flex-wrap: wrap;
   padding: 15px 18px;
   border-bottom: 1px solid var(--border);
-  background: #0e1017;
+  background: var(--surface);
 }
 .lock-form input { min-width: 130px; flex: 1; }
 
@@ -914,9 +945,9 @@ tr:last-child td { border-bottom: 0; }
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: #11231e;
-  border: 1px solid #1c684f;
-  color: #c9ffed;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  color: var(--green-text);
   padding: 12px 18px;
   border-radius: 8px;
   display: none;
@@ -932,14 +963,14 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .footerline {
-  color: #5c6478;
+  color: var(--muted);
   font: 9.5px var(--mono);
   margin-top: 24px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
   padding-top: 14px;
-  border-top: 1px solid #1a1e2b;
+  border-top: 1px solid var(--card-hover);
 }
 
 .modal-backdrop {
@@ -953,8 +984,8 @@ tr:last-child td { border-bottom: 0; }
   backdrop-filter: blur(5px);
 }
 .modal {
-  background: #0f131d;
-  border: 1px solid #232c40;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   width: 90%;
   max-width: 960px;
@@ -969,7 +1000,7 @@ tr:last-child td { border-bottom: 0; }
 .waterfall-track {
   position: relative;
   padding-left: 20px;
-  border-left: 2px solid #1c2436;
+  border-left: 2px solid var(--border);
   margin-left: 12px;
   display: flex;
   flex-direction: column;
@@ -977,8 +1008,8 @@ tr:last-child td { border-bottom: 0; }
 }
 .waterfall-step {
   position: relative;
-  background: #121723;
-  border: 1px solid #1f273b;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 11.5px;
@@ -992,14 +1023,14 @@ tr:last-child td { border-bottom: 0; }
   height: 12px;
   border-radius: 50%;
   background: var(--cyan);
-  border: 2px solid #0b0f19;
+  border: 2px solid var(--surface);
   box-shadow: 0 0 6px var(--cyan);
 }
 .waterfall-step.fail::before { background: var(--red); box-shadow: 0 0 6px var(--red); }
 .score-bar-wrap {
   width: 80px;
   height: 6px;
-  background: #192030;
+  background: var(--card-hover);
   border-radius: 3px;
   overflow: hidden;
   display: inline-block;
@@ -1008,16 +1039,16 @@ tr:last-child td { border-bottom: 0; }
 }
 .score-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1b7a82, #00e5ff);
+  background: linear-gradient(90deg, var(--cyan-border), var(--cyan));
   border-radius: 3px;
 }
-.diff-add { background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; padding: 2px 6px; }
-.diff-del { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 2px 6px; }
-.diff-mod { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; padding: 2px 6px; }
+.diff-add { background: rgba(34, 197, 94, 0.12); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; padding: 2px 6px; }
+.diff-del { background: rgba(239, 68, 68, 0.12); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 2px 6px; }
+.diff-mod { background: rgba(245, 158, 11, 0.12); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; padding: 2px 6px; }
 
 .segmented-control {
   display: inline-flex;
-  background: #111520;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 2px;
@@ -1036,10 +1067,10 @@ tr:last-child td { border-bottom: 0; }
 }
 .seg-btn:hover {
   color: var(--text);
-  background: #192030;
+  background: var(--card-hover);
 }
 .seg-btn.active {
-  background: #1f273b;
+  background: var(--border);
   color: var(--cyan);
   box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
@@ -1054,7 +1085,7 @@ tr:last-child td { border-bottom: 0; }
 .tab-group {
   display: inline-flex;
   gap: 6px;
-  background: #0d1017;
+  background: var(--surface);
   padding: 3px;
   border-radius: 7px;
   border: 1px solid var(--border);
@@ -1072,17 +1103,17 @@ tr:last-child td { border-bottom: 0; }
 }
 .tab-group .tab:hover {
   color: var(--text);
-  background: #141924;
+  background: var(--card);
 }
 .tab-group .tab.active {
-  background: #1c2333;
+  background: var(--border);
   color: var(--cyan);
 }
 
 .hidden { display: none !important; }
 .small-select {
-  background: #11141d;
-  color: #c7d0e2;
+  background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--border);
   padding: 6px 10px;
   border-radius: 6px;
@@ -1124,6 +1155,47 @@ tr:last-child td { border-bottom: 0; }
   .graph-side { grid-template-columns: 1fr; }
   .memory { grid-template-columns: 1fr; }
 }
+
+/* ---------------- Overview ---------------- */
+.ov-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+.ov-head h1 { margin:0; font-size:22px; font-weight:600; letter-spacing:-0.01em; }
+.ov-head p { margin:4px 0 0; color:var(--muted); }
+.ov-health { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
+.ov-tile { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.ov-tile .k { display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.ov-tile .v { margin-top:6px; font-size:15px; font-weight:600; }
+.ov-tile .d { margin-top:2px; color:var(--text-dim); font-size:12px; }
+.ov-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
+.ov-dot.ok { background:var(--green); } .ov-dot.warn { background:var(--amber); } .ov-dot.bad { background:var(--red); }
+.ov-fix { margin-top:8px; font-size:12px; color:var(--amber-text); background:var(--amber-bg); border:1px solid var(--amber-border); border-radius:7px; padding:7px 9px; }
+.ov-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; }
+.ov-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; min-width:0; }
+.ov-card h2 { margin:0 0 2px; font-size:14px; font-weight:600; }
+.ov-card .sub { color:var(--muted); font-size:12px; margin-bottom:12px; }
+.ov-nums { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:12px; }
+.ov-num { border:1px solid var(--border-subtle); background:var(--surface); border-radius:9px; padding:10px 12px; }
+.ov-num b { display:block; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+.ov-num span { color:var(--muted); font-size:11.5px; }
+.ov-num.asked b { color:var(--amber); } .ov-num.denied b { color:var(--red); } .ov-num.allowed b { color:var(--green); }
+.ov-list { list-style:none; margin:0; padding:0; }
+.ov-list li { padding:9px 0; border-top:1px solid var(--border-subtle); font-size:12.5px; min-width:0; }
+.ov-list li:first-child { border-top:0; }
+.ov-list .row1 { display:flex; gap:8px; align-items:center; min-width:0; }
+.ov-list .file { font-family:var(--mono); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.ov-list .when { margin-left:auto; color:var(--muted); font-size:11px; white-space:nowrap; }
+.ov-list .why { color:var(--text-dim); margin-top:3px; overflow-wrap:anywhere; }
+.ov-empty { color:var(--muted); font-size:12.5px; line-height:1.55; padding:6px 0; }
+.ov-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.ov-chip { font-family:var(--mono); font-size:11.5px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text-dim); }
+.ov-cmd { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px 6px 6px 10px; }
+.ov-cmd code { font-family:var(--mono); font-size:12px; flex:1; min-width:0; overflow-wrap:anywhere; }
+.ov-cmd button { padding:4px 9px; font-size:11.5px; }
+.ov-caveat { margin-top:10px; font-size:11.5px; color:var(--muted); line-height:1.5; }
+.ov-big { font-size:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.nav-adv-toggle { width:100%; display:flex; justify-content:space-between; align-items:center; background:transparent; border:0; padding:6px 8px; color:var(--muted); font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+.nav-adv-toggle:hover { color:var(--text); background:transparent; }
+.theme-toggle { padding:6px 10px; font-size:12px; }
+@media (max-width: 720px) { .ov-nums { grid-template-columns:repeat(3, minmax(0,1fr)); } .ov-grid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -1144,7 +1216,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="repo">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
       <small>ACTIVE REPOSITORY</small>
-      <select id="repoSwitcher" class="small-select" onchange="switchRepository(this.value)" style="max-width:110px;font-size:9px;padding:2px 4px;background:#151a26;border-color:#2a334a;color:#c9d3e8;">
+      <select id="repoSwitcher" class="small-select" onchange="switchRepository(this.value)" style="max-width:110px;font-size:9px;padding:2px 4px;background:var(--card);border-color:var(--border-strong);color:var(--text);">
         <option value="">Loading...</option>
       </select>
     </div>
@@ -1157,9 +1229,21 @@ tr:last-child td { border-bottom: 0; }
   </div>
 
   <div>
+    <nav class="nav" id="navHome">
+      <button class="active" data-page="overview"><span class="ico">◎</span>Overview</button>
+    </nav>
+  </div>
+
+  <div style="margin-top:14px">
+    <button class="nav-adv-toggle" id="advToggle" aria-expanded="false" aria-controls="advancedNav" onclick="toggleAdvanced()">
+      <span>Advanced</span><span id="advChevron">▸</span>
+    </button>
+  </div>
+  <div id="advancedNav" class="hidden">
+  <div>
     <div class="nav-label">Workspace</div>
     <nav class="nav" id="nav">
-      <button class="active" data-page="mission"><span class="ico">◫</span>Mission Control</button>
+      <button data-page="mission"><span class="ico">◫</span>Mission Control</button>
       <button data-page="resolver"><span class="ico">⌕</span>Zero-Path Resolver</button>
     </nav>
   </div>
@@ -1183,12 +1267,13 @@ tr:last-child td { border-bottom: 0; }
       <button data-page="audit"><span class="ico">▤</span>Audit Ledger</button>
     </nav>
   </div>
+  </div>
 
   <div class="side-bottom">
     <div style="margin-bottom:8px">
       <span class="live-pill"><span class="dot"></span>CANONICAL CHRONOS</span>
     </div>
-    <p style="line-height:1.6;margin:0;font-size:10px;color:#757e95">
+    <p style="line-height:1.6;margin:0;font-size:10px;color:var(--muted)">
       SQLite WAL Index<br>
       Tree-Sitter AST & OpenHands<br>
       Live Subsystem Telemetry
@@ -1201,12 +1286,10 @@ tr:last-child td { border-bottom: 0; }
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="crumb">
-      Chronos <span class="muted">/</span> <b id="crumb">Mission Control</b>
+      Chronos <span class="muted">/</span> <b id="crumb">Overview</b>
     </div>
     <div class="spacer"></div>
-    <div class="status-badge" id="topbarStatusBadge">
-      <em>●</em> CANONICAL BACKEND · PORT 8765
-    </div>
+    <button class="theme-toggle" id="themeToggle" onclick="cycleTheme()" title="Theme: follows your system until you pick one">Theme: System</button>
     <div class="search">
       <input id="globalSearch" placeholder="Search symbols, files, audit…  /">
       <span class="search-hint">/</span>
@@ -1219,26 +1302,60 @@ tr:last-child td { border-bottom: 0; }
   <div class="content">
 
     <!-- UNINDEXED BANNER -->
-    <div id="unindexedBanner" class="panel hidden" style="margin-bottom:20px;border-color:var(--amber);background:#181309;padding:16px 20px;">
+    <div id="unindexedBanner" class="panel hidden" style="margin-bottom:20px;border-color:var(--amber);background:var(--amber-bg);padding:16px 20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;">
         <div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="tag amber">UNINDEXED REPOSITORY</span>
-            <strong style="font-size:13px;color:#fde68a;">AST Knowledge Graph Not Built</strong>
+            <strong style="font-size:13px;color:var(--amber-text);">AST Knowledge Graph Not Built</strong>
           </div>
-          <p style="margin:6px 0 0;color:#d1c29e;font-size:11.5px;line-height:1.5;">
+          <p style="margin:6px 0 0;color:var(--amber-text);font-size:11.5px;line-height:1.5;">
             This repository has not been indexed into the Chronos AST knowledge graph yet.<br>
             The <b>Zero-Path Resolver</b> and <b>Bi-Temporal AST Graph Explorer</b> require an indexed codebase.
           </p>
         </div>
-        <button class="primary" id="btnIndexNow" onclick="triggerIndex()" style="background:#3b2507;border-color:#b45309;color:#fef3c7;font-weight:600;">
+        <button class="primary" id="btnIndexNow" onclick="triggerIndex()" style="background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber-text);font-weight:600;">
           ⚡ Index Repository Now
         </button>
       </div>
     </div>
 
     <!-- PAGE 1: MISSION CONTROL -->
-    <section class="page" id="page-mission">
+    <section class="page" id="page-overview">
+      <div class="ov-head">
+        <div>
+          <h1>What Chronos did for you</h1>
+          <p id="ovSubtitle">Loading…</p>
+        </div>
+        <button onclick="loadOverview(true)" title="Re-check hooks and reload">↻ Refresh</button>
+      </div>
+      <div id="ovError" class="ov-fix hidden" style="margin-bottom:14px"></div>
+      <div class="ov-health" id="ovHealth"></div>
+      <div class="ov-grid">
+        <div class="ov-card">
+          <h2>Decisions on agent actions</h2>
+          <div class="sub" id="ovDecisionsSub">Edits and reads Claude Code tried in this repository</div>
+          <div id="ovDecisions"></div>
+        </div>
+        <div class="ov-card">
+          <h2>Context added to your prompts</h2>
+          <div class="sub">Code and memories the hook gave the agent, so it searched less</div>
+          <div id="ovContext"></div>
+        </div>
+        <div class="ov-card">
+          <h2>Protected files</h2>
+          <div class="sub" id="ovProtectSub"></div>
+          <div id="ovProtection"></div>
+        </div>
+        <div class="ov-card">
+          <h2>Measured efficiency</h2>
+          <div class="sub">Paired benchmark: the same tasks with and without Chronos</div>
+          <div id="ovEfficiency"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page hidden" id="page-mission">
       <div class="pagehead">
         <div>
           <div class="eyebrow">Operational overview / Subsystem Telemetry</div>
@@ -1299,7 +1416,7 @@ tr:last-child td { border-bottom: 0; }
             </div>
             <div class="legend" id="chartLegend" style="margin-top:10px;">
               <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Treatment Tokens</span>
-              <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Tokens</span>
+              <span><span class="bar-legend-swatch" style="background:var(--border-strong)"></span>Baseline Tokens</span>
             </div>
             <div id="chartReconciliationFoot" class="muted mono" style="font-size:10px;margin-top:8px;line-height:1.4;"></div>
           </div>
@@ -1368,7 +1485,7 @@ tr:last-child td { border-bottom: 0; }
           </div>
 
           <div id="resolveOutput" style="margin-top:16px;">
-            <div class="muted mono" style="padding:16px;text-align:center;background:#0d1017;border-radius:6px;border:1px dashed var(--border);">
+            <div class="muted mono" style="padding:16px;text-align:center;background:var(--surface);border-radius:6px;border:1px dashed var(--border);">
               Enter a task prompt above and click "Resolve Context" to execute zero-path codebase resolution.
             </div>
           </div>
@@ -1402,7 +1519,7 @@ tr:last-child td { border-bottom: 0; }
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
             <button onclick="copyEnvelope()">Copy Envelope</button>
           </div>
-          <pre class="mono" id="envelopePreview" style="white-space:pre-wrap;line-height:1.75;color:#b8c4d9;margin:0;font-size:11px"># Context envelope will appear here after resolving prompt...</pre>
+          <pre class="mono" id="envelopePreview" style="white-space:pre-wrap;line-height:1.75;color:var(--text-dim);margin:0;font-size:11px"># Context envelope will appear here after resolving prompt...</pre>
         </div>
       </div>
     </section>
@@ -1435,7 +1552,7 @@ tr:last-child td { border-bottom: 0; }
           </div>
 
           <div class="graph-side">
-            <div class="graph" id="graphContainer" style="min-height:340px;position:relative;background:#0b0d13;border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+            <div class="graph" id="graphContainer" style="min-height:340px;position:relative;background:var(--bg);border-radius:8px;border:1px solid var(--border);overflow:hidden;">
               <div class="muted mono" style="display:flex;align-items:center;justify-content:center;height:340px;">Loading AST knowledge graph...</div>
             </div>
 
@@ -1714,8 +1831,9 @@ tr:last-child td { border-bottom: 0; }
             <div class="stat-value" style="font-size:22px" id="secEvaluated">—</div>
           </div>
           <div>
-            <div class="muted">Denied by Policy</div>
+            <div class="muted">Blocked by Policy</div>
             <div class="stat-value" style="font-size:22px;color:var(--red)" id="secDenied">—</div>
+            <div class="muted" style="font-size:11.5px;margin-top:2px" id="secHeld"></div>
           </div>
           <div>
             <div class="muted">Human Signoffs Granted</div>
@@ -1830,14 +1948,14 @@ tr:last-child td { border-bottom: 0; }
       <div class="panel">
         <div class="panel-head" style="gap:12px; flex-wrap:wrap">
           <div class="row" style="gap:8px; flex:1">
-            <span class="mono" style="font-size:11px; color:#8e99b0">Status:</span>
+            <span class="mono" style="font-size:11px; color:var(--text-dim)">Status:</span>
             <select class="small-select" id="runsFilterStatus" onchange="loadRuns()">
               <option value="ALL">All Statuses</option>
               <option value="SUCCESS">Success Only</option>
               <option value="FAILED">Failed Only</option>
               <option value="RUNNING">Running Only</option>
             </select>
-            <span class="mono" style="font-size:11px; color:#8e99b0; margin-left:8px">Arm:</span>
+            <span class="mono" style="font-size:11px; color:var(--text-dim); margin-left:8px">Arm:</span>
             <select class="small-select" id="runsFilterArm" onchange="loadRuns()">
               <option value="ALL">All Arms</option>
               <option value="treatment">Treatment (Chronos)</option>
@@ -1887,7 +2005,7 @@ tr:last-child td { border-bottom: 0; }
       <div class="panel" style="margin-bottom:18px">
         <div class="panel-head" style="flex-wrap:wrap; gap:12px">
           <div class="row" style="gap:10px; flex:1">
-            <span class="mono" style="font-size:11px; color:#8e99b0">Active Envelope:</span>
+            <span class="mono" style="font-size:11px; color:var(--text-dim)">Active Envelope:</span>
             <select class="small-select" id="contextEnvelopeSelect" style="min-width:320px;" onchange="loadContextDetail(this.value)">
               <option value="">Select context envelope...</option>
             </select>
@@ -1990,7 +2108,7 @@ tr:last-child td { border-bottom: 0; }
         <div class="panel-head" style="flex-wrap:wrap; gap:12px">
           <h2>Paired Tasks &amp; Regression Analysis</h2>
           <div class="row" style="gap:6px">
-            <span class="mono" style="font-size:11px; color:#8e99b0">Filter:</span>
+            <span class="mono" style="font-size:11px; color:var(--text-dim)">Filter:</span>
             <select class="small-select" id="evalFilterClassification" onchange="renderPairedTasksTable()">
               <option value="ALL">All Paired Tasks</option>
               <option value="REGRESSION">Regressions Only (Baseline Pass, Treatment Fail)</option>
@@ -2038,12 +2156,12 @@ tr:last-child td { border-bottom: 0; }
       <!-- Injected stats -->
     </div>
     <div>
-      <h3 style="font-size:12px;margin:0 0 10px 0;letter-spacing:0.1em;text-transform:uppercase;color:#8590a9">Span Waterfall / Execution Trace</h3>
+      <h3 style="font-size:12px;margin:0 0 10px 0;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">Span Waterfall / Execution Trace</h3>
       <div class="waterfall-track" id="modalRunWaterfall">
         <!-- Injected trace waterfall steps -->
       </div>
     </div>
-    <div class="row" style="justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid #1a2233">
+    <div class="row" style="justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid var(--border)">
       <button class="btn btn-primary" id="modalRunContextBtn" style="display:none">◈ Inspect Context Envelope</button>
       <button class="btn" onclick="toggleModal('runDetailModal')">Close</button>
     </div>
@@ -2085,11 +2203,12 @@ tr:last-child td { border-bottom: 0; }
 window._currentRepoId = null;
 window._currentRepo = null;
 window._reposList = [];
-window._activePage = 'mission';
+window._activePage = 'overview';
 window._activeTier = 'All';
 window._benchmarkTasks = [];
 
 const pageNames = {
+  overview: "Overview",
   mission: "Mission Control",
   resolver: "Zero-Path Resolver",
   graph: "AST Graph Explorer",
@@ -2141,14 +2260,14 @@ function setChartMode(mode) {
     if (subtitle) subtitle.textContent = "Wall-clock duration: Chronos governed vs. Baseline (seconds)";
     if (legend) legend.innerHTML = `
       <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Execution Time (s)</span>
-      <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Execution Time (s)</span>
+      <span><span class="bar-legend-swatch" style="background:var(--border-strong)"></span>Baseline Execution Time (s)</span>
     `;
   } else {
     if (title) title.textContent = "Context Efficiency (Paired Benchmark Tasks)";
     if (subtitle) subtitle.textContent = "Baseline total tokens vs. Chronos governed treatment tokens per task";
     if (legend) legend.innerHTML = `
       <span><span class="bar-legend-swatch" style="background:var(--cyan)"></span>Chronos Treatment Tokens</span>
-      <span><span class="bar-legend-swatch" style="background:#353d52"></span>Baseline Tokens</span>
+      <span><span class="bar-legend-swatch" style="background:var(--border-strong)"></span>Baseline Tokens</span>
     `;
   }
   renderChart();
@@ -2194,6 +2313,7 @@ function showPage(pageId) {
 
   const crumb = document.getElementById('crumb');
   if (crumb) crumb.textContent = pageNames[pageId] || "Dashboard";
+  if (pageId !== 'overview') setAdvancedOpen(true);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   loadCurrentPageData();
@@ -2205,7 +2325,8 @@ document.querySelectorAll('.nav button').forEach(b => {
 
 function loadCurrentPageData() {
   if (!window._currentRepoId) return;
-  if (window._activePage === 'mission') loadMissionControl();
+  if (window._activePage === 'overview') loadOverview();
+  else if (window._activePage === 'mission') loadMissionControl();
   else if (window._activePage === 'locks') loadLocks();
   else if (window._activePage === 'memory') loadMemory();
   else if (window._activePage === 'security') loadSecurity();
@@ -2576,8 +2697,8 @@ function renderSvgGraph(data) {
     const label = (c.name || 'caller').slice(0, 14);
     svgHtml += `
       <g class="node" style="cursor:pointer;" onclick="inspectSymbol('${escapeHtml(c.name)}')">
-        <circle cx="${x}" cy="${y}" r="26" fill="#101726" stroke="#00f2ff88" stroke-width="1.5"/>
-        <text x="${x}" y="${y + 4}" fill="#edf1fa" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
+        <circle cx="${x}" cy="${y}" r="26" style="fill:var(--card)" stroke="#00f2ff88" stroke-width="1.5"/>
+        <text x="${x}" y="${y + 4}" style="fill:var(--text)" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
       </g>
     `;
   });
@@ -2589,8 +2710,8 @@ function renderSvgGraph(data) {
     const label = (c.name || 'callee').slice(0, 14);
     svgHtml += `
       <g class="node" style="cursor:pointer;" onclick="inspectSymbol('${escapeHtml(c.name)}')">
-        <circle cx="${x}" cy="${y}" r="26" fill="#0d241d" stroke="#10b98188" stroke-width="1.5"/>
-        <text x="${x}" y="${y + 4}" fill="#edf1fa" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
+        <circle cx="${x}" cy="${y}" r="26" style="fill:var(--green-bg)" stroke="#10b98188" stroke-width="1.5"/>
+        <text x="${x}" y="${y + 4}" style="fill:var(--text)" text-anchor="middle" font-size="10" font-family="monospace">${escapeHtml(label)}</text>
       </g>
     `;
   });
@@ -2599,8 +2720,8 @@ function renderSvgGraph(data) {
   const centerLabel = (center.name || 'Symbol').slice(0, 16);
   svgHtml += `
     <g class="node selected" style="cursor:pointer;">
-      <circle cx="${cx}" cy="${cy}" r="42" fill="#08373e" stroke="var(--cyan)" stroke-width="2.5" filter="drop-shadow(0 0 10px rgba(0,242,255,0.3))"/>
-      <text x="${cx}" y="${cy - 2}" fill="#c4fbff" text-anchor="middle" font-size="12" font-weight="600" font-family="monospace">${escapeHtml(centerLabel)}</text>
+      <circle cx="${cx}" cy="${cy}" r="42" style="fill:var(--cyan-bg)" stroke="var(--cyan)" stroke-width="2.5" filter="drop-shadow(0 0 10px rgba(0,242,255,0.3))"/>
+      <text x="${cx}" y="${cy - 2}" style="fill:var(--cyan-text)" text-anchor="middle" font-size="12" font-weight="600" font-family="monospace">${escapeHtml(centerLabel)}</text>
       <text x="${cx}" y="${cy + 14}" fill="var(--muted)" text-anchor="middle" font-size="9" font-family="sans-serif">${escapeHtml(center.kind || 'NODE')}</text>
     </g>
   `;
@@ -3077,6 +3198,8 @@ async function loadSecurity() {
     const tel = data.telemetry || {};
     document.getElementById('secEvaluated').textContent = tel.available ? tel.evaluated_count.toLocaleString() : '—';
     document.getElementById('secDenied').textContent = tel.available ? tel.denied_count.toLocaleString() : '—';
+    const heldEl = document.getElementById('secHeld');
+    if (heldEl) heldEl.textContent = tel.available && tel.held_count ? `+ ${tel.held_count.toLocaleString()} held for your approval` : '';
     document.getElementById('secSignoffs').textContent = tel.available ? tel.signoffs_count.toLocaleString() : '—';
     document.getElementById('secIntercepts').textContent = tel.available ? tel.boundary_intercepts.toLocaleString() : '—';
 
@@ -3432,7 +3555,7 @@ async function viewRunTrace(runId) {
           <span class="spacer"></span>
           <span class="mono muted" style="font-size:9.5px">${escapeHtml(ev.timestamp.replace('T', ' ').substring(0, 19))}</span>
         </div>
-        <div class="mono" style="font-size:10.5px;color:#c0cbe0;background:#0b0e16;padding:6px 10px;border-radius:4px;overflow-x:auto;">
+        <div class="mono" style="font-size:10.5px;color:var(--text-dim);background:var(--bg);padding:6px 10px;border-radius:4px;overflow-x:auto;">
           <pre style="margin:0;white-space:pre-wrap;">${escapeHtml(pldJson)}</pre>
         </div>
       `;
@@ -3555,9 +3678,9 @@ async function loadContextDetail(envId) {
           <span class="tag purple">${escapeHtml(env.mode || 'Deterministic AST + BM25')}</span>
           <span class="mono muted" style="font-size:10px">${escapeHtml(env.created_at ? env.created_at.substring(0, 19).replace('T', ' ') : '—')}</span>
         </div>
-        <div style="background:#090c13;padding:10px 14px;border-radius:6px;border:1px solid #1a2233">
+        <div style="background:var(--bg);padding:10px 14px;border-radius:6px;border:1px solid var(--border)">
           <div class="mono muted" style="font-size:10px;margin-bottom:4px">INJECTED TASK DIRECTIVE:</div>
-          <div style="font-size:12.5px;color:#e1ebff">${escapeHtml(env.prompt)}</div>
+          <div style="font-size:12.5px;color:var(--text)">${escapeHtml(env.prompt)}</div>
         </div>
         <div>
           <div class="row" style="margin-bottom:4px;font-size:11px">
@@ -3576,24 +3699,24 @@ async function loadContextDetail(envId) {
 
     document.getElementById('contextTargetCount').textContent = `${resolvedFiles.length} Target Files`;
 
-    let targetHtml = '<div style="margin-bottom:10px"><strong style="color:#9ab0d3;font-size:11px">TARGET FILES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
+    let targetHtml = '<div style="margin-bottom:10px"><strong style="color:var(--text-dim);font-size:11px">TARGET FILES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
     if (resolvedFiles.length === 0) targetHtml += '<li class="muted">None selected</li>';
     resolvedFiles.forEach(f => {
       targetHtml += `<li class="mono" style="margin-bottom:4px"><a href="#" onclick="return false;" style="color:var(--cyan)">📄 ${escapeHtml(f)}</a></li>`;
     });
     targetHtml += '</ul></div>';
 
-    targetHtml += '<div style="margin-bottom:10px"><strong style="color:#9ab0d3;font-size:11px">SEED AST SYMBOLS:</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">';
+    targetHtml += '<div style="margin-bottom:10px"><strong style="color:var(--text-dim);font-size:11px">SEED AST SYMBOLS:</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">';
     if (resolvedSymbols.length === 0) targetHtml += '<span class="muted">None</span>';
     resolvedSymbols.forEach(s => {
       targetHtml += `<span class="tag blue mono" style="font-size:10px">◈ ${escapeHtml(s)}</span>`;
     });
     targetHtml += '</div></div>';
 
-    targetHtml += '<div><strong style="color:#9ab0d3;font-size:11px">CO-LOCATED TEST SUITES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
+    targetHtml += '<div><strong style="color:var(--text-dim);font-size:11px">CO-LOCATED TEST SUITES:</strong><ul style="margin:6px 0 0 16px;padding:0">';
     if (testFiles.length === 0) targetHtml += '<li class="muted">None co-located</li>';
     testFiles.forEach(tf => {
-      targetHtml += `<li class="mono" style="margin-bottom:4px"><span style="color:#5ce6a1">🧪 ${escapeHtml(tf)}</span></li>`;
+      targetHtml += `<li class="mono" style="margin-bottom:4px"><span style="color:var(--green)">🧪 ${escapeHtml(tf)}</span></li>`;
     });
     targetHtml += '</ul></div>';
 
@@ -3609,12 +3732,12 @@ async function loadContextDetail(envId) {
       let mHtml = '<div style="display:flex;flex-direction:column;gap:8px">';
       mems.forEach(m => {
         mHtml += `
-          <div style="background:#0c101a;padding:8px 12px;border-radius:6px;border:1px solid #1c2538">
+          <div style="background:var(--surface);padding:8px 12px;border-radius:6px;border:1px solid var(--border)">
             <div class="row" style="margin-bottom:3px">
               <span class="tag violet">${escapeHtml(m.tier || 'learned')}</span>
               <span class="mono muted" style="font-size:9.5px">${escapeHtml(m.source || 'agentmem')}</span>
             </div>
-            <div style="font-size:11.5px;color:#d5e0f5">${escapeHtml(m.summary || m.content || '')}</div>
+            <div style="font-size:11.5px;color:var(--text)">${escapeHtml(m.summary || m.content || '')}</div>
           </div>
         `;
       });
@@ -4025,6 +4148,168 @@ function switchRepository(repoId) {
   history.pushState(null, '', `/repo/${repoId}`);
   setActiveRepository(repoId);
   toast(`Switched repository context to: ${window._currentRepo?.name || repoId}`);
+}
+
+// ---------------- Theme (system by default; explicit choice remembered per browser)
+const THEMES = ['system', 'light', 'dark'];
+function applyTheme(mode) {
+  if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode);
+  else document.documentElement.removeAttribute('data-theme');
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = 'Theme: ' + ({ system: 'System', light: 'Light', dark: 'Dark' }[mode] || 'System');
+}
+function storedTheme() { try { return localStorage.getItem('chronos-theme') || 'system'; } catch (e) { return 'system'; } }
+function cycleTheme() {
+  const next = THEMES[(THEMES.indexOf(storedTheme()) + 1) % THEMES.length];
+  try { localStorage.setItem('chronos-theme', next); } catch (e) {}
+  applyTheme(next);
+}
+applyTheme(storedTheme());
+
+// ---------------- Advanced navigation group
+function setAdvancedOpen(open) {
+  const nav = document.getElementById('advancedNav');
+  if (!nav) return;
+  nav.classList.toggle('hidden', !open);
+  const t = document.getElementById('advToggle');
+  if (t) t.setAttribute('aria-expanded', String(open));
+  const c = document.getElementById('advChevron');
+  if (c) c.textContent = open ? '▾' : '▸';
+  try { localStorage.setItem('chronos-advanced-open', open ? '1' : '0'); } catch (e) {}
+}
+function toggleAdvanced() { setAdvancedOpen(document.getElementById('advancedNav').classList.contains('hidden')); }
+try { if (localStorage.getItem('chronos-advanced-open') === '1') setAdvancedOpen(true); } catch (e) {}
+
+// ---------------- Overview
+function ovRelTime(iso) {
+  if (!iso) return '';
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!isFinite(s)) return '';
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+  return Math.floor(s / 86400) + ' d ago';
+}
+function ovShortPath(p, root) {
+  if (!p) return '';
+  const r = (root || '').replace(/[\\/]+$/, '');
+  return (r && p.startsWith(r)) ? p.slice(r.length + 1) : p;
+}
+// Turn `commands` in server hints into code spans (escape first, then format).
+function ovRich(text) {
+  return escapeHtml(text || '').replace(/`([^`]+)`/g, '<code class="mono">$1</code>');
+}
+function ovCopy(text, btn) {
+  const done = () => { if (btn) { const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1400); } };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, () => ovCopyFallback(text, done));
+  } else ovCopyFallback(text, done);
+}
+function ovCopyFallback(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { toast('Copy failed: select the command and copy it manually'); }
+  ta.remove();
+}
+function ovTile(label, state, value, detail, fix) {
+  return `<div class="ov-tile"><div class="k"><span class="ov-dot ${state}"></span>${escapeHtml(label)}</div>
+    <div class="v">${escapeHtml(value)}</div>${detail ? `<div class="d">${ovRich(detail)}</div>` : ''}
+    ${fix ? `<div class="ov-fix">${ovRich(fix)}</div>` : ''}</div>`;
+}
+function ovNum(cls, n, label) {
+  return `<div class="ov-num ${cls}"><b>${Number(n || 0).toLocaleString()}</b><span>${escapeHtml(label)}</span></div>`;
+}
+function renderOverviewHealth(h) {
+  const hooks = h.hooks || {}, sb = h.sandbox || {}, ix = h.index || {}, au = h.audit || {};
+  const hookState = hooks.complete ? (hooks.commands_work === false ? 'bad' : 'ok') : (hooks.installed?.length ? 'warn' : 'bad');
+  const hookVal = hooks.complete ? (hooks.commands_work === false ? 'Installed, not running' : 'Active') : (hooks.installed?.length ? 'Partly installed' : 'Not installed');
+  const scopes = Object.entries(hooks.scopes || {}).filter(([, v]) => v.hooks_installed?.length).map(([k]) => k);
+  const hookFix = hooks.commands_work === false ? 'The installed hook command fails to run. Reinstall with `chronos claude install`.' : hooks.fix;
+  let ixVal, ixState, ixDetail;
+  if (!ix.indexed) { ixVal = 'Not indexed'; ixState = 'warn'; ixDetail = ''; }
+  else {
+    ixState = (ix.changed_files || 0) > 0 ? 'warn' : 'ok';
+    ixVal = `${Number(ix.symbols).toLocaleString()} symbols`;
+    ixDetail = ix.last_indexed_at
+      ? `Updated ${ovRelTime(ix.last_indexed_at)}` + (ix.changed_files ? ` · ${ix.changed_files} file(s) changed since (re-indexed on the next prompt)` : ' · up to date')
+      : (ix.note || '');
+  }
+  const auState = au.valid === null || au.valid === undefined ? '' : (au.valid ? 'ok' : 'bad');
+  const auVal = au.valid === null || au.valid === undefined ? 'No records yet' : (au.valid ? 'Intact' : 'Chain broken');
+  document.getElementById('ovHealth').innerHTML =
+    ovTile('Claude Code hooks', hookState, hookVal, scopes.length ? `Installed in ${scopes.join(' and ')} settings` : '', hookFix) +
+    ovTile('Sandbox (chronos exec)', sb.available ? 'ok' : 'warn', sb.available ? `Available · ${sb.backend}` : 'Unavailable', '', sb.available ? null : sb.fix) +
+    ovTile('Code index', ixState, ixVal, ixDetail, ix.fix) +
+    ovTile('Audit trail', auState, auVal, au.records ? `${Number(au.records).toLocaleString()} records verified` : '', au.fix);
+}
+function renderOverviewDecisions(d, root) {
+  const el = document.getElementById('ovDecisions');
+  if (!d.available) { el.innerHTML = `<div class="ov-empty">${ovRich(d.empty_hint)}</div>`; return; }
+  const t = d.today, w = d.week;
+  document.getElementById('ovDecisionsSub').textContent = `Today · this week: ${w.allowed} allowed, ${w.asked} asked, ${w.denied} blocked` + (w.error ? `, ${w.error} could not be checked` : '');
+  const items = (d.latest_not_allowed || []).slice(0, 6).map(x => {
+    const tag = { asked: '<span class="tag amber">ASKED YOU</span>', denied: '<span class="tag red">BLOCKED</span>', error: '<span class="tag violet">NOT CHECKED</span>' }[x.decision] || '';
+    return `<li><div class="row1">${tag}<span class="file" title="${escapeHtml(x.target)}">${escapeHtml(ovShortPath(x.target, root))}</span><span class="when">${ovRelTime(x.timestamp)}</span></div><div class="why">${escapeHtml(x.reason)}</div></li>`;
+  }).join('');
+  el.innerHTML = `<div class="ov-nums">${ovNum('allowed', t.allowed, 'allowed today')}${ovNum('asked', t.asked, 'asked you today')}${ovNum('denied', t.denied, 'blocked today')}</div>` +
+    (items ? `<ul class="ov-list">${items}</ul>` : `<div class="ov-empty">Nothing was held or blocked recently. Every action so far passed the checks.</div>`);
+}
+function renderOverviewContext(c, root) {
+  const el = document.getElementById('ovContext');
+  if (!c.available) { el.innerHTML = `<div class="ov-empty">${ovRich(c.empty_hint)}</div>`; return; }
+  const w = c.week;
+  const items = (c.latest || []).map(x => {
+    const files = (x.files || []).map(f => ovShortPath(f, root)).join(', ');
+    const more = x.file_count > (x.files || []).length ? ` +${x.file_count - x.files.length}` : '';
+    const mems = (x.memories || []).length ? ` · ${x.memories.length} memor${x.memories.length === 1 ? 'y' : 'ies'}` : '';
+    return `<li><div class="row1"><span class="file" title="${escapeHtml(x.prompt)}">${escapeHtml(x.prompt)}</span><span class="when">${ovRelTime(x.created_at)}</span></div>
+      <div class="why mono" style="font-size:11.5px">${escapeHtml(files)}${more} · ~${Number(x.tokens).toLocaleString()} tokens${mems}</div></li>`;
+  }).join('');
+  el.innerHTML = `<div class="ov-nums">${ovNum('', w.injections, 'prompts helped this week')}${ovNum('', w.tokens, 'tokens of context')}${ovNum('', w.memories, 'memories recalled')}</div><ul class="ov-list">${items}</ul>`;
+}
+function renderOverviewProtection(p) {
+  document.getElementById('ovProtectSub').textContent = p.explain || '';
+  const chips = (p.protected || []).map(x => `<span class="ov-chip" title="${escapeHtml(x.module)}">${escapeHtml(x.pattern)}</span>`).join('');
+  const grants = (p.grants || []).map(g => `<li><div class="row1"><span class="tag green">APPROVED</span><span class="file">${escapeHtml(g.path_pattern)}</span><span class="when">${ovRelTime(g.created_at)}</span></div><div class="why">for ${escapeHtml(g.agent_id)}${g.expires_at ? ' · expires ' + escapeHtml(g.expires_at) : ''}</div></li>`).join('');
+  document.getElementById('ovProtection').innerHTML =
+    `<div class="ov-chips">${chips || '<span class="ov-empty">No protected patterns.</span>'}</div>` +
+    `<div class="sub" style="margin:0 0 6px">To let the agent edit a protected file without asking:</div>` +
+    `<div class="ov-cmd"><code id="ovGrantCmd">${escapeHtml(p.grant_command || '')}</code><button onclick="ovCopy(document.getElementById('ovGrantCmd').textContent, this)">Copy</button></div>` +
+    (grants ? `<div class="sub" style="margin:12px 0 0">Approved so far</div><ul class="ov-list">${grants}</ul>` : '');
+}
+function renderOverviewEfficiency(e) {
+  const el = document.getElementById('ovEfficiency');
+  if (!e.available) { el.innerHTML = `<div class="ov-empty">${ovRich(e.empty_hint)}</div>`; return; }
+  const dt = e.median_time_delta_s;
+  const time = dt === null || dt === undefined ? '—' : (dt <= 0 ? `${Math.abs(dt)} s faster` : `${dt} s slower`);
+  el.innerHTML = `<div class="ov-nums">
+      <div class="ov-num"><b>${e.token_reduction_pct}%</b><span>fewer tokens overall</span></div>
+      <div class="ov-num"><b>${e.median_task_token_reduction_pct}%</b><span>median per task</span></div>
+      <div class="ov-num"><b>${escapeHtml(time)}</b><span>median time per task</span></div>
+    </div>
+    <div class="why" style="font-size:12.5px">Tasks solved: ${e.success.chronos} with Chronos vs ${e.success.baseline} without (of ${e.pairs}).</div>
+    <div class="ov-caveat">${escapeHtml(e.caveat)} Source: <span class="mono">${escapeHtml(e.source)}</span>. The overall figure weights large tasks more; the median shows a typical task.</div>`;
+}
+async function loadOverview(force) {
+  if (!window._currentRepoId) return;
+  const errEl = document.getElementById('ovError');
+  try {
+    const res = await fetch(`/api/repo/${window._currentRepoId}/overview${force ? '?fresh=1' : ''}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    errEl.classList.add('hidden');
+    const root = data.repo.root;
+    document.getElementById('ovSubtitle').textContent = `${data.repo.name} · ${root} · updated ${new Date(data.generated_at).toLocaleTimeString()}`;
+    renderOverviewHealth(data.health);
+    renderOverviewDecisions(data.decisions, root);
+    renderOverviewContext(data.context, root);
+    renderOverviewProtection(data.protection);
+    renderOverviewEfficiency(data.efficiency);
+  } catch (e) {
+    errEl.textContent = `Could not load the overview: ${e.message}. Is \`chronos ui\` still running? Reload the page to retry.`;
+    errEl.classList.remove('hidden');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

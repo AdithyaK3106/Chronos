@@ -11,7 +11,56 @@ from typing import Any
 from chronos.security.sanitizer import redact_secrets
 
 GENESIS_HASH = "0" * 64
+
+
+class AuditChainCorruptedError(RuntimeError):
+    """Raised when the audit log tail cannot be parsed, so the chain cannot be extended safely."""
+
 _append_lock = threading.Lock()
+
+
+class _InterProcessLock:
+    """Exclusive lock on `<log>.lock`, held across the read-last-hash + append step.
+
+    Each Claude Code hook call is a separate process, and parallel tool calls run hooks at the same
+    time. A thread lock alone let two processes read the same previous hash and fork the chain.
+    """
+
+    def __init__(self, log_file: Path) -> None:
+        self._path = log_file.with_name(log_file.name + ".lock")
+        self._fh = None
+
+    def __enter__(self) -> "_InterProcessLock":
+        self._fh = open(self._path, "a+b")
+        if os.name == "nt":
+            import msvcrt
+
+            self._fh.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(self._fh.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError:  # LK_LOCK gives up after ~10 s; keep waiting
+                    continue
+        else:
+            import fcntl
+
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                self._fh.seek(0)
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+        finally:
+            self._fh.close()
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -47,9 +96,17 @@ def _read_last_hash(log_file: Path) -> str:
             return GENESIS_HASH
         try:
             last_entry = json.loads(lines[-1].decode("utf-8"))
-            return last_entry.get("hash", GENESIS_HASH)
-        except Exception:
-            return GENESIS_HASH
+        except Exception as exc:
+            raise AuditChainCorruptedError(
+                f"Last record of audit log '{log_file}' is unreadable ({exc}); refusing to append "
+                "and silently restart the hash chain. Run `chronos audit verify` and repair the log."
+            ) from exc
+        last_hash = last_entry.get("hash") if isinstance(last_entry, dict) else None
+        if not isinstance(last_hash, str) or len(last_hash) != 64:
+            raise AuditChainCorruptedError(
+                f"Last record of audit log '{log_file}' has no valid hash; refusing to append."
+            )
+        return last_hash
 
 def append_audit_event(
     log_path: str | Path,
@@ -69,7 +126,7 @@ def append_audit_event(
     cleaned_target = redact_secrets(target)
     cleaned_reason = redact_secrets(reason)
 
-    with _append_lock:
+    with _append_lock, _InterProcessLock(p):
         prev_hash = _read_last_hash(p)
         payload = {
             "timestamp": _utc_now_iso(),

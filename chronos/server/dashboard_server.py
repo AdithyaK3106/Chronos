@@ -1579,7 +1579,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
         try:
             store = SQLiteGraphStore(con)
             nodes, edges = index_repository(root)
-            store.ingest(nodes, edges)
+            store.sync_repository(nodes, edges)
         finally:
             con.close()
 

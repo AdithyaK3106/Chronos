@@ -1,6 +1,7 @@
 """OpenHands Agent SDK integration and lifecycle harness for Chronos."""
 
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +23,8 @@ from chronos.core.db import get_connection
 from chronos.telemetry.metrics import TaskTelemetry
 from runtime.condenser import ChronosContextCondenser
 from runtime.gateway import wrap_governed_tools
-from runtime.hooks import evaluate_tool_security
-from runtime.session import ChronosSessionBootstrap
+from chronos.governance.firewall import evaluate_tool_security
+from chronos.context.session import ChronosSessionBootstrap
 
 class GovernedExecutorWrapper:
     """Delegating executor wrapper that enforces Chronos security and forwards close()."""
@@ -65,7 +66,7 @@ class GovernedExecutorWrapper:
             # P2: Incremental Bi-Temporal Graph Synchronization post-edit
             try:
                 if self.t_name in ("file_editor", "edit_file", "write_file"):
-                    from runtime.hooks import _extract_target_path
+                    from chronos.governance.firewall import _extract_target_path
                     target = _extract_target_path(self.t_name, tool_input)
                     from chronos.context.indexer import is_supported_source_file
                     if target and is_supported_source_file(target):
@@ -174,10 +175,15 @@ class ChronosAgentRuntime:
         task_prompt: str,
         workspace_dir: str | Path | None = None,
         target_files: list[str] | None = None,
+        task_id: str | None = None,
     ) -> tuple[Conversation, TaskTelemetry]:
-        """Execute a task through an OpenHands Conversation with Chronos telemetry."""
+        """Execute a task through an OpenHands Conversation with Chronos telemetry.
+
+        ``task_id`` identifies the task for post-task memory distillation, which is
+        idempotent per task_id. A unique id is generated when none is given.
+        """
         target_ws = str(Path(workspace_dir or self.repo_root).resolve())
-        telemetry = TaskTelemetry(task_id="task_001", agent_id=agent_id)
+        telemetry = TaskTelemetry(task_id=task_id or new_task_id(), agent_id=agent_id)
 
         conversation_events: list[Event] = []
 
@@ -215,30 +221,55 @@ class ChronosAgentRuntime:
             raise
         finally:
             telemetry.finish()
-            # Post-task epistemic distillation hook (idempotent, safe, resilient)
-            try:
-                from chronos.memory.hooks import on_task_completed
-                modified_files = list(target_files or bootstrap_res.get("resolved_files") or [])
-                raw_messages = []
-                for ev in conversation_events:
-                    if hasattr(ev, "llm_message") and hasattr(ev.llm_message, "content"):
-                        raw_messages.append({"role": getattr(ev.llm_message, "role", "assistant"), "content": str(ev.llm_message.content)})
-                    elif hasattr(ev, "content") and isinstance(ev.content, str):
-                        raw_messages.append({"role": getattr(ev, "source", "assistant"), "content": ev.content})
-
-                on_task_completed(
-                    con=self.con,
-                    task_id=telemetry.task_id,
-                    task_prompt=task_prompt,
-                    agent_id=agent_id,
-                    repo_namespace=self.repo_root.name,
-                    outcome=task_outcome,
-                    files_modified=modified_files,
-                    conversation_messages=raw_messages,
-                    error_message=task_error,
-                    audit_log_path=self.audit_log_path,
-                )
-            except Exception:
-                pass
+            self.record_task_outcome(
+                task_id=telemetry.task_id,
+                task_prompt=task_prompt,
+                agent_id=agent_id,
+                outcome=task_outcome,
+                files_modified=list(target_files or bootstrap_res.get("resolved_files") or []),
+                events=conversation_events,
+                error_message=task_error,
+            )
 
         return conversation, telemetry
+
+    def record_task_outcome(
+        self,
+        task_id: str,
+        task_prompt: str,
+        agent_id: str,
+        outcome: str,
+        files_modified: list[str] | None = None,
+        events: list[Any] | None = None,
+        error_message: str | None = None,
+    ) -> list[int]:
+        """Run the post-task epistemic distillation hook. Never raises."""
+        try:
+            from chronos.memory.hooks import on_task_completed
+
+            raw_messages = []
+            for ev in events or []:
+                if hasattr(ev, "llm_message") and hasattr(ev.llm_message, "content"):
+                    raw_messages.append({"role": getattr(ev.llm_message, "role", "assistant"), "content": str(ev.llm_message.content)})
+                elif hasattr(ev, "content") and isinstance(ev.content, str):
+                    raw_messages.append({"role": getattr(ev, "source", "assistant"), "content": ev.content})
+
+            return on_task_completed(
+                con=self.con,
+                task_id=task_id,
+                task_prompt=task_prompt,
+                agent_id=agent_id,
+                repo_namespace=self.repo_root.name,
+                outcome=outcome,
+                files_modified=files_modified or [],
+                conversation_messages=raw_messages,
+                error_message=error_message,
+                audit_log_path=self.audit_log_path,
+            )
+        except Exception:
+            return []
+
+
+def new_task_id() -> str:
+    """Generate a unique task identifier for telemetry and memory distillation."""
+    return f"task_{uuid.uuid4().hex[:12]}"

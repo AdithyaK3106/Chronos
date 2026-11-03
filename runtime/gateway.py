@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from chronos.audit.logger import append_audit_event
-from runtime.hooks import evaluate_tool_security
+from chronos.governance.firewall import evaluate_tool_security
 
 
 class ChronosSecurityVetoError(ValueError):
@@ -83,7 +83,7 @@ class ChronosToolGateway:
                     tool_input = action.model_dump()
                 elif isinstance(action, dict):
                     tool_input = action
-                from runtime.hooks import _extract_target_path
+                from chronos.governance.firewall import _extract_target_path
                 target = _extract_target_path(tool_name, tool_input)
                 from chronos.context.indexer import is_supported_source_file
                 if target and is_supported_source_file(target):

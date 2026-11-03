@@ -64,6 +64,16 @@ class GraphStore(ABC):
         """Incrementally update AST nodes and bi-temporal edges for a modified file."""
         return (0, 0)
 
+    def sync_repository(
+        self, nodes: list[ASTNode], edges: list[ASTEdge], valid_at: str | None = None
+    ) -> dict[str, int]:
+        """Reconcile the store against a full-repository index snapshot.
+
+        Backends without reconciliation support fall back to a plain ingest.
+        """
+        self.ingest(nodes, edges)
+        return {"nodes_removed": 0, "edges_added": len(edges), "edges_invalidated": 0, "duplicates_removed": 0}
+
 class SQLiteGraphStore(GraphStore):
     """SQLite WAL implementation using recursive CTEs for transitive graph traversal."""
 
@@ -275,11 +285,106 @@ class SQLiteGraphStore(GraphStore):
         linker = CrossFileLinker(repo_root)
         linked_nodes, linked_edges = linker.link_file(p, nodes, edges, imports, graph_store=self, valid_at=t)
 
-        # 4. Upsert nodes and insert new edges with valid_at = t
+        # 4. Drop nodes for symbols that no longer exist in this file
+        keep_ids = [n.id for n in linked_nodes if n.path == norm_path]
+        placeholders = ",".join("?" for _ in keep_ids)
+        stale_sql = "DELETE FROM code_nodes WHERE path = ?"
+        if keep_ids:
+            stale_sql += f" AND id NOT IN ({placeholders})"
+        self.con.execute(stale_sql, (norm_path, *keep_ids))
+
+        # 5. Upsert nodes and insert new edges with valid_at = t
         if linked_nodes or linked_edges:
             self.ingest(linked_nodes, linked_edges)
 
         return len(linked_nodes), len(linked_edges)
+
+    def sync_repository(
+        self, nodes: list[ASTNode], edges: list[ASTEdge], valid_at: str | None = None
+    ) -> dict[str, int]:
+        """Reconcile the store against a full-repository index snapshot.
+
+        Unlike ``ingest`` (which appends), this keeps the edge history bi-temporal:
+        - edges already active and still present are left untouched (original valid_at kept),
+        - active edges missing from the snapshot are closed with invalid_at = t,
+        - edges new in the snapshot are inserted,
+        - duplicate active rows for the same (src, dst, type) are removed,
+        - nodes absent from the snapshot are deleted.
+
+        ``nodes``/``edges`` must describe the WHOLE repository; anything not included is
+        treated as deleted.
+        """
+        t = _normalize_iso(valid_at)
+        new_node_ids = {n.id for n in nodes}
+        new_edges = {(e.src, e.dst, e.type): e for e in edges}
+        stats = {"nodes_removed": 0, "edges_added": 0, "edges_invalidated": 0, "duplicates_removed": 0}
+
+        self.con.execute("BEGIN IMMEDIATE")
+        try:
+            # 1. Upsert current nodes
+            self.con.executemany(
+                """
+                INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name=excluded.name, path=excluded.path, kind=excluded.kind,
+                    language=excluded.language, signature=excluded.signature,
+                    docstring=excluded.docstring
+                """,
+                [(n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring) for n in nodes],
+            )
+
+            # 2. Remove nodes that no longer exist
+            existing_ids = {r[0] for r in self.con.execute("SELECT id FROM code_nodes").fetchall()}
+            stale_ids = existing_ids - new_node_ids
+            if stale_ids:
+                self.con.executemany("DELETE FROM code_nodes WHERE id = ?", [(i,) for i in stale_ids])
+            stats["nodes_removed"] = len(stale_ids)
+
+            # 3. Reconcile active edges (oldest first, so the original valid_at survives)
+            active_rows = self.con.execute(
+                "SELECT rowid, src, dst, type FROM code_edges WHERE invalid_at IS NULL ORDER BY valid_at ASC"
+            ).fetchall()
+            seen: set[tuple[str, str, str]] = set()
+            duplicate_rowids: list[tuple[int]] = []
+            retire_rowids: list[tuple[str, int]] = []
+            for row in active_rows:
+                key = (row[1], row[2], row[3])
+                if key in seen:
+                    duplicate_rowids.append((row[0],))
+                    continue
+                seen.add(key)
+                if key not in new_edges:
+                    retire_rowids.append((t, row[0]))
+
+            if duplicate_rowids:
+                self.con.executemany("DELETE FROM code_edges WHERE rowid = ?", duplicate_rowids)
+            if retire_rowids:
+                self.con.executemany("UPDATE code_edges SET invalid_at = ? WHERE rowid = ?", retire_rowids)
+            stats["duplicates_removed"] = len(duplicate_rowids)
+            stats["edges_invalidated"] = len(retire_rowids)
+
+            # 4. Insert edges that are new in this snapshot
+            to_insert = [
+                (e.src, e.dst, e.type, e.valid_at or t)
+                for key, e in new_edges.items()
+                if key not in seen
+            ]
+            if to_insert:
+                self.con.executemany(
+                    "INSERT OR IGNORE INTO code_edges (src, dst, type, valid_at, invalid_at) VALUES (?, ?, ?, ?, NULL)",
+                    to_insert,
+                )
+            stats["edges_added"] = len(to_insert)
+
+            self.con.execute("COMMIT")
+        except Exception:
+            try:
+                self.con.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        return stats
 
 def create_graph_store(con: sqlite3.Connection, backend: str = "sqlite", kuzu_dir: str | Path | None = None) -> GraphStore:
     """Factory creating the appropriate GraphStore with portability fallback."""

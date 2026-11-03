@@ -153,9 +153,18 @@ def test_ambiguous_query_returns_multiple_candidates(indexed_chronos_graph):
     assert found_db or found_log
 
 
-def test_no_match_query_graceful_handling(indexed_chronos_graph):
-    _, graph_store = indexed_chronos_graph
-    resolver = DeterministicContextResolver(repo_root=REPO_ROOT, graph_store=graph_store)
+def test_no_match_query_graceful_handling(tmp_path):
+    # Hermetic corpus: the previous version searched Chronos's own source, so the result
+    # depended on which English words happened to appear in this repo's docstrings.
+    (tmp_path / "ledger.py").write_text(
+        'def acquire_lock(node_id):\n    """Acquire an AST node lease."""\n    return node_id\n',
+        encoding="utf-8",
+    )
+    con = get_connection(":memory:")
+    graph_store = SQLiteGraphStore(con)
+    nodes, edges = index_repository(tmp_path)
+    graph_store.ingest(nodes, edges)
+    resolver = DeterministicContextResolver(repo_root=tmp_path, graph_store=graph_store)
 
     prompt = "How do I bake sourdough bread with whole wheat flour and chocolate sprinkles?"
     res = resolver.resolve(prompt)

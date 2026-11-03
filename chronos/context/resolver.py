@@ -32,6 +32,10 @@ STOP_WORDS: Set[str] = {
 }
 
 
+# Maximum score contribution from the lexical (BM25) component of a candidate.
+BM25_SCORE_CAP = 15.0
+
+
 @dataclass
 class HarvestedFeatures:
     raw_prompt: str
@@ -267,9 +271,11 @@ class DeterministicContextResolver:
                 score += 15.0
                 reasons.append(f"File stem '{stem}' matches prompt term")
 
-            # BM25 rank contribution (lower bm25 score means higher relevance in SQLite)
+            # BM25 rank contribution. SQLite's bm25() is NEGATIVE and gets MORE negative for
+            # better matches, so relevance grows with abs(rank). (Previously `10 - abs(rank)`,
+            # which gave the strongest matches ~0 points and the weakest the most.)
             bm25_rank = m.get("bm25_rank", 0.0)
-            score += max(0.0, 10.0 - abs(bm25_rank))
+            score += min(BM25_SCORE_CAP, abs(bm25_rank))
             reasons.append(f"Lexical match (BM25 rank: {bm25_rank:.2f})")
 
             # Docstring / signature matching bonus

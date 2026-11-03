@@ -1,5 +1,7 @@
 """Unit and integration tests for Chronos SLM Zero-Path Resolver."""
 
+import os
+import shutil
 from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch
@@ -12,11 +14,20 @@ from chronos.core.config import SLMConfig
 from chronos.core.db import get_connection
 
 
+# These call a real model through the `agy` CLI: slow (~30 s each), non-deterministic, and
+# unavailable on CI. Opt in with CHRONOS_LIVE_LLM=1.
+live_llm = pytest.mark.skipif(
+    os.environ.get("CHRONOS_LIVE_LLM") != "1" or shutil.which("agy") is None,
+    reason="live LLM test: set CHRONOS_LIVE_LLM=1 and install agy",
+)
+
+
 @pytest.fixture
 def repo_root() -> Path:
     return Path(__file__).parent.parent.resolve()
 
 
+@live_llm
 def test_slm_resolver_with_natural_words_prompt(repo_root: Path):
     """Test that an SLM prompt in natural words correctly specifies exact repository files."""
     cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=60)
@@ -33,6 +44,7 @@ def test_slm_resolver_with_natural_words_prompt(repo_root: Path):
     assert (repo_root / result.suspected_files[0]).exists()
 
 
+@live_llm
 def test_slm_resolver_graph_recursion_natural_words(repo_root: Path):
     """Test resolving circular reference recursion in graph traversal with natural words."""
     cfg = SLMConfig(enabled=True, backend="agy", timeout_seconds=60)

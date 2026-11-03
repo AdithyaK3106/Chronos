@@ -17,6 +17,8 @@ import urllib.error
 import urllib.request
 import pytest
 
+from conftest import write_bench_db
+
 from chronos.core.db import get_connection
 from chronos.core.repo import inspect_repository
 from chronos.server.dashboard_server import REGISTRY, create_server
@@ -70,15 +72,8 @@ def sample_repo(tmp_path: Path):
 
     REGISTRY.register(repo_dir)
 
-    # Symlink benchmarks/data for evaluation testing
-    real_benchmarks = Path(__file__).resolve().parent.parent / "benchmarks"
-    if real_benchmarks.is_dir():
-        import os
-        benchmarks_link = repo_dir / "benchmarks"
-        try:
-            os.symlink(real_benchmarks, benchmarks_link)
-        except Exception:
-            pass
+    # Synthetic benchmark dataset for the evaluation studio (the real one is git-ignored)
+    write_bench_db(repo_dir / "benchmarks" / "data")
 
     return identity
 
@@ -370,14 +365,6 @@ def test_context_linked_to_run_emits_event(memory_db):
 # Feature 3: Evaluation Studio Tests
 # =========================================================================
 
-# These read benchmarks/data/benchmark_runs.db, which is generated locally and git-ignored (*.db),
-# so they cannot run on a fresh clone (e.g. CI).
-_LOCAL_BENCH_DB = Path(__file__).resolve().parent.parent / "benchmarks" / "data" / "benchmark_runs.db"
-needs_local_bench_db = pytest.mark.skipif(
-    not _LOCAL_BENCH_DB.is_file(), reason="needs the local, git-ignored benchmarks/data/benchmark_runs.db"
-)
-
-
 def test_evaluation_experiments_discovery():
     """Canonical benchmark summaries and database runs are discovered and listed."""
     benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
@@ -387,10 +374,9 @@ def test_evaluation_experiments_discovery():
     assert "canonical_benchmark_runs" in exp_ids or any(id.startswith("summary_") for id in exp_ids)
 
 
-@needs_local_bench_db
-def test_evaluation_detail_and_paired_metrics():
+def test_evaluation_detail_and_paired_metrics(bench_data_dir):
     """Paired evaluation metrics compute token savings, latency percentiles, and regressions."""
-    benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
+    benchmarks_dir = bench_data_dir
     detail = get_evaluation_detail(benchmarks_dir, "canonical_benchmark_runs")
     assert detail is not None
     assert detail["paired_tasks_count"] >= 20
@@ -409,10 +395,9 @@ def test_evaluation_detail_and_paired_metrics():
         assert "treatment" in p
 
 
-@needs_local_bench_db
-def test_evaluation_export_csv_and_json():
+def test_evaluation_export_csv_and_json(bench_data_dir):
     """Evaluation export generates valid CSV and JSON payloads."""
-    benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
+    benchmarks_dir = bench_data_dir
 
     # CSV Export
     csv_content, c_type = export_evaluation(benchmarks_dir, "canonical_benchmark_runs", fmt="csv")
@@ -433,9 +418,9 @@ def test_evaluation_export_csv_and_json():
     assert len(parsed["paired_tasks"]) >= 20
 
 
-def test_sync_benchmark_runs_into_registry(memory_db):
+def test_sync_benchmark_runs_into_registry(memory_db, bench_data_dir):
     """Syncing benchmark database ingests historical runs and synthetic trace events."""
-    benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
+    benchmarks_dir = bench_data_dir
     cnt = sync_benchmark_runs_into_registry(memory_db, "repo-test", benchmarks_dir)
     assert cnt > 0
 
@@ -580,7 +565,6 @@ def test_api_context_diff_endpoint(live_server, sample_repo):
         assert "tokens" in diff
 
 
-@needs_local_bench_db
 def test_api_evaluation_studio_endpoints(live_server, sample_repo):
     """Evaluation Studio API serves experiments list, regression detail, and CSV export."""
     repo_id = sample_repo.id

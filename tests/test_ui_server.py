@@ -380,7 +380,16 @@ def test_13_audit_verification_endpoint(temp_repo_pair):
         server.server_close()
 
 
-def test_14_benchmarks_endpoint_valid_and_missing(tmp_path: Path):
+def _index_via_server(port: int, repo_id: str) -> None:
+    """Index a registered repository through the dashboard API (POST /index)."""
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/repo/{repo_id}/index", data=b"{}",
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    res = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
+    assert res["success"] is True and res["node_count"] > 0
+
+def test_14_benchmarks_endpoint_valid_and_missing(tmp_path: Path, bench_data_dir: Path):
     """Benchmarks API returns paired runs from real dataset and gracefully handles missing data."""
     server = create_server("127.0.0.1", 0)
     port = server.server_address[1]
@@ -389,8 +398,8 @@ def test_14_benchmarks_endpoint_valid_and_missing(tmp_path: Path):
     try:
         assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
 
-        # 1. Real repository with benchmarks
-        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        # 1. Repository with a (synthetic) benchmark dataset
+        reg = register_repo_with_server("127.0.0.1", port, str(bench_data_dir.parent.parent))
         repo_id = reg["id"]
 
         req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/benchmarks")
@@ -483,7 +492,7 @@ def test_15_audit_telemetry_valid_malformed_and_tampered(tmp_path: Path):
         server.server_close()
 
 
-def test_16_zero_path_resolver_contracts_and_errors():
+def test_16_zero_path_resolver_contracts_and_errors(ledger_git_repo: Path):
     """Zero-Path context resolver validates input contracts, scoring signals, and SLM toggle."""
     server = create_server("127.0.0.1", 0)
     port = server.server_address[1]
@@ -491,8 +500,9 @@ def test_16_zero_path_resolver_contracts_and_errors():
     t.start()
     try:
         assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
-        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        reg = register_repo_with_server("127.0.0.1", port, str(ledger_git_repo))
         repo_id = reg["id"]
+        _index_via_server(port, repo_id)
 
         # Positive test: Valid prompt
         payload = json.dumps({"prompt": "Prevent race condition in lock ledger", "token_budget": 2000}).encode("utf-8")
@@ -605,7 +615,7 @@ def test_17_intent_lock_governance_conflicts_and_ownership(temp_repo_pair):
         server.server_close()
 
 
-def test_18_subgraph_and_git_endpoints():
+def test_18_subgraph_and_git_endpoints(ledger_git_repo: Path):
     """Graph subgraph and git endpoints return structured data and prevent injection."""
     server = create_server("127.0.0.1", 0)
     port = server.server_address[1]
@@ -613,8 +623,9 @@ def test_18_subgraph_and_git_endpoints():
     t.start()
     try:
         assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
-        reg = register_repo_with_server("127.0.0.1", port, str(Path.cwd()))
+        reg = register_repo_with_server("127.0.0.1", port, str(ledger_git_repo))
         repo_id = reg["id"]
+        _index_via_server(port, repo_id)
 
         # Subgraph
         req_sub = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/graph/subgraph?symbol=acquire_lock&depth=2")

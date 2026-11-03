@@ -9,7 +9,6 @@ The tests decide success, not the agent's own report.
 
 from __future__ import annotations
 
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -60,8 +59,13 @@ def sandboxed_runner(root: Path, agent_id: str) -> CommandRunner:
     finally:
         con.close()
 
-    def run(argv: list[str], cwd: Path, timeout_s: int) -> tuple[int, str, str]:
-        return default_runner(build_command(plan, argv, bwrap, chdir=str(cwd)), cwd, timeout_s)
+    def run(argv: "list[str] | str", cwd: Path, timeout_s: int, env: Optional[dict] = None) -> tuple[int, str, str]:
+        if isinstance(argv, str):  # shell command line -> sh -c inside the sandbox
+            argv = ["sh", "-c", argv]
+        sandboxed = build_command(plan, argv, bwrap, chdir=str(cwd))
+        for key, value in (env or {}).items():  # pass env through bwrap explicitly
+            sandboxed[1:1] = ["--setenv", key, value]
+        return default_runner(sandboxed, cwd, timeout_s, env=env)
 
     return run
 
@@ -109,11 +113,7 @@ def feedback_prompt(test_command: str, output: str, round_no: int, max_rounds: i
 def run_tests(test_command: str, root: Path, run: CommandRunner, timeout_s: int) -> tuple[int, str]:
     # No bytecode: a quick edit that keeps a file's size within the same second would otherwise
     # let the next round run the previous round's stale .pyc (mtime has 1 s resolution).
-    if os.name == "nt":
-        argv = ["cmd", "/c", f"set PYTHONDONTWRITEBYTECODE=1&& {test_command}"]
-    else:
-        argv = ["env", "PYTHONDONTWRITEBYTECODE=1", "sh", "-c", test_command]
-    code, out, err = run(argv, root, timeout_s)
+    code, out, err = run(test_command, root, timeout_s, env={"PYTHONDONTWRITEBYTECODE": "1"})
     return code, (out + ("\n" + err if err else "")).strip()
 
 

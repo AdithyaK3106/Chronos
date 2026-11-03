@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import Callable, Optional, Protocol
 
 # Runs a command in the repository and returns (exit code, stdout, stderr). The orchestrator
-# provides one that applies the sandbox; tests can provide their own.
-CommandRunner = Callable[[list[str], Path, int], "tuple[int, str, str]"]
+# provides one that applies the sandbox; tests can provide their own. A str command is a shell
+# command line (run by the platform shell); a list is an argv. `env` adds environment variables.
+CommandRunner = Callable[..., "tuple[int, str, str]"]
 
 
 @dataclass
@@ -139,9 +140,13 @@ class FakeEngine:
         return self._step(prompt, cwd, session_id)
 
 
-def default_runner(argv: list[str], cwd: Path, timeout_s: int) -> tuple[int, str, str]:
+def default_runner(argv: "list[str] | str", cwd: Path, timeout_s: int, env: Optional[dict] = None) -> tuple[int, str, str]:
+    import os
+
+    full_env = {**os.environ, **env} if env else None
     try:
-        p = subprocess.run(argv, cwd=str(cwd), capture_output=True, text=True, timeout=timeout_s)
+        p = subprocess.run(argv, cwd=str(cwd), capture_output=True, text=True, timeout=timeout_s,
+                           env=full_env, shell=isinstance(argv, str))
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired as exc:
         return 124, exc.stdout or "", f"timed out after {timeout_s}s"

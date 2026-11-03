@@ -17,14 +17,16 @@ commit → push to `tanish` → tick the box here → add a line to the morning 
 ## Milestones (in priority order)
 
 ### M1. Green CI (Linux, macOS, Windows)
-- [ ] Fix the 4 tests that fail only on a fresh clone (`test_sync_benchmark_runs_into_registry`,
+- [x] Fix the 4 tests that fail only on a fresh clone (`test_sync_benchmark_runs_into_registry`,
       `test_14`/`test_16`/`test_18` in `test_ui_server.py`): they depend on local, git-ignored data
       or on the working directory being the Chronos repo.
-- [ ] Re-run the exact CI job on a fresh clone (`scratchpad/ci_repro`) until green.
-- [ ] Push; check the GitHub run. With `gh` logged in, read macOS/Windows logs and fix
+- [x] Re-run the exact CI job on a fresh clone (`scratchpad/ci_repro`) until green.
+- [x] Push; check the GitHub run. With `gh` logged in, read macOS/Windows logs and fix
       platform issues (msvcrt lock, hook quoting, path handling). Without it, use the public
       annotations API.
-- [ ] Update `actions/checkout` / `setup-uv` versions only if the Node 20 deprecation causes failures.
+- [x] Update `actions/checkout` / `setup-uv` versions only if the Node 20 deprecation causes failures.
+- **Status:** done. GitHub run 41709575082 (`a944efb`) green on all 7 jobs. Node 20 is only a
+  warning, so action versions were not changed. See the morning report.
 - **Done when:** the GitHub CI run for the pushed commit is green on all jobs, or remaining
   failures are explained in the report with the exact error.
 
@@ -33,7 +35,7 @@ Decisions: primary user is the individual developer; full redesign; **no build s
 self-contained HTML file served by `chronos ui`, same JSON API); light + dark following the OS with
 a toggle; all current engineering views kept under **Advanced**.
 
-- [ ] Audit the current dashboard: list views, API endpoints used, broken/empty states.
+- [x] Audit the current dashboard: list views, API endpoints used, broken/empty states.
 - [ ] New **Overview** (default screen):
   - Health: hooks installed and working (`claude status` probe), sandbox available, index fresh, audit chain valid.
   - Today / this week: actions allowed, asked, denied (from the audit log), with the latest few

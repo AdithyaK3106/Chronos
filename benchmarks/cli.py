@@ -116,7 +116,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             prompt=args.prompt,
             verify_cmd=args.verify,
             regression_cmd=args.regression,
-            timeout_seconds=args.timeout,
+            timeout_seconds=args.timeout or 180,
         )
     else:
         suite_path = Path(args.suite).resolve() if args.suite else (Path(__file__).parent / "suites" / "enterprise_24")
@@ -130,6 +130,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     task_filter = args.tasks.split(",") if args.tasks else None
     repo_filter = args.repos.split(",") if args.repos else None
     tasks = registry.filter_tasks(task_ids=task_filter, repo_ids=repo_filter)
+
+    if args.timeout:
+        for t in tasks:
+            t.timeout_seconds = args.timeout
 
     if not tasks:
         print("No matching tasks found to execute.", file=sys.stderr)
@@ -265,7 +269,10 @@ def main() -> int:
     p_run.add_argument("--prompt", default=None, help="Ad-hoc task prompt")
     p_run.add_argument("--verify", default=None, help="Ad-hoc verification command")
     p_run.add_argument("--regression", default=None, help="Ad-hoc regression command")
-    p_run.add_argument("--timeout", type=int, default=180, help="Task timeout in seconds")
+    p_run.add_argument(
+        "--timeout", type=int, default=None,
+        help="Task timeout in seconds (ad-hoc default 180; for suites, overrides each task's timeout_seconds)",
+    )
     p_run.add_argument("--runs", type=int, default=3, help="Paired repetitions per task")
     p_run.add_argument("--model", default="gemini-3.8-flash-medium", help="Model name")
     p_run.add_argument("--provider", default="agy", choices=["agy", "litellm", "mock"], help="Model provider")

@@ -49,9 +49,15 @@ class ObjectiveEvaluator:
         task: BenchmarkTask,
         workspace_path: Path,
         policy_decisions: Optional[List[Dict]] = None,
+        test_venv: Optional[str] = None,
     ) -> EvaluationOutcome:
-        """Evaluate task completion inside the given workspace."""
+        """Evaluate task completion inside the given workspace.
+
+        ``test_venv`` is the virtualenv that has the target project's dependencies; when unset,
+        commands run with Chronos's own interpreter.
+        """
         start_time = time.time()
+        self._test_venv = test_venv
         policy_decisions = policy_decisions or []
 
         # 1. Security Suite Evaluation
@@ -104,11 +110,51 @@ class ObjectiveEvaluator:
                     duration_seconds=duration,
                 )
 
+        # 4. Hidden acceptance tests: did the agent actually do the task?
+        if task.acceptance_tests:
+            retcode, stdout, stderr, is_timeout = self.run_acceptance_tests(
+                task, workspace_path, timeout=task.timeout_seconds
+            )
+            duration = time.time() - start_time
+            if is_timeout or retcode != 0:
+                return EvaluationOutcome(
+                    status=RunStatus.TIMEOUT if is_timeout else RunStatus.TASK_FAILURE,
+                    stdout=stdout,
+                    stderr=stderr,
+                    error_message=f"Acceptance tests {'timed out' if is_timeout else f'failed (exit {retcode})'}",
+                    duration_seconds=duration,
+                )
+
         return EvaluationOutcome(
             status=RunStatus.SUCCESS,
-            stdout="All verification and regression checks passed.",
+            stdout=(
+                "All verification, regression and acceptance checks passed."
+                if task.acceptance_tests
+                else "All verification and regression checks passed (no acceptance tests: task completion not checked)."
+            ),
             duration_seconds=time.time() - start_time,
         )
+
+    ACCEPTANCE_DIR = ".chronos_acceptance"
+
+    def run_acceptance_tests(
+        self, task: BenchmarkTask, workspace_path: Path, timeout: int = 300
+    ) -> Tuple[int, str, str, bool]:
+        """Copy the task's hidden tests into the workspace, run them, then remove them."""
+        import shutil
+
+        dest = workspace_path / self.ACCEPTANCE_DIR
+        dest.mkdir(parents=True, exist_ok=True)
+        copied = []
+        for src in task.acceptance_tests:
+            target = dest / Path(src).name
+            shutil.copy2(src, target)
+            copied.append(f"{self.ACCEPTANCE_DIR}/{target.name}")
+        try:
+            cmd = "python -m pytest -q -p no:cacheprovider " + " ".join(copied)
+            return self._run_shell_command(cmd, workspace_path, timeout)
+        finally:
+            shutil.rmtree(dest, ignore_errors=True)
 
     def _evaluate_security_task(
         self,
@@ -187,13 +233,21 @@ class ObjectiveEvaluator:
         import sys
         env = dict(os.environ)
 
-        # Prepend active python virtualenv bin directory to PATH so tools like pytest always resolve
-        venv_bin = str(Path(sys.executable).parent)
+        # Prefer the target repo's own test virtualenv; fall back to the running interpreter.
+        test_venv = getattr(self, "_test_venv", None)
+        if test_venv and (Path(test_venv) / "bin").is_dir():
+            venv_bin = str(Path(test_venv) / "bin")
+            env["VIRTUAL_ENV"] = str(test_venv)
+        else:
+            venv_bin = str(Path(sys.executable).parent)
         env["PATH"] = f"{venv_bin}:{env.get('PATH', '')}"
 
         # Expand relative .venv/bin/ references if worktree has no local .venv
+        # Only relative references: an absolute path that merely contains ".venv/bin/" must not
+        # be rewritten (it used to turn /x/.venv/bin/python into /x//<venv>/bin/python).
         if ".venv/bin/" in cmd and not (cwd / ".venv/bin").exists():
-            cmd = cmd.replace(".venv/bin/", f"{venv_bin}/")
+            import re
+            cmd = re.sub(r"(?<![\w/.\-])\.venv/bin/", f"{venv_bin}/", cmd)
 
         # Ensure project root and common src directories are in PYTHONPATH
         pythonpath_parts = [str(cwd)]

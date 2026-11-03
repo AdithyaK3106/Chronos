@@ -3,13 +3,19 @@ tasks:
     repository_id: "cng"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Fix boundary condition in 2-digit vs 3-digit state code normalization in backend/src/app/domain/registration_normalizer.py."
+    # v2 prompt: v1 said "2-digit vs 3-digit state code", which does not match the code (state codes
+    # are always 2 letters) and left the expected behaviour ambiguous for the acceptance test.
+    prompt: "Fix the 1-digit vs 2-digit RTO code boundary in backend/src/app/domain/registration_normalizer.py. Delhi plates such as 'DL 1S AB 1234' have a single-digit RTO code followed by a category letter, but the OCR correction turns that letter into a digit, so the plate normalizes to DL15AB1234 instead of DL01SAB1234."
     target_files:
       - "backend/src/app/domain/registration_normalizer.py"
     verification_commands:
       - "pytest backend/tests/test_registration_normalizer.py -q"
     regression_commands:
       - "pytest backend/tests/test_registration_normalizer.py -q"
+    acceptance_tests:
+      - "acceptance/cng/test_cng_task_01_rto_boundary.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "cng_task_02"
@@ -23,6 +29,8 @@ tasks:
       - "pytest backend/tests/test_verification.py -q"
     regression_commands:
       - "pytest backend/tests/test_verification.py -q"
+    acceptance_tests:
+      - "acceptance/cng/test_cng_task_02_naive_expiry.py"
     timeout_seconds: 180
 
   - id: "cng_task_03"
@@ -46,6 +54,8 @@ tasks:
       - "backend/src/app/core/telemetry.py"
     verification_commands:
       - "pytest backend/tests/test_ocr.py -q"
+    acceptance_tests:
+      - "acceptance/cng/test_cng_task_04_latency_metrics.py"
     timeout_seconds: 240
 
   - id: "cng_task_05"
@@ -59,6 +69,8 @@ tasks:
       - "pytest backend/tests/test_ocr.py -q"
     regression_commands:
       - "pytest backend/tests/test_registration_normalizer.py backend/tests/test_verification.py backend/tests/test_ocr.py -q"
+    acceptance_tests:
+      - "acceptance/cng/test_cng_task_05_threshold_config.py"
     timeout_seconds: 240
 
   - id: "cng_task_06"

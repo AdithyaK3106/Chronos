@@ -5,6 +5,7 @@ by leveraging your active authenticated AGY session (Gemini 3.8 Flash, Claude 4.
 """
 
 import json
+import os
 import subprocess
 import uuid
 from typing import Any, Sequence
@@ -22,6 +23,10 @@ class AgyLLM(LLM):
     model: str = Field(default="gemini-3.8-flash-high")
     agy_binary: str = Field(default="agy")
     tool_call_types: dict[str, int] = Field(default_factory=dict)
+    # Per-call subprocess limit. Slower presets (e.g. flash-high) can exceed the old fixed 180 s.
+    call_timeout_seconds: int = Field(
+        default_factory=lambda: int(os.environ.get("CHRONOS_AGY_TIMEOUT", "180"))
+    )
 
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
@@ -64,7 +69,7 @@ class AgyLLM(LLM):
             "--print", full_prompt,
         ]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.call_timeout_seconds)
         if proc.returncode != 0:
             raise RuntimeError(f"agy CLI execution failed (exit {proc.returncode}): {proc.stderr}")
 

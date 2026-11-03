@@ -83,6 +83,11 @@ class TaskRegistry:
                     baseline_commit=repo_raw.get("baseline_commit", "HEAD"),
                     default_test_command=repo_raw.get("default_test_command"),
                     setup_commands=repo_raw.get("setup_commands", []),
+                    test_venv=(
+                        str(resolve_path(repo_raw["test_venv"], base_dir=suite_path))
+                        if expand_env_vars_with_defaults(str(repo_raw.get("test_venv") or "")).strip()
+                        else None
+                    ),
                 )
                 self.register_repository(repo)
 
@@ -105,6 +110,9 @@ class TaskRegistry:
                         target_files=task_raw.get("target_files", []),
                         verification_commands=task_raw.get("verification_commands", []),
                         regression_commands=task_raw.get("regression_commands", []),
+                        acceptance_tests=[
+                            str((suite_path / p).resolve()) for p in task_raw.get("acceptance_tests", [])
+                        ],
                         timeout_seconds=int(task_raw.get("timeout_seconds", 300)),
                         max_iterations=int(task_raw.get("max_iterations", 15)),
                         metadata=task_raw.get("metadata", {}),

@@ -113,7 +113,11 @@ class ResultStore:
         """Check if run already finished and was persisted."""
         with self._get_connection() as con:
             cur = con.execute(
-                "SELECT run_id FROM runs WHERE task_id = ? AND iteration = ? AND arm = ?",
+                # Model/infrastructure errors are kept for diagnosis but don't count as done,
+                # so a resumed benchmark retries them.
+                "SELECT run_id FROM runs WHERE task_id = ? AND iteration = ? AND arm = ? "
+                "AND status NOT IN ('MODEL_API_ERROR', 'INFRASTRUCTURE_ERROR', 'RATE_LIMIT_ERROR') "
+                "ORDER BY timestamp DESC",
                 (task_id, iteration, arm.value),
             )
             row = cur.fetchone()
@@ -123,7 +127,11 @@ class ResultStore:
         """Fetch a completed run result."""
         with self._get_connection() as con:
             cur = con.execute(
-                "SELECT run_id FROM runs WHERE task_id = ? AND iteration = ? AND arm = ?",
+                # Model/infrastructure errors are kept for diagnosis but don't count as done,
+                # so a resumed benchmark retries them.
+                "SELECT run_id FROM runs WHERE task_id = ? AND iteration = ? AND arm = ? "
+                "AND status NOT IN ('MODEL_API_ERROR', 'INFRASTRUCTURE_ERROR', 'RATE_LIMIT_ERROR') "
+                "ORDER BY timestamp DESC",
                 (task_id, iteration, arm.value),
             )
             row = cur.fetchone()
@@ -259,6 +267,26 @@ class PairedRunner:
         iteration: int,
         dry_run: bool = False,
     ) -> TaskRunResult:
+        """Execute a single arm trial and persist the result, including errors and timeouts.
+
+        Error paths used to return early without saving, which lost the error message.
+        """
+        result = self._execute_arm(task, repo, arm, iteration, dry_run=dry_run)
+        if not dry_run:
+            try:
+                self.store.save_run(result)
+            except Exception:
+                pass
+        return result
+
+    def _execute_arm(
+        self,
+        task: BenchmarkTask,
+        repo: RepositoryConfig,
+        arm: ArmConfiguration,
+        iteration: int,
+        dry_run: bool = False,
+    ) -> TaskRunResult:
         """Execute a single arm trial in an isolated worktree."""
         run_id = f"{task.id}_{arm.value}_iter{iteration}_{uuid.uuid4().hex[:6]}"
         start_time = time.time()
@@ -354,7 +382,7 @@ class PairedRunner:
                     try:
                         nodes, edges = index_repository(ws_path)
                         store = SQLiteGraphStore(con)
-                        store.ingest(nodes, edges)
+                        store.sync_repository(nodes, edges)
                     except Exception:
                         store = None
 
@@ -386,6 +414,7 @@ class PairedRunner:
                         session_id=run_id,
                         token_budget=1500,
                         repo_namespace=repo.id,
+                        refresh_index=store is None,
                     )
                     treatment_prompt = bootstrap_res["augmented_prompt"]
                     memories_recalled_count = bootstrap_res.get("memories_count", 0)
@@ -517,6 +546,7 @@ class PairedRunner:
                     task=task,
                     workspace_path=ws_path,
                     policy_decisions=policy_decisions,
+                    test_venv=repo.test_venv,
                 )
 
                 # Post-task epistemic living memory distillation (Treatment arm only)
@@ -614,7 +644,6 @@ class PairedRunner:
                     memories_recalled=memories_recalled_count,
                     memories_stored=memories_stored_count,
                 )
-                self.store.save_run(result)
                 return result
 
             except Exception as exc:

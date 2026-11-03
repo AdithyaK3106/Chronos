@@ -50,6 +50,9 @@ class RepositoryConfig(BaseModel):
     baseline_commit: Optional[str] = "HEAD"
     default_test_command: Optional[str] = None
     setup_commands: List[str] = Field(default_factory=list)
+    # Virtualenv used to run this repo's verification commands. Without it, tests run with
+    # Chronos's own interpreter, which usually lacks the target project's dependencies.
+    test_venv: Optional[str] = None
 
 
 class BenchmarkTask(BaseModel):
@@ -63,6 +66,9 @@ class BenchmarkTask(BaseModel):
     target_files: List[str] = Field(default_factory=list)
     verification_commands: List[str] = Field(default_factory=list)
     regression_commands: List[str] = Field(default_factory=list)
+    # Hidden pytest files (absolute paths after loading). Copied into the workspace only AFTER
+    # the agent finishes, so the agent cannot see or edit them. They must fail on the baseline.
+    acceptance_tests: List[str] = Field(default_factory=list)
     timeout_seconds: int = 300
     max_iterations: int = 15
     metadata: Dict[str, Any] = Field(default_factory=dict)

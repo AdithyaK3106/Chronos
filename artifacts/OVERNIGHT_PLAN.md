@@ -36,7 +36,7 @@ self-contained HTML file served by `chronos ui`, same JSON API); light + dark fo
 a toggle; all current engineering views kept under **Advanced**.
 
 - [x] Audit the current dashboard: list views, API endpoints used, broken/empty states.
-- [ ] New **Overview** (default screen):
+- [x] New **Overview** (default screen):
   - Health: hooks installed and working (`claude status` probe), sandbox available, index fresh, audit chain valid.
   - Today / this week: actions allowed, asked, denied (from the audit log), with the latest few
     decisions and their reasons.
@@ -44,12 +44,13 @@ a toggle; all current engineering views kept under **Advanced**.
     copy of the `chronos gate grant` command.
   - Context injected recently and its size; memories recalled.
   - Efficiency: benchmark token/time deltas with their caveats (n, model), never invented numbers.
-- [ ] **Advanced**: runs and trace waterfall, context inspector, evaluation studio, graph, locks,
+- [x] **Advanced**: runs and trace waterfall, context inspector, evaluation studio, graph, locks,
       audit records, memory: same functionality, consistent styling.
-- [ ] Empty states that say what will appear and how to make it appear; errors that say what to do.
-- [ ] New API endpoints only where the overview needs data that doesn't exist yet (with tests).
-- [ ] Verify: server tests pass; load every view against a real indexed repo (CNG clone) and an
+- [x] Empty states that say what will appear and how to make it appear; errors that say what to do.
+- [x] New API endpoints only where the overview needs data that doesn't exist yet (with tests).
+- [x] Verify: server tests pass; load every view against a real indexed repo (CNG clone) and an
       empty repo; screenshot-free check via the API plus an HTML smoke test.
+- **Status:** done (`f5cc2d5`, `29916a8`). Verified in headless Chromium, see the morning report.
 - **Done when:** `chronos ui` opens on the Overview, every Advanced view still loads, tests pass.
 
 ### M3. Evidence: acceptance tests + 24-task benchmark

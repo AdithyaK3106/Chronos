@@ -118,3 +118,36 @@ on a *copy* of this checkout's real DB: migrated in 0.01 s, 0 mismatches, code s
 recall work. New tests: migration from the old format, plus a 4.5k-symbol timing test that fails on
 the old code (connect 5.1 s). Fresh-clone core job on `bbcdcaf`: `205 passed, 9 skipped`, hook
 canary OK.
+
+**Overview API (`f5cc2d5`)**: `GET /api/repo/{id}/overview`, computed only from local state.
+The firewall now stores the deciding check (`category`) in each audit record, so a protected-file
+hold (shown as "ask" in Claude Code) is told apart from a hard deny; older records fall back to the
+gate's reason text. Efficiency shows n, model and a caveat, or "not measured", never a default.
+On this checkout's real benchmark DB it reports **61.0% fewer tokens overall but a 26.5% median
+per task** (23 pairs, gemini-3.8-flash-low): a few large tasks drive the headline figure. The old
+Mission Control card showed 59.56% from a hard-coded fallback.
+
+**Overview UI (`29916a8`)**: the dashboard opens on "What Chronos did for you" (health tiles with
+the exact fix, allowed/asked/blocked today and this week with the latest holds, injected context,
+protected files with a copyable grant command, measured efficiency). All 10 previous views remain,
+unchanged in function, under a collapsible **Advanced** group. Light/dark follows the OS, with a
+toggle; 156 hard-coded colours and 6 SVG colour attributes were mapped to theme tokens.
+
+**Verification:** Playwright + headless Chromium installed in the scratchpad. Against a CNG clone
+(real hook calls: 1 allowed, 1 asked, 1 blocked, 1 injection of 878 tokens) and an empty repo:
+22 page loads (Overview light + dark, all 10 Advanced views each) with **no console errors, page
+errors or failed API calls**, and no horizontal overflow at 390 px. Screenshots were reviewed.
+Fixed along the way: centred nav labels (pre-existing); the Security view counted holds as
+denials (now "1 blocked + 1 held for your approval", same rule as the Overview); hint commands
+`chronos index` and `chronos bench` **do not exist** (now `chronos sync`, and
+`python -m benchmarks.cli run`), with a new test that runs every suggested command with `--help`;
+the topbar's static "PORT 8765" badge was replaced by the theme toggle. Full suite `236 passed,
+2 skipped`; fresh-clone wheel job `217 passed, 9 skipped`.
+
+**Decisions for you (M2):**
+- `.env.example` is **blocked** by the `*.env*` pattern. Example env files are usually committed
+  and secret-free; consider exempting `*.env.example` / `*.env.sample`. I did not change policy.
+- The Security view's "Human Approval Queue" stays empty when Claude Code asks inline, because
+  those holds never enter the queue. It may be worth removing or relabelling it.
+- The sidebar footer ("SQLite WAL Index / Tree-Sitter AST & OpenHands") is engineering jargon
+  aimed at the old audience; left as is.

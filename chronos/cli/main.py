@@ -94,6 +94,7 @@ def main():
     from chronos.context.graph import SQLiteGraphStore
     from chronos.context.indexer import index_repository
     from chronos.core.config import ChronosConfig
+    from chronos.core.paths import audit_log_path
     from chronos.core.db import get_connection
 
     parser = argparse.ArgumentParser(description="Chronos: Bi-temporal intelligence and AI governance")
@@ -570,7 +571,7 @@ def main():
             cfg.slm.model = args.slm_model
         cfg.repo_path = str(repo_root)
         cfg.db_path = str(db_file)
-        cfg.audit_log_path = str(chronos_dir / "chronos-audit.log")
+        cfg.audit_log_path = str(audit_log_path(repo_root))
 
         runtime = ChronosAgentRuntime(config=cfg, db_con=con, graph_store=store)
 
@@ -748,7 +749,8 @@ def main():
         sys.exit(0)
 
     elif args.command == "audit" and args.subcommand == "verify":
-        audit_file = chronos_dir / "chronos-audit.log"
+        audit_file = audit_log_path(repo_root)
+        print(f"Audit log: {audit_file}")
         is_valid, msg, count = verify_audit_chain(audit_file)
         print(f"Audit Chain Verification: {'PASSED' if is_valid else 'FAILED'}")
         print(f"Details: {msg} (Records: {count})")

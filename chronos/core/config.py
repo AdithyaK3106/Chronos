@@ -92,7 +92,9 @@ class SLMConfig(BaseModel):
 class ChronosConfig(BaseModel):
     repo_path: str = "."
     db_path: str = ".chronos/chronos.db"
-    audit_log_path: str = ".chronos/chronos-audit.log"
+    # None = the per-user data dir (chronos.core.paths.audit_log_path); a path here overrides it
+    # (relative paths are relative to the repository).
+    audit_log_path: Optional[str] = None
     rules_dir: str = ".chronos/rules"
     default_lock_ttl: int = 300
     graph_backend: str = "sqlite"  # 'sqlite' or 'kuzu'
@@ -100,6 +102,16 @@ class ChronosConfig(BaseModel):
     context_token_budget: int = 4000
     slm: SLMConfig = Field(default_factory=SLMConfig)
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
+
+    def audit_log_file(self, root: str | Path | None = None) -> Path:
+        """Resolved audit log: the configured path, else the per-user location for this repo."""
+        base = Path(root or self.repo_path).resolve()
+        if self.audit_log_path:
+            p = Path(self.audit_log_path)
+            return p if p.is_absolute() else base / p
+        from chronos.core.paths import audit_log_path
+
+        return audit_log_path(base)
 
     @classmethod
     def load(cls, base_dir: str | Path | None = None) -> "ChronosConfig":

@@ -150,7 +150,9 @@ def inspect_repository(path: str | Path | None = None) -> RepoIdentity:
     chronos_dir = canonical / ".chronos"
     has_chronos_dir = chronos_dir.is_dir()
     db_file = chronos_dir / "chronos.db"
-    audit_file = chronos_dir / "chronos-audit.log"
+    from chronos.core.paths import audit_log_path
+
+    audit_file = audit_log_path(canonical)
 
     is_indexed = False
     node_count = 0

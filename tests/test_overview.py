@@ -13,6 +13,7 @@ from chronos.core.db import get_connection
 from chronos.core.repo import inspect_repository
 from chronos.integrations import claude_code as cc
 from chronos.server.overview import build_overview, classify_decision
+from chronos.core.paths import audit_log_path
 from conftest import write_bench_db
 
 
@@ -94,7 +95,7 @@ def test_overview_reports_what_the_hooks_did(repo):
     # The Advanced security view counts the same events the same way.
     from chronos.server.dashboard_server import aggregate_audit_telemetry
 
-    tel = aggregate_audit_telemetry(repo / ".chronos" / "chronos-audit.log")
+    tel = aggregate_audit_telemetry(audit_log_path(repo))
     assert (tel["denied_count"], tel["held_count"]) == (1, 1)
 
 

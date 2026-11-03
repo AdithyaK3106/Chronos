@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from chronos.audit.logger import verify_audit_chain
+from chronos.core.paths import audit_log_path
 
 HOOK = [sys.executable, "-m", "chronos.cli.main", "hook", "claude"]
 
@@ -53,7 +54,7 @@ def test_concurrent_hooks_keep_the_audit_chain_intact(repo):
     decisions = [json.loads(r.stdout)["hookSpecificOutput"].get("permissionDecision") for r in results[24:28]]
     assert decisions == ["ask"] * 4
 
-    ok, msg, count = verify_audit_chain(repo / ".chronos" / "chronos-audit.log")
+    ok, msg, count = verify_audit_chain(audit_log_path(repo))
     assert ok, msg
     assert count >= 28  # every pre-tool decision was recorded
 
@@ -91,7 +92,8 @@ def test_unwritable_audit_log_asks_instead_of_locking_out(repo):
 
     if os.geteuid() == 0:
         pytest.skip("root ignores file permissions")
-    log = repo / ".chronos" / "chronos-audit.log"
+    log = audit_log_path(repo)
+    log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text("")
     log.chmod(0o444)
     try:
@@ -138,7 +140,7 @@ def test_db_failure_is_still_audited(repo, monkeypatch):
     monkeypatch.setattr(db, "get_connection", broken)
     code, out, _ = cc.run_hook("pre", json.dumps(_edit(repo, "mod_1.py")))
     assert code == 0 and json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "ask"
-    ok, _, count = verify_audit_chain(repo / ".chronos" / "chronos-audit.log")
+    ok, _, count = verify_audit_chain(audit_log_path(repo))
     assert ok and count == 1
-    record = json.loads((repo / ".chronos" / "chronos-audit.log").read_text().splitlines()[0])
+    record = json.loads((audit_log_path(repo)).read_text().splitlines()[0])
     assert record["status"] == "error" and "database is locked" in record["reason"]

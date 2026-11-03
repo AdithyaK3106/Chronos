@@ -24,6 +24,7 @@ from chronos.cli.ui import (
     wait_for_server_ready,
 )
 from chronos.core.db import get_connection
+from chronos.core.paths import audit_log_path
 from chronos.core.repo import (
     RepoIdentity,
     canonicalize_path,
@@ -438,7 +439,7 @@ def test_15_audit_telemetry_valid_malformed_and_tampered(tmp_path: Path):
     (repo_dir / "app.py").write_text("x = 1", encoding="utf-8")
     chronos_dir = repo_dir / ".chronos"
     chronos_dir.mkdir()
-    audit_file = chronos_dir / "chronos-audit.log"
+    audit_file = audit_log_path(repo_dir)
 
     server = create_server("127.0.0.1", 0)
     port = server.server_address[1]

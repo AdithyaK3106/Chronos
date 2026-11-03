@@ -100,7 +100,7 @@ class ChronosAgentRuntime:
         self.repo_root = Path(self.config.repo_path).resolve()
         self.con = db_con or get_connection(self.repo_root / self.config.db_path)
         self.graph_store = graph_store or create_graph_store(self.con, backend=self.config.graph_backend)
-        self.audit_log_path = self.repo_root / self.config.audit_log_path
+        self.audit_log_path = self.config.audit_log_file(self.repo_root)
         self.bootstrap = ChronosSessionBootstrap(
             repo_path=self.repo_root,
             con=self.con,

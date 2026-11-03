@@ -354,6 +354,11 @@ chronos audit verify
 ```
 *(Outputs `Audit Chain Verification: PASSED (Records: N)`)*
 
+The log lives outside the repository, in your user data directory (one file per repository; the
+command prints its path), so the agent's tools and `git clean` cannot touch it. Set
+`CHRONOS_DATA_DIR` to move it. A log left in `.chronos/chronos-audit.log` by an older version is moved
+there on first use; the original is kept as `chronos-audit.log.migrated`.
+
 ---
 
 ## ❓ Frequently Asked Questions & Troubleshooting

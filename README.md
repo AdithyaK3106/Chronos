@@ -308,7 +308,7 @@ policies:
     denial_reason: "Security-critical module requires human gate approval."
 ```
 
-If an unauthorized agent attempts to modify a protected file, Chronos blocks execution at the gateway and logs the denial to `.chronos/chronos-audit.log`.
+If an unauthorized agent attempts to modify a protected file, Chronos blocks execution at the gateway and logs the denial to the hash-chained audit log, which lives outside the repository in your user data directory (`~/.local/share/chronos/audit/` on Linux, `~/Library/Application Support/chronos/audit/` on macOS, `%LOCALAPPDATA%\chronos\audit\` on Windows; override with `CHRONOS_DATA_DIR`). A log from an older version in `.chronos/chronos-audit.log` is moved there on first use (the original is kept as `.migrated`).
 
 ### Verifying the Audit Trail
 Verify that audit logs are cryptographically intact and have not been tampered with:

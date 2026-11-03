@@ -69,7 +69,9 @@ def _parse_ts(value: str) -> datetime | None:
 
 
 def decisions_section(root: Path, protected_mode: str, now: datetime, latest: int = 8) -> dict[str, Any]:
-    records = _read_audit(root / ".chronos" / "chronos-audit.log")
+    from chronos.core.paths import audit_log_path
+
+    records = _read_audit(audit_log_path(root))
     day_start = now.astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = now - timedelta(days=7)
     empty = {"allowed": 0, "asked": 0, "denied": 0, "error": 0}
@@ -197,7 +199,9 @@ def _index_status(root: Path, con: sqlite3.Connection | None, now: datetime) -> 
 def _audit_status(root: Path) -> dict[str, Any]:
     from chronos.audit.logger import verify_audit_chain
 
-    log = root / ".chronos" / "chronos-audit.log"
+    from chronos.core.paths import audit_log_path
+
+    log = audit_log_path(root)
     if not log.is_file():
         return {"valid": None, "records": 0, "message": "No audit log yet.", "fix": None}
     ok, msg, count = verify_audit_chain(log)

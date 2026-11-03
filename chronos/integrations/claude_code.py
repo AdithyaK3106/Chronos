@@ -147,7 +147,9 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
     from chronos.core.db import get_connection
     from chronos.governance.firewall import evaluate_tool_security_detailed
 
-    log_path = root / ".chronos" / "chronos-audit.log"
+    from chronos.core.paths import audit_log_path
+
+    log_path = audit_log_path(root)
     try:
         con = get_connection(root / ".chronos" / "chronos.db")
     except Exception as exc:

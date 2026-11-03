@@ -123,3 +123,9 @@ def ledger_git_repo(tmp_path):
     (repo / "ledger.py").write_text(LEDGER_V2, encoding="utf-8")
     _git(repo, "commit", "-q", "-am", "add transfer_lock")
     return repo
+
+
+@pytest.fixture(autouse=True)
+def _isolated_chronos_data_dir(tmp_path_factory, monkeypatch):
+    """Per-test user data dir (audit logs live there), never the developer's real one."""
+    monkeypatch.setenv("CHRONOS_DATA_DIR", str(tmp_path_factory.mktemp("chronos-data")))

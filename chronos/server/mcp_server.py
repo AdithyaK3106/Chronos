@@ -30,7 +30,7 @@ def _get_con():
 
 def _get_audit_log() -> Path:
     root = _get_root()
-    return root / cfg.audit_log_path
+    return cfg.audit_log_file(root)
 
 @mcp.tool()
 def as_of_callers(symbol_name: str, as_of: str | None = None) -> list[dict[str, Any]]:

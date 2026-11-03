@@ -10,6 +10,7 @@ import pytest
 
 from chronos.core.db import get_connection
 from chronos.integrations import claude_code as cc
+from chronos.core.paths import audit_log_path
 
 
 @pytest.fixture
@@ -90,7 +91,7 @@ def test_normal_edit_is_allowed_and_audited(repo):
     assert _pre(repo, "Edit", file_path=str(repo / "svc.py"), old_string="a", new_string="b")[1] is None
     from chronos.audit.logger import verify_audit_chain
 
-    ok, _, count = verify_audit_chain(repo / ".chronos" / "chronos-audit.log")
+    ok, _, count = verify_audit_chain(audit_log_path(repo))
     assert ok and count >= 1
 
 

@@ -38,7 +38,26 @@ DEFAULT_IGNORE_DIRS: set[str] = {
     "vendor",
     "target",
     ".cache",
+    ".tox",
+    ".nox",
+    ".eggs",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "site-packages",
 }
+
+
+def prune_ignored_dirs(dirpath: str | Path, dirnames: list[str]) -> None:
+    """Remove noise directories from an os.walk `dirnames` list, in place.
+
+    Drops the named DEFAULT_IGNORE_DIRS plus any virtualenv, whatever it is called
+    (`.ci-venv`, `env`, ...): every venv has a `pyvenv.cfg` at its root.
+    """
+    dirnames[:] = [
+        d for d in dirnames
+        if d not in DEFAULT_IGNORE_DIRS and not os.path.isfile(os.path.join(dirpath, d, "pyvenv.cfg"))
+    ]
 
 EXTENSION_TO_LANGUAGE: dict[str, str] = {
     ".py": "python",
@@ -1122,7 +1141,7 @@ def index_repository(repo_path: str | Path, valid_at: str | None = None) -> tupl
 
     for dirpath, dirnames, filenames in os.walk(root):
         # Prune ignored directories in-place so os.walk does not descend into them
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS]
+        prune_ignored_dirs(dirpath, dirnames)
 
         for fname in filenames:
             ext = os.path.splitext(fname)[1].lower()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import json
 
 import pytest
@@ -309,3 +310,26 @@ def test_custom_protected_yml_keeps_glob_semantics_and_mcp_agrees(tmp_path):
     assert check_gate_approval("src/billing/invoice.py", tmp_path)[0] is False
     assert find_protected_module("src/billing/invoice.py", tmp_path)[0]["name"] == "billing"
     assert find_protected_module("src/catalog/item.py", tmp_path) is None
+
+
+def test_indexer_skips_virtualenvs_with_any_name(tmp_path):
+    """A venv is pruned by its pyvenv.cfg marker, not just by the names `.venv`/`venv`.
+
+    Regression: CI's `.ci-venv` (inside the checkout) was indexed in full, making three
+    tests take ~400 s each.
+    """
+    from chronos.context.indexer import index_repository
+
+    (tmp_path / "app.py").write_text("def handler():\n    return 1\n", encoding="utf-8")
+    for venv_name in (".ci-venv", "env"):
+        pkg = tmp_path / venv_name / "lib" / "python3.13" / "site-packages" / "dep"
+        pkg.mkdir(parents=True)
+        (tmp_path / venv_name / "pyvenv.cfg").write_text("home = /usr/bin\n", encoding="utf-8")
+        (pkg / "mod.py").write_text("def vendored_fn():\n    return 2\n", encoding="utf-8")
+    (tmp_path / ".tox" / "py").mkdir(parents=True)
+    (tmp_path / ".tox" / "py" / "x.py").write_text("def tox_fn():\n    pass\n", encoding="utf-8")
+
+    nodes, _ = index_repository(tmp_path)
+    paths = {str(n.path) for n in nodes}
+    assert any(p.endswith("app.py") for p in paths)
+    assert not any("ci-venv" in p or "env" + os.sep in p or ".tox" in p for p in paths), paths

@@ -182,9 +182,9 @@ def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
     """Bring the graph up to date cheaply. Returns what was done (for logging/tests)."""
     from chronos.context.graph import SQLiteGraphStore
     from chronos.context.indexer import (
-        DEFAULT_IGNORE_DIRS,
         SUPPORTED_EXTENSIONS,
         index_repository,
+        prune_ignored_dirs,
     )
 
     marker = root / ".chronos" / "last_index"
@@ -195,7 +195,7 @@ def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
 
     changed: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS]
+        prune_ignored_dirs(dirpath, dirnames)
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
                 fp = os.path.join(dirpath, fname)

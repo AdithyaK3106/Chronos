@@ -147,7 +147,14 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
     from chronos.core.db import get_connection
     from chronos.governance.firewall import evaluate_tool_security_detailed
 
-    con = get_connection(root / ".chronos" / "chronos.db")
+    log_path = root / ".chronos" / "chronos-audit.log"
+    try:
+        con = get_connection(root / ".chronos" / "chronos.db")
+    except Exception as exc:
+        # The firewall audits every decision it makes, but it never ran: record the failure here so
+        # no pre-tool decision is missing from the audit trail, then let run_hook apply on_hook_error.
+        _audit_hook_failure(log_path, _agent_id(payload), str(target), exc)
+        raise
     try:
         allowed, reason, category = evaluate_tool_security_detailed(
             con=con,
@@ -155,7 +162,7 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
             tool_name="file_editor",
             tool_input=policy_input,
             repo_root=root,
-            log_path=root / ".chronos" / "chronos-audit.log",
+            log_path=log_path,
         )
     finally:
         con.close()
@@ -175,6 +182,24 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
             return _ask(f"{reason}. Approve this edit only if you intended to change a protected module.{hint}")
         return _deny(reason + "." + hint)
     return _deny(reason)
+
+
+def _audit_hook_failure(log_path: Path, agent_id: str, target: str, exc: Exception) -> None:
+    """Best-effort audit record for a pre-tool check that failed before the firewall could run."""
+    from chronos.audit.logger import append_audit_event
+
+    try:
+        append_audit_event(
+            log_path=log_path,
+            event_type="tool_authorization",
+            agent_id=agent_id,
+            action="file_editor",
+            target=target,
+            status="error",
+            reason=f"Chronos database unavailable: {type(exc).__name__}: {exc}",
+        )
+    except Exception:  # noqa: BLE001 - the hook's error mode still decides; nothing more to do
+        pass
 
 
 # ----------------------------------------------------------------------------- index freshness

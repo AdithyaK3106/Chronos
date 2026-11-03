@@ -48,6 +48,8 @@ def test_concurrent_hooks_keep_the_audit_chain_intact(repo):
         results = list(pool.map(lambda e: _call(*e), events))
 
     assert all(r.returncode == 0 for r in results), [r.stderr[-300:] for r in results if r.returncode]
+    # Ordinary edits are allowed silently; any output here means the hook fell back to its error mode.
+    assert all(not r.stdout.strip() for r in results[:24]), [(r.stdout + r.stderr)[-400:] for r in results[:24] if r.stdout.strip()]
     decisions = [json.loads(r.stdout)["hookSpecificOutput"].get("permissionDecision") for r in results[24:28]]
     assert decisions == ["ask"] * 4
 
@@ -123,3 +125,20 @@ def test_killed_mid_index_recovers_cleanly(repo):
     names = {row[0] for row in con.execute("SELECT name FROM code_nodes")}
     con.close()
     assert "handler_3" in names and "f1499_14" in names
+
+
+def test_db_failure_is_still_audited(repo, monkeypatch):
+    """If the Chronos DB cannot be opened, the fallback decision is still recorded in the audit log."""
+    from chronos.integrations import claude_code as cc
+    import chronos.core.db as db
+
+    def broken(*a, **k):
+        raise db.sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "get_connection", broken)
+    code, out, _ = cc.run_hook("pre", json.dumps(_edit(repo, "mod_1.py")))
+    assert code == 0 and json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "ask"
+    ok, _, count = verify_audit_chain(repo / ".chronos" / "chronos-audit.log")
+    assert ok and count == 1
+    record = json.loads((repo / ".chronos" / "chronos-audit.log").read_text().splitlines()[0])
+    assert record["status"] == "error" and "database is locked" in record["reason"]

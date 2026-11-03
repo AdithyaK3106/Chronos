@@ -370,6 +370,14 @@ def test_context_linked_to_run_emits_event(memory_db):
 # Feature 3: Evaluation Studio Tests
 # =========================================================================
 
+# These read benchmarks/data/benchmark_runs.db, which is generated locally and git-ignored (*.db),
+# so they cannot run on a fresh clone (e.g. CI).
+_LOCAL_BENCH_DB = Path(__file__).resolve().parent.parent / "benchmarks" / "data" / "benchmark_runs.db"
+needs_local_bench_db = pytest.mark.skipif(
+    not _LOCAL_BENCH_DB.is_file(), reason="needs the local, git-ignored benchmarks/data/benchmark_runs.db"
+)
+
+
 def test_evaluation_experiments_discovery():
     """Canonical benchmark summaries and database runs are discovered and listed."""
     benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
@@ -379,6 +387,7 @@ def test_evaluation_experiments_discovery():
     assert "canonical_benchmark_runs" in exp_ids or any(id.startswith("summary_") for id in exp_ids)
 
 
+@needs_local_bench_db
 def test_evaluation_detail_and_paired_metrics():
     """Paired evaluation metrics compute token savings, latency percentiles, and regressions."""
     benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
@@ -400,6 +409,7 @@ def test_evaluation_detail_and_paired_metrics():
         assert "treatment" in p
 
 
+@needs_local_bench_db
 def test_evaluation_export_csv_and_json():
     """Evaluation export generates valid CSV and JSON payloads."""
     benchmarks_dir = Path(__file__).resolve().parent.parent / "benchmarks" / "data"
@@ -570,6 +580,7 @@ def test_api_context_diff_endpoint(live_server, sample_repo):
         assert "tokens" in diff
 
 
+@needs_local_bench_db
 def test_api_evaluation_studio_endpoints(live_server, sample_repo):
     """Evaluation Studio API serves experiments list, regression detail, and CSV export."""
     repo_id = sample_repo.id

@@ -209,3 +209,30 @@ checkout's editable install, was not affected).
   `run_started` event (fixed). Side effect: Claude Code stored that session's transcript under
   `~/.claude/projects/` as it does for any session; no settings were changed.
 - Fresh-clone core job on `07c6bf9`: `227 passed, 9 skipped`, hook canary OK.
+
+## M5. Local polish (done, one item partly)
+
+- **CI flake fixed** (`69bd4f6`): macOS failed "average retrieval latency < 5 ms" at 5.29 ms, a
+  wall-clock mean on a shared runner. The guard now warms up and uses the median with 25 ms headroom
+  (0.72 ms locally). It still catches order-of-magnitude regressions.
+- **Policy presets** (`522b0e6`): `chronos config set policy.preset strict` (relaxed / standard /
+  strict). Explicit settings override the preset; configs without one are unchanged. Tests check the
+  preset changes the real hook decision (strict: deny, relaxed: ask). Documented in GUIDE.
+- **Audit log outside the repo** (`f72391a`): now in the user data dir (XDG / Application Support /
+  LOCALAPPDATA, `CHRONOS_DATA_DIR` overrides), one file per repo, so the agent's tools and
+  `git clean -fdx` can't reach it.
+  - An existing `.chronos/chronos-audit.log` is migrated once under the audit lock: copy, verify
+    the chain, rename the original to `.migrated` (never deleted).
+  - A tampered legacy log is migrated as-is, to preserve the evidence.
+  - Tests get their own data dir.
+  - **Note:** when you next use Chronos in your own repos, their in-repo logs will be moved like this.
+- **`runtime` → `chronos.agent`** (`fad53e6`): the OpenHands integration moved; `runtime` is now
+  only aliases with a DeprecationWarning. The wheel also **no longer ships local benchmark results**
+  (63 run JSONs, reports, diffs, reference patches): 409 KB → 273 KB.
+- **CI:** run 41723174682 (`f72391a`) green on all 7 jobs. Fresh-clone wheel job on `fad53e6`:
+  `241 passed, 13 skipped`, hook canary OK; full extras `264 passed`.
+
+**Decision for you:** `benchmarks` is still a top-level package in the wheel. Renaming it (e.g.
+`chronos_bench`) means changing its internal imports and the `benchmarks/{data,runs,suites}` paths
+the dashboard and scripts use. I didn't do it tonight because the benchmark was running from this
+checkout. Alternatively, don't ship it in the core wheel at all.

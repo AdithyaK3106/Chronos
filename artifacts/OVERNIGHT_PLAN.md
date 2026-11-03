@@ -68,9 +68,10 @@ a toggle; all current engineering views kept under **Advanced**.
 - [x] Tests with the fake engine; at most one haiku run end to end.
 
 ### M5. Local polish (Phase 6), as time allows
-- [ ] Audit log outside the repo (user data dir), with migration of the existing log.
-- [ ] Policy presets `relaxed` / `standard` / `strict`.
-- [ ] Rename top-level `runtime` / `benchmarks` packages (keep aliases) before any publish.
+- [x] Audit log outside the repo (user data dir), with migration of the existing log.
+- [x] Policy presets `relaxed` / `standard` / `strict`.
+- [x] Rename top-level `runtime` / `benchmarks` packages (keep aliases) before any publish.
+      (`runtime` done; `benchmarks` left for a decision, see the morning report.)
 
 ### M6. Buy-vs-build (Phase 1), only if everything above is done
 - [ ] Cupcake: install in scratch, replay recorded hook events, compare decisions and latency.

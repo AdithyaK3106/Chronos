@@ -227,6 +227,10 @@ class ChronosSessionBootstrap:
             "leases": acquired_leases,
             "rules_count": len(rules),
             "memories_count": len(recalled_memories),
+            "memories": [
+                {"id": m.id, "tier": str(getattr(m.tier, "value", m.tier)), "summary": (m.summary or m.content)[:160]}
+                for m in recalled_memories[:3]
+            ],
             "resolved_files": resolved_files,
             "resolved_symbols": resolved_symbols,
             "test_files": test_files,

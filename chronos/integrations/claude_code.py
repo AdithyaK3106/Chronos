@@ -280,12 +280,52 @@ def handle_user_prompt_submit(payload: dict[str, Any]) -> dict[str, Any] | None:
     cands = res.get("candidates") or []
     if not cands or max(c.score for c in cands) < MIN_INJECT_SCORE:
         return None
+    context = frame_untrusted_context(res["envelope_text"], _policy(root).max_context_chars)
+    _record_injection(root, prompt, res, context)
     return {
         "hookSpecificOutput": {
             "hookEventName": "UserPromptSubmit",
-            "additionalContext": frame_untrusted_context(res["envelope_text"], _policy(root).max_context_chars),
+            "additionalContext": context,
         }
     }
+
+
+HOOK_ENVELOPE_MODE = "claude_code_hook"
+
+
+def _record_injection(root: Path, prompt: str, res: dict[str, Any], context: str) -> None:
+    """Record what was injected (files, symbols, memories, size) for `chronos ui`. Never raises."""
+    try:
+        from chronos.core.db import get_connection
+        from chronos.core.repo import inspect_repository
+        from chronos.security.sanitizer import redact_secrets
+        from chronos.telemetry.runs import capture_context_envelope
+
+        identity = inspect_repository(root)
+        con = get_connection(root / ".chronos" / "chronos.db")
+        try:
+            capture_context_envelope(
+                con=con,
+                repo_id=identity.id,
+                prompt=redact_secrets(prompt),
+                resolved_files=list(res.get("resolved_files") or []),
+                resolved_symbols=list(res.get("resolved_symbols") or []),
+                test_files=list(res.get("test_files") or []),
+                candidates=[
+                    {"name": c.name, "path": c.path, "kind": c.kind, "score": round(c.score, 2)}
+                    for c in (res.get("candidates") or [])[:10]
+                ],
+                token_budget=int(os.environ.get("CHRONOS_CONTEXT_BUDGET", "1200")),
+                actual_tokens=max(1, len(context) // 4),
+                memory_entries=list(res.get("memories") or []),
+                provenance_summary=res.get("provenance_summary"),
+                mode=HOOK_ENVELOPE_MODE,
+                commit_sha=identity.commit,
+            )
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001 - recording is a convenience; never block context injection
+        pass
 
 
 UNTRUSTED_HEADER = (

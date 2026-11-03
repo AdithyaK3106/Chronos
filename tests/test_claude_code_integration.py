@@ -261,3 +261,36 @@ def test_is_chronos_hook_recognises_windows_launcher():
     assert cc.is_chronos_hook(r'"D:\a\venv\Scripts\chronos.exe" hook claude pre')
     assert cc.is_chronos_hook(r'C:\venv\Scripts\CHRONOS.EXE hook claude prompt')
     assert not cc.is_chronos_hook("echo mine")
+
+
+def test_prompt_hook_records_what_it_injected(repo):
+    """Each injection is stored as a context envelope (for `chronos ui`), with secrets redacted."""
+    from chronos.core.db import get_connection
+    from chronos.core.repo import inspect_repository
+    from chronos.telemetry.runs import get_context_envelope, list_context_envelopes
+
+    prompt = "Fix the charge_card function so it rejects negative amounts; key sk-live-abcdefghijklmnopqrstuvwx"
+    code, out, _ = _run("prompt", {"prompt": prompt, "cwd": str(repo), "session_id": "s"})
+    assert code == 0 and out is not None
+    con = get_connection(repo / ".chronos" / "chronos.db")
+    try:
+        envs = list_context_envelopes(con, repo_id=inspect_repository(repo).id)["envelopes"]
+        assert len(envs) == 1
+        env = get_context_envelope(con, envs[0]["envelope_id"])
+    finally:
+        con.close()
+    assert env["mode"] == cc.HOOK_ENVELOPE_MODE
+    assert any("svc.py" in f for f in env["resolved_files"])
+    assert env["actual_tokens"] > 0
+    assert "sk-live-abcdefghijklmnopqrstuvwx" not in env["prompt"]
+
+
+def test_silent_prompt_records_nothing(repo):
+    _run("prompt", {"prompt": "How do I bake sourdough bread with whole wheat flour?", "cwd": str(repo)})
+    from chronos.core.db import get_connection
+
+    con = get_connection(repo / ".chronos" / "chronos.db")
+    try:
+        assert con.execute("SELECT count(*) FROM context_envelopes").fetchone()[0] == 0
+    finally:
+        con.close()

@@ -197,9 +197,23 @@ chronos gate list
 chronos gate revoke auth.py --agent claude_code
 ```
 
-**Known limitation:** the `Bash` tool is *not* governed. With permissions bypassed, an agent can still
-modify a protected file with `sed -i`/redirects. Treat the hooks as protection against mistakes, not
-against a determined agent, until the shell policy and git/CI backstop land.
+**Shell commands need the sandbox.** Hooks only see tool calls, so on their own they can't stop a
+`Bash` command such as `sed -i` from editing a protected file. On Linux, start the agent with
+`chronos exec` to enforce the same policy at the operating-system level:
+
+```bash
+chronos exec -- claude            # interactive Claude Code, sandboxed
+chronos exec --dry-run            # show what would be protected
+```
+
+Inside the sandbox, protected modules are read-only (and their parent directories cannot be renamed),
+secret files such as `.env` are unreadable, and Chronos's own policy files plus `.claude/settings.json`
+are read-only, so the agent cannot switch its guardrails off. Files you approved with
+`chronos gate grant` stay writable. Everything else in the repository stays writable, so this guards
+protected files; it is not a general undo for destructive commands.
+
+Requires bubblewrap (`sudo apt install bubblewrap`). On macOS and Windows `chronos exec` refuses to
+start rather than running the agent unprotected; there, hooks alone apply.
 
 Tunables: `CHRONOS_AGENT_ID`, `CHRONOS_CONTEXT_BUDGET` (tokens, default 1200),
 `CHRONOS_HOOK_FAIL_CLOSED=1` (always deny if the hook itself errors, overriding `on_hook_error`),

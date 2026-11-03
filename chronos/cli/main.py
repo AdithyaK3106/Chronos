@@ -184,6 +184,17 @@ def main():
     p_cl.add_argument("--repo", default=".", help="Repository (used for --scope project)")
     p_cl.add_argument("--no-mcp", action="store_true", help="Install hooks only")
 
+    # exec (OS sandbox around an agent)
+    p_exec = subparsers.add_parser(
+        "exec",
+        help="Run an agent in an OS sandbox: protected files read-only, secrets hidden (Linux)",
+        description="Example: chronos exec -- claude",
+    )
+    p_exec.add_argument("--repo", default=".", help="Repository root path")
+    p_exec.add_argument("--agent", default="claude_code", help="Agent identity whose gate approvals apply")
+    p_exec.add_argument("--dry-run", action="store_true", help="Show what would be protected and exit")
+    p_exec.add_argument("agent_command", nargs=argparse.REMAINDER, help="Command to run, after --")
+
     # gate (human approval of protected-module edits)
     p_gate = subparsers.add_parser("gate", help="Manage protected-module approvals")
     p_gate.add_argument("action", choices=["grant", "revoke", "list"])
@@ -638,6 +649,39 @@ def main():
         if timed_out:
             print(f"⚠️ Task reached timeout threshold ({args.timeout}s).")
         sys.exit(0)
+
+    elif args.command == "exec":
+        from chronos.core.repo import discover_repo_root
+        from chronos.sandbox import SandboxUnavailable, plan_sandbox, run
+        from chronos.sandbox.runner import describe
+
+        command = list(args.agent_command)
+        if command and command[0] == "--":
+            command = command[1:]
+        root = discover_repo_root(repo_root)
+        db = root / ".chronos" / "chronos.db"
+        con = get_connection(db) if db.is_file() else None  # read approvals; never create state
+        try:
+            plan = plan_sandbox(root, agent_id=args.agent, con=con)
+        finally:
+            if con is not None:
+                con.close()
+        if args.dry_run or not command:
+            print(describe(plan))
+            if not command and not args.dry_run:
+                print("\nNo command given. Usage: chronos exec [--repo PATH] -- claude", file=sys.stderr)
+                sys.exit(2)
+            sys.exit(0)
+        s = plan.summary()
+        sys.stderr.write(
+            f"[chronos] sandbox: {s['read_only']} read-only, {s['hidden']} hidden, "
+            f"{s['approved']} approved (writable) in {root}\n"
+        )
+        try:
+            sys.exit(run(plan, command))
+        except SandboxUnavailable as exc:
+            print(f"[chronos] {exc}\nNot starting the agent without the sandbox.", file=sys.stderr)
+            sys.exit(3)
 
     elif args.command == "gate":
         from chronos.security.gates import grant_gate_approval, revoke_gate_approval

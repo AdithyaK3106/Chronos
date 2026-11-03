@@ -1,0 +1,127 @@
+diff --git a/src/conversational/symptom_synonyms.json b/src/conversational/symptom_synonyms.json
+new file mode 100644
+index 0000000..72ae564
+--- /dev/null
++++ b/src/conversational/symptom_synonyms.json
+@@ -0,0 +1,94 @@
++{
++  "fever": [
++    "fever",
++    "bukhar",
++    "high temp",
++    "temperature",
++    "chills",
++    "shivering",
++    "thand",
++    "बुखार",
++    "ताप",
++    "कपकपी"
++  ],
++  "headache": [
++    "headache",
++    "sar dard",
++    "head pain",
++    "migraine",
++    "heavy head",
++    "सिर दर्द",
++    "सर दर्द"
++  ],
++  "cough": [
++    "cough",
++    "khansi",
++    "coughing",
++    "dry cough",
++    "phlegm",
++    "mucus",
++    "खांसी",
++    "कफ"
++  ],
++  "body pain": [
++    "body pain",
++    "badan dard",
++    "body ache",
++    "muscle ache",
++    "joint pain",
++    "joint ache",
++    "weakness",
++    "बदन दर्द",
++    "जोड़ों में दर्द",
++    "कमजोरी"
++  ],
++  "sore throat": [
++    "sore throat",
++    "gale me dard",
++    "throat pain",
++    "throat irritation",
++    "गले में दर्द",
++    "गले में खराश"
++  ],
++  "vomiting": [
++    "vomiting",
++    "ulti",
++    "nausea",
++    "puking",
++    "queasy",
++    "उल्टी",
++    "मतली"
++  ],
++  "diarrhea": [
++    "diarrhea",
++    "loose motion",
++    "dast",
++    "watery stools",
++    "stomach upset",
++    "दस्त"
++  ],
++  "stomach pain": [
++    "stomach pain",
++    "pet dard",
++    "abdominal pain",
++    "cramps",
++    "पेट दर्द"
++  ],
++  "rash": [
++    "rash",
++    "itching",
++    "khujli",
++    "red spots",
++    "skin redness",
++    "चकत्ते",
++    "खुजली",
++    "दाने"
++  ],
++  "shortness of breath": [
++    "shortness of breath",
++    "breathless",
++    "sans lene me takleef",
++    "wheezing",
++    "सांस लेने में तकलीफ"
++  ]
++}
+diff --git a/src/conversational/timeline_extractor.py b/src/conversational/timeline_extractor.py
+index 101e89e..501f965 100644
+--- a/src/conversational/timeline_extractor.py
++++ b/src/conversational/timeline_extractor.py
+@@ -1,18 +1,10 @@
+ import json
+ import re
++from pathlib import Path
+ 
+-COMMON_SYMPTOM_MAP = {
+-    "fever": ["fever", "bukhar", "high temp", "temperature", "chills", "shivering", "thand", "बुखार", "ताप", "कपकपी"],
+-    "headache": ["headache", "sar dard", "head pain", "migraine", "heavy head", "सिर दर्द", "सर दर्द"],
+-    "cough": ["cough", "khansi", "coughing", "dry cough", "phlegm", "mucus", "खांसी", "कफ"],
+-    "body pain": ["body pain", "badan dard", "body ache", "muscle ache", "joint pain", "joint ache", "weakness", "बदन दर्द", "जोड़ों में दर्द", "कमजोरी"],
+-    "sore throat": ["sore throat", "gale me dard", "throat pain", "throat irritation", "गले में दर्द", "गले में खराश"],
+-    "vomiting": ["vomiting", "ulti", "nausea", "puking", "queasy", "उल्टी", "मतली"],
+-    "diarrhea": ["diarrhea", "loose motion", "dast", "watery stools", "stomach upset", "दस्त"],
+-    "stomach pain": ["stomach pain", "pet dard", "abdominal pain", "cramps", "पेट दर्द"],
+-    "rash": ["rash", "itching", "khujli", "red spots", "skin redness", "चकत्ते", "खुजली", "दाने"],
+-    "shortness of breath": ["shortness of breath", "breathless", "sans lene me takleef", "wheezing", "सांस लेने में तकलीफ"]
+-}
++# Canonical symptom -> English / Hinglish / Hindi synonyms, kept as data in symptom_synonyms.json.
++SYNONYMS_PATH = Path(__file__).with_name("symptom_synonyms.json")
++COMMON_SYMPTOM_MAP = json.loads(SYNONYMS_PATH.read_text(encoding="utf-8"))
+ 
+ class SymptomTimelineExtractor:
+     """

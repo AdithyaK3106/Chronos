@@ -1,0 +1,65 @@
+diff --git a/src/safety/decision_layer.py b/src/safety/decision_layer.py
+index 5947936..4b97ee8 100644
+--- a/src/safety/decision_layer.py
++++ b/src/safety/decision_layer.py
+@@ -17,6 +17,30 @@ BENIGN_OUTPATIENT_CONDITIONS = {
+     "Allergy"
+ }
+ 
++SYMPTOM_SEVERITY_WEIGHT = {"mild": 0.2, "moderate": 0.5, "severe": 0.8}
++HIGH_URGENCY_SCORE = 0.7
++
++
++def _vital_points(vitals: dict) -> float:
++    points = 0.0
++    temp, hr, spo2, sbp = (vitals.get(k) for k in ("temperature_c", "heart_rate", "spo2", "systolic_bp"))
++    if temp is not None:
++        points += 0.3 if temp >= 39.5 else 0.15 if temp >= 38.5 else 0.0
++    if hr is not None:
++        points += 0.3 if hr >= 120 else 0.15 if hr >= 100 else 0.0
++    if spo2 is not None:
++        points += 0.4 if spo2 < 92 else 0.2 if spo2 < 95 else 0.0
++    if sbp is not None and sbp < 90:
++        points += 0.4
++    return points
++
++
++def compute_severity_score(vitals: dict, symptom_severity: str) -> float:
++    """0.5 x symptom weight (mild 0.2, moderate 0.5, severe 0.8; unknown = moderate) + vital points, capped at 1."""
++    weight = SYMPTOM_SEVERITY_WEIGHT.get(symptom_severity, SYMPTOM_SEVERITY_WEIGHT["moderate"])
++    return round(min(1.0, 0.5 * weight + _vital_points(vitals or {})), 6)
++
++
+ class ClinicalDecisionLayer:
+     """
+     Evaluates condition predictions alongside symptom timeline.
+@@ -42,7 +66,7 @@ class ClinicalDecisionLayer:
+         except Exception:
+             self.display_names = {}
+ 
+-    def evaluate(self, bert_predictions: list, timeline: dict, user_lat=12.9716, user_lon=77.5946) -> dict:
++    def evaluate(self, bert_predictions: list, timeline: dict, user_lat=12.9716, user_lon=77.5946, vitals: dict | None = None) -> dict:
+         """
+         Produce a safe, comprehensive Decision Bundle with calibrated relative likelihood.
+         """
+@@ -103,6 +127,12 @@ class ClinicalDecisionLayer:
+             urgency_level = "Low"
+             action_timeframe = "Monitor symptoms closely for 48 hours; follow supportive home care."
+ 
++        # 3b. Vitals-weighted severity score: dangerous vitals escalate to High regardless of the condition
++        severity_score = compute_severity_score(vitals or {}, patient_severity)
++        if vitals and severity_score >= HIGH_URGENCY_SCORE:
++            urgency_level = "High"
++            action_timeframe = "Seek medical care today: your vital signs need prompt clinical evaluation."
++
+         # 4. Home Care Safety Gating (Strictly suppressed for High Urgency)
+         allow_home_care = (urgency_level != "High")
+         if allow_home_care:
+@@ -165,6 +195,7 @@ class ClinicalDecisionLayer:
+             "top_conditions": enriched_predictions,
+             "primary_condition": enriched_predictions[0]["condition"] if enriched_predictions else "Unknown",
+             "urgency_level": urgency_level,
++            "severity_score": severity_score,
+             "action_timeframe": action_timeframe,
+             "allow_home_care": allow_home_care,
+             "home_care": home_care_points,

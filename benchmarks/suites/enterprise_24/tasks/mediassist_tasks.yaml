@@ -3,61 +3,87 @@ tasks:
     repository_id: "mediassist"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Fix false positive regex trigger where benign chest pain descriptions trigger immediate cardiac emergency veto in src/safety/emergency_rules.py."
+    # v2 prompt: v1 said 'benign chest pain descriptions' without saying which; the concrete bug is negation (substring match fires on 'no chest pain').
+    prompt: "Fix false-positive emergency vetoes in src/safety/emergency_rules.py: check_for_emergency() uses plain substring matching, so negated mentions such as 'No chest pain, just a sore throat', 'Patient denies chest pain' or 'I don't have chest pain' trigger an immediate Cardiac Emergency. Negated mentions (no / not / denies / without / don't have ... shortly before the symptom) must not trigger, while real mentions like 'I have chest pain' or 'No fever but I have chest pain' still must."
     target_files:
       - "src/safety/emergency_rules.py"
     verification_commands:
       - "pytest tests/test_safety.py -q"
     regression_commands:
       - "pytest tests/test_safety.py -q"
+    acceptance_tests:
+      - "acceptance/mediassist/test_mediassist_task_01_negated_chest_pain.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "mediassist_task_02"
     repository_id: "mediassist"
     suite: "efficacy"
     category: "bug_fix"
-    prompt: "Fix missing punctuation token normalization in Hindi Devanagari text processing in src/preprocessing/symptom_processor.py."
+    # v2 prompt: v1 described 'missing punctuation token normalization'; the real bug is that Devanagari vowel signs are stripped, corrupting every Hindi symptom.
+    prompt: "Fix Hindi (Devanagari) handling in normalize_symptom() in src/preprocessing/symptom_processor.py: 'तेज़ बुखार' currently becomes 'तज_बखर' because vowel signs are removed as special characters, and Devanagari punctuation (danda । and double danda ॥) is not handled. Keep Devanagari letters and vowel signs intact and drop punctuation, e.g. 'सिर दर्द।' -> 'सिर_दर्द'. English behaviour must not change."
     target_files:
       - "src/preprocessing/symptom_processor.py"
     verification_commands:
       - "pytest tests/test_safety.py -q"
     regression_commands:
       - "pytest tests/test_safety.py -q"
+    acceptance_tests:
+      - "acceptance/mediassist/test_mediassist_task_02_devanagari.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 180
 
   - id: "mediassist_task_03"
     repository_id: "mediassist"
     suite: "efficacy"
     category: "feature"
-    prompt: "Implement weighted emergency severity scoring combining vitals with symptom urgency in src/safety/decision_layer.py."
+    # v2 prompt: v1 did not define the score or how vitals enter the decision; a hidden test needs a contract.
+    prompt: "Implement weighted emergency severity scoring in src/safety/decision_layer.py. Add a module-level function compute_severity_score(vitals: dict, symptom_severity: str) -> float = 0.5 * symptom weight (mild 0.2, moderate 0.5, severe 0.8; unknown counts as moderate) + vital points, capped at 1.0. Vital points (missing or None values add nothing): temperature_c >= 39.5 -> 0.3, >= 38.5 -> 0.15; heart_rate >= 120 -> 0.3, >= 100 -> 0.15; spo2 < 92 -> 0.4, < 95 -> 0.2; systolic_bp < 90 -> 0.4. ClinicalDecisionLayer.evaluate() gets an optional vitals=None argument; when vitals are given and the score is >= 0.7, urgency_level becomes 'High'. Always include the score in the result as 'severity_score'."
     target_files:
       - "src/safety/decision_layer.py"
     verification_commands:
       - "pytest tests/test_safety.py -q"
+    acceptance_tests:
+      - "acceptance/mediassist/test_mediassist_task_03_severity_score.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "mediassist_task_04"
     repository_id: "mediassist"
     suite: "efficacy"
     category: "feature"
-    prompt: "Add standardized bilingual warning banner generator for high-urgency triage recommendations in src/conversational/response_formatter.py."
+    # v2 prompt: v1 named no interface; the hidden test needs the method name and arguments.
+    prompt: "Add a bilingual warning banner for high-urgency triage in src/conversational/response_formatter.py: ResponseFormatter.urgency_banner(urgency_level, language='en') returns a banner starting with '⚠️' telling the user to get medical attention today, in English for 'en' and in Hindi (Devanagari) for 'hi'; for 'Moderate' or 'Low' it returns ''. format_predictions() gets optional urgency_level=None and language='en' arguments and puts the banner (followed by a blank line) before its current output when urgency is 'High'; without them its output must not change."
     target_files:
       - "src/conversational/response_formatter.py"
     verification_commands:
       - "pytest tests/test_hybrid_architecture.py -q"
+    acceptance_tests:
+      - "acceptance/mediassist/test_mediassist_task_04_urgency_banner.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "mediassist_task_05"
     repository_id: "mediassist"
     suite: "efficacy"
     category: "refactor"
-    prompt: "Extract hardcoded medical synonym lookups into structured external dictionary mapping in src/preprocessing/symptom_processor.py."
+    # v2 prompt: v1 pointed at symptom_processor.py, which has no synonym lookups; the hardcoded bilingual synonym map is COMMON_SYMPTOM_MAP in src/conversational/timeline_extractor.py.
+    prompt: "Extract the hardcoded bilingual symptom synonym map COMMON_SYMPTOM_MAP in src/conversational/timeline_extractor.py into an external JSON file, src/conversational/symptom_synonyms.json (canonical symptom -> list of English/Hinglish/Hindi synonyms, same keys and order). The module must load it from that file and still expose COMMON_SYMPTOM_MAP; symptom extraction behaviour must not change."
     target_files:
-      - "src/preprocessing/symptom_processor.py"
+      - "src/conversational/timeline_extractor.py"
+      - "src/conversational/symptom_synonyms.json"
     verification_commands:
       - "pytest tests/test_safety.py -q"
     regression_commands:
       - "pytest tests/ -q"
+    acceptance_tests:
+      - "acceptance/mediassist/test_mediassist_task_05_synonym_map.py"
+    metadata:
+      prompt_version: 2
     timeout_seconds: 240
 
   - id: "mediassist_task_06"

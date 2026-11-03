@@ -1,0 +1,17 @@
+diff --git a/src/preprocessing/symptom_processor.py b/src/preprocessing/symptom_processor.py
+index de01766..18f3099 100644
+--- a/src/preprocessing/symptom_processor.py
++++ b/src/preprocessing/symptom_processor.py
+@@ -15,8 +15,10 @@ def normalize_symptom(symptom: str) -> str:
+     # Replace spaces and hyphens with underscores
+     symptom = re.sub(r'[\s\-]+', '_', symptom)
+     
+-    # Remove special characters
+-    symptom = re.sub(r'[^\w]', '', symptom)
++    # Remove special characters, but keep the Devanagari block (letters, vowel signs, virama, nukta):
++    # \w alone excludes combining vowel signs, which turned "बुखार" into "बखर". The danda (U+0964)
++    # and double danda (U+0965) are punctuation and are removed.
++    symptom = re.sub(r'[^\w\u0900-\u0963\u0966-\u097F]', '', symptom)
+     
+     return symptom
+ 

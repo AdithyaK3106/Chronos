@@ -1,0 +1,37 @@
+diff --git a/src/safety/emergency_rules.py b/src/safety/emergency_rules.py
+index 0b772bb..d87bb9a 100644
+--- a/src/safety/emergency_rules.py
++++ b/src/safety/emergency_rules.py
+@@ -96,6 +96,23 @@ EMERGENCY_CATEGORIES = {
+     "Anaphylaxis": ANAPHYLAXIS
+ }
+ 
++# A symptom preceded (within a few words) by one of these is a negated mention: "no chest pain",
++# "denies chest pain", "I don't have chest pain". Negated mentions must not trigger a veto.
++NEGATION_CUES = re.compile(
++    r"\b(no|not|denies|deny|denied|without|never|don't have|do not have|doesn't have|does not have|negative for)\b"
++    r"(?:\W+\w+){0,2}\W*$"
++)
++
++
++def _mentioned_without_negation(symptom: str, text: str) -> bool:
++    """True if `symptom` occurs in `text` at least once without a negation just before it."""
++    for match in re.finditer(re.escape(symptom), text):
++        preceding = text[max(0, match.start() - 40):match.start()]
++        if not NEGATION_CUES.search(preceding):
++            return True
++    return False
++
++
+ class EmergencyRuleEngine:
+     def __init__(self):
+         pass
+@@ -109,7 +126,7 @@ class EmergencyRuleEngine:
+         for category, symptoms in EMERGENCY_CATEGORIES.items():
+             for symptom in symptoms:
+                 # Use regex for whole word or substring match
+-                if symptom in user_input_lower:
++                if _mentioned_without_negation(symptom, user_input_lower):
+                     detected_categories.append(category)
+                     triggered_symptoms.append(symptom)
+                     break # Record category once

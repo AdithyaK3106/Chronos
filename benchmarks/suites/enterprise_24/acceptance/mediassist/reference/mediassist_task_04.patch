@@ -1,0 +1,26 @@
+diff --git a/src/conversational/response_formatter.py b/src/conversational/response_formatter.py
+index 617cbbe..89f845d 100644
+--- a/src/conversational/response_formatter.py
++++ b/src/conversational/response_formatter.py
+@@ -1,6 +1,19 @@
++URGENCY_BANNERS = {
++    "en": "⚠️ Urgent: your symptoms need medical attention today. Please visit a doctor or hospital as soon as possible.",
++    "hi": "⚠️ तत्काल: आपके लक्षणों पर आज ही चिकित्सा ध्यान देना ज़रूरी है। कृपया जल्द से जल्द डॉक्टर या अस्पताल जाएँ।",
++}
++
++
+ class ResponseFormatter:
+-    def format_predictions(self, top_predictions, hospitals=None):
+-        response = "### Possible Conditions:\n"
++    def urgency_banner(self, urgency_level, language="en"):
++        """Warning banner for High-urgency triage results; empty for Moderate/Low."""
++        if urgency_level != "High":
++            return ""
++        return URGENCY_BANNERS.get(language, URGENCY_BANNERS["en"])
++
++    def format_predictions(self, top_predictions, hospitals=None, urgency_level=None, language="en"):
++        banner = self.urgency_banner(urgency_level, language)
++        response = (banner + "\n\n" if banner else "") + "### Possible Conditions:\n"
+         for i, pred in enumerate(top_predictions[:3]):
+             response += f"{i+1}. {pred['disease']} — {pred['probability']*100:.1f}%\n"
+             

@@ -74,7 +74,8 @@ a toggle; all current engineering views kept under **Advanced**.
       (`runtime` done; `benchmarks` left for a decision, see the morning report.)
 
 ### M6. Buy-vs-build (Phase 1), only if everything above is done
-- [ ] Cupcake: install in scratch, replay recorded hook events, compare decisions and latency.
+- [x] Cupcake: install in scratch, replay recorded hook events, compare decisions and latency.
+      (see `artifacts/BUY_VS_BUILD_2026-11-04.md`)
 - [ ] codebase-memory-mcp: install in scratch, add a benchmark arm.
 
 ## Morning report

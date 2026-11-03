@@ -39,8 +39,9 @@ Wasm, Claude Code hooks) replace Chronos's own PreToolUse enforcement?
 
 **Latency per call, interleaved** (p50 / p95 over the 4 runs): Chronos 310–315 / 400–464 ms;
 Cupcake 253–274 / 341–352 ms. Cupcake recompiles its Rego to Wasm on every call (OPA build plus
-~160 ms of Wasm init) and is still ~15% faster at the median. Profiling shows ~0.24 s of each Chronos
-call is `_find_repo` importing the pydantic models module, an easy win.
+~160 ms of Wasm init) and is still ~15% faster at the median. Profiling attributed ~0.24 s of a Chronos call to
+`_find_repo` importing the pydantic models module, but making that import lazy did not reduce
+end-to-end latency: the edit path needs the models anyway (tried, measured, reverted).
 
 ## Findings
 

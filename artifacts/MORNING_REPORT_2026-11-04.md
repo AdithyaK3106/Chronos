@@ -247,8 +247,8 @@ both engines, interleaved under equal load.
 - **Tuned with its built-ins**, it matches Chronos on secrets, but it can only *halt* protected
   edits (no "ask" built-in), misses Grep with a `*.env` glob, and its substring matching
   false-positived on `scripts/audit_secrets.py`.
-- **Latency p50:** Chronos ~310 ms, Cupcake ~255–275 ms per call. About 0.24 s of each Chronos call
-  is importing pydantic models in `_find_repo`, an easy win.
+- **Latency p50:** Chronos ~310 ms, Cupcake ~255–275 ms per call. Making the pydantic models import lazy did not reduce
+  end-to-end latency (tried, measured, reverted), so the gap is not one cheap fix.
 - **Recommendation:** keep building. Borrow Rego as an optional extension point and Cupcake's
   system-path protections.
 - **Chronos doc bug found by the replay:** GUIDE claimed the hook denies path escapes; by default,

@@ -149,7 +149,6 @@ def run_task(
         metadata={"test_command": test_command, "max_rounds": max_rounds, "sandbox": sandbox, "context_chars": len(context)},
     )
     outcome = RunOutcome(run_id=run["run_id"], success=False, context_chars=len(context), sandboxed=sandbox)
-    log_run_event(con, outcome.run_id, "run_started", {"engine": engine.name, "context_chars": len(context)})
     try:
         prompt = first_prompt(task, context, test_command)
         for round_no in range(1, max_rounds + 1):

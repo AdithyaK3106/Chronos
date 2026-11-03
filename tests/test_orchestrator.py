@@ -61,6 +61,7 @@ def test_failing_round_is_fed_back_then_tests_pass(repo):
     con.close()
     assert run["status"] == "SUCCESS" and run["arm"] == "chronos_run"
     assert [e["event_type"] for e in run["events"]].count("round_completed") == 2
+    assert [e["event_type"] for e in run["events"]].count("run_started") == 1
 
     (mem,) = _memories(repo)
     assert mem["outcome"] == "success" and mem["source"] == "chronos_run" and mem["task_id"] == out.run_id

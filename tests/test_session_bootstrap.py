@@ -6,7 +6,7 @@ import pytest
 
 from chronos.core.db import get_connection
 from chronos.verification.rule_store import upsert_rule, promote_rule
-from runtime.session import ChronosSessionBootstrap
+from chronos.context.session import ChronosSessionBootstrap
 
 SAMPLE_CODE = """
 def calculate_interest(principal, rate, time):

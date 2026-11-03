@@ -9,7 +9,7 @@ from chronos.memory.models import MemoryTier, VerificationStatus
 from chronos.memory.store import ChronosMemoryStore
 from chronos.security.gates import check_gate_approval
 from chronos.security.permissions import check_action_allowed, set_permissions
-from runtime.session import ChronosSessionBootstrap
+from chronos.context.session import ChronosSessionBootstrap
 
 
 def test_advisory_memory_cannot_override_security_gates(tmp_path: Path):

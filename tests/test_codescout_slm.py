@@ -12,7 +12,7 @@ from chronos.context.resolver import CandidateEvidence, DeterministicContextReso
 from chronos.context.slm_resolver import LocalSLMResolver, SLMCircuitBreaker, SLMResolutionResult
 from chronos.core.config import ChronosConfig, SLMConfig
 from chronos.core.db import get_connection
-from runtime.session import ChronosSessionBootstrap
+from chronos.context.session import ChronosSessionBootstrap
 
 
 @pytest.fixture

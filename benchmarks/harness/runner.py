@@ -34,8 +34,8 @@ from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
 from chronos.security.gates import grant_gate_approval
 from chronos.security.permissions import set_permissions
-from runtime.condenser import ChronosContextCondenser
-from runtime.openhands_adapter import ChronosAgentRuntime
+from chronos.agent.condenser import ChronosContextCondenser
+from chronos.agent.openhands_adapter import ChronosAgentRuntime
 
 
 class ResultStore:
@@ -215,7 +215,7 @@ class PairedRunner:
                 Message(role="assistant", content=[TextContent(text="Task completed mock.")]),
             ])
         if self.provider_config.name == "agy":
-            from runtime.agy_llm import AgyLLM
+            from chronos.agent.agy_llm import AgyLLM
             return AgyLLM(
                 model=self.provider_config.model,
                 temperature=self.provider_config.temperature,

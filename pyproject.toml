@@ -51,6 +51,14 @@ chronos-bench = "chronos.cli.main:bench_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["chronos", "runtime", "benchmarks"]
+# Local benchmark results are not part of the package (only the harness and suites are).
+exclude = [
+    "benchmarks/runs",
+    "benchmarks/reports",
+    "benchmarks/diffs",
+    "benchmarks/data",
+    "benchmarks/suites/*/acceptance/*/reference",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

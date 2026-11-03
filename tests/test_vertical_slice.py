@@ -19,7 +19,7 @@ from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
 from chronos.security.gates import grant_gate_approval
 from chronos.security.permissions import set_permissions
-from runtime.openhands_adapter import ChronosAgentRuntime
+from chronos.agent.openhands_adapter import ChronosAgentRuntime
 
 SAMPLE_REPO_CODE = """
 def authenticate_user(username, password):

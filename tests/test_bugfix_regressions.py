@@ -18,8 +18,8 @@ from chronos.coordination.ledger import acquire_lock
 from chronos.core.db import get_connection
 from chronos.security.gates import grant_gate_approval
 from chronos.security.permissions import set_permissions
-from runtime.hooks import evaluate_tool_security
-from runtime.session import ChronosSessionBootstrap
+from chronos.governance.firewall import evaluate_tool_security
+from chronos.context.session import ChronosSessionBootstrap
 
 
 # --------------------------------------------------------------------------- #
@@ -188,7 +188,7 @@ def test_bootstrap_can_skip_reindex_and_still_resolve_explicit_targets(tmp_path)
 # --------------------------------------------------------------------------- #
 def test_new_task_ids_are_unique():
     pytest.importorskip("openhands.sdk")
-    from runtime.openhands_adapter import new_task_id
+    from chronos.agent.openhands_adapter import new_task_id
 
     assert len({new_task_id() for _ in range(200)}) == 200
 
@@ -196,7 +196,7 @@ def test_new_task_ids_are_unique():
 def test_record_task_outcome_records_each_distinct_task(tmp_path):
     pytest.importorskip("openhands.sdk")
     from chronos.core.config import ChronosConfig
-    from runtime.openhands_adapter import ChronosAgentRuntime, new_task_id
+    from chronos.agent.openhands_adapter import ChronosAgentRuntime, new_task_id
 
     (tmp_path / "calc.py").write_text("def divide(a, b):\n    return a / b\n")
     con = get_connection(tmp_path / ".chronos" / "chronos.db")

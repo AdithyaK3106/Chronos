@@ -7,7 +7,7 @@ from chronos.audit.logger import verify_audit_chain
 from chronos.coordination.ledger import acquire_lock
 from chronos.security.permissions import set_permissions
 from chronos.verification.rule_store import upsert_rule, promote_rule
-from runtime.hooks import evaluate_tool_security
+from chronos.governance.firewall import evaluate_tool_security
 
 def test_hook_permits_authorized_action(memory_db, tmp_path):
     log_file = tmp_path / "chronos-audit.log"

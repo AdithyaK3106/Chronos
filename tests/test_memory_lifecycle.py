@@ -8,7 +8,7 @@ from chronos.core.db import get_connection
 from chronos.memory.hooks import on_task_completed
 from chronos.memory.models import OutcomeType, VerificationStatus
 from chronos.memory.store import ChronosMemoryStore
-from runtime.session import ChronosSessionBootstrap
+from chronos.context.session import ChronosSessionBootstrap
 
 
 def test_cross_session_memory_injection_lifecycle(tmp_path: Path):

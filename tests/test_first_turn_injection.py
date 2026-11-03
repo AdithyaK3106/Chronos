@@ -15,7 +15,7 @@ from openhands.tools.file_editor import FileEditorTool
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
 from chronos.security.permissions import set_permissions
-from runtime.openhands_adapter import ChronosAgentRuntime
+from chronos.agent.openhands_adapter import ChronosAgentRuntime
 
 SAMPLE_SERVICE_CODE = '''"""Calculator math service module."""
 

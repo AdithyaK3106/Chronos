@@ -555,8 +555,8 @@ def main():
         )
 
         # 3. Resolve Zero-Path Context
-        from runtime.openhands_adapter import ChronosAgentRuntime
-        from runtime.agy_llm import AgyLLM
+        from chronos.agent.openhands_adapter import ChronosAgentRuntime
+        from chronos.agent.agy_llm import AgyLLM
         from openhands.sdk import Tool, Conversation
         from openhands.tools.file_editor import FileEditorTool
 
@@ -598,7 +598,7 @@ def main():
         print(f"\n🚀 Booting Governed OpenHands Agent (Model: {args.model})...\n")
         import shutil
         if args.model.startswith("agy:") or (shutil.which("agy") and (args.model.startswith("gemini-3.8") or args.model == "agy")):
-            from runtime.agy_llm import AgyLLM
+            from chronos.agent.agy_llm import AgyLLM
             clean_model = args.model.removeprefix("agy:")
             llm = AgyLLM(model=clean_model)
         else:
@@ -631,7 +631,7 @@ def main():
         )
 
         # 5. Execute Conversation with iteration cap & watchdog
-        from runtime.openhands_adapter import new_task_id
+        from chronos.agent.openhands_adapter import new_task_id
         task_id = new_task_id()
         conversation_events: list[Any] = []
         convo = Conversation(

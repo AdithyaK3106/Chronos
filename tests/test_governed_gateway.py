@@ -8,7 +8,7 @@ from chronos.audit.logger import verify_audit_chain
 from chronos.coordination.ledger import acquire_lock
 from chronos.security.permissions import set_permissions
 from chronos.verification.rule_store import upsert_rule, promote_rule
-from runtime.gateway import ChronosToolGateway, ChronosSecurityVetoError
+from chronos.agent.gateway import ChronosToolGateway, ChronosSecurityVetoError
 
 class MockTool:
     name = "file_editor"

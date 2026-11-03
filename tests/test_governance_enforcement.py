@@ -21,10 +21,10 @@ from chronos.security.gates import (
     load_protected_modules,
 )
 from chronos.security.permissions import set_permissions, check_action_allowed
-from runtime.gateway import ChronosToolGateway, ChronosSecurityVetoError
-from runtime.hooks import evaluate_tool_security
-from runtime.openhands_adapter import ChronosAgentRuntime, GovernedExecutorWrapper
-from runtime.session import ChronosSessionBootstrap
+from chronos.agent.gateway import ChronosToolGateway, ChronosSecurityVetoError
+from chronos.governance.firewall import evaluate_tool_security
+from chronos.agent.openhands_adapter import ChronosAgentRuntime, GovernedExecutorWrapper
+from chronos.context.session import ChronosSessionBootstrap
 
 COOLING_POLICY_CODE = """
 class CoolingPolicyEngine:

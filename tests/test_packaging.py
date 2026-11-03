@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tomllib
+
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -58,9 +61,45 @@ def test_claude_hook_runs_without_openhands(tmp_path):
 
 
 def test_runtime_aliases_still_resolve():
+    import importlib
+    import warnings
+
     import chronos.context.session as session
     import chronos.governance.firewall as firewall
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        sys.modules.pop("runtime", None)
+        importlib.import_module("runtime")
+    assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
     import runtime.hooks
     import runtime.session
 
     assert runtime.hooks is firewall and runtime.session is session
+
+
+@pytest.mark.parametrize("name", ["openhands_adapter", "agy_llm", "condenser", "gateway"])
+def test_moved_agent_modules_keep_their_old_names(name):
+    """The OpenHands integration moved from the top-level `runtime` package to `chronos.agent`."""
+    import importlib
+
+    pytest.importorskip("openhands.sdk", reason="needs the [agent] extra")
+    new = importlib.import_module(f"chronos.agent.{name}")
+    assert importlib.import_module(f"runtime.{name}") is new
+
+
+def test_wheel_does_not_ship_local_benchmark_results(tmp_path):
+    root = Path(__file__).resolve().parent.parent
+    if not (root / "pyproject.toml").is_file() or not shutil.which("uv"):
+        pytest.skip("needs the source tree and uv")
+    r = subprocess.run(["uv", "build", "--wheel", "-o", str(tmp_path)], cwd=root, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr[-1500:]
+    import zipfile
+
+    names = zipfile.ZipFile(next(tmp_path.glob("*.whl"))).namelist()
+    assert any(n.startswith("chronos/agent/") for n in names)
+    assert any(n.startswith("benchmarks/harness/") for n in names)
+    leaked = [n for n in names if n.startswith(("benchmarks/runs/", "benchmarks/reports/", "benchmarks/diffs/", "benchmarks/data/"))
+              or "/reference/" in n]
+    assert not leaked, leaked[:5]

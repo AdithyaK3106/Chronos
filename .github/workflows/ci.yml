@@ -35,7 +35,13 @@ jobs:
         shell: bash
         run: |
           PYTEST=.ci-venv/bin/pytest; [ -f "$PYTEST" ] || PYTEST=.ci-venv/Scripts/pytest.exe
-          "$PYTEST" -q -p no:cacheprovider
+          "$PYTEST" -q -p no:cacheprovider --junitxml=junit.xml
+      - name: Annotate test failures
+        if: failure()
+        shell: bash
+        run: |
+          PY=.ci-venv/bin/python; [ -f "$PY" ] || PY=.ci-venv/Scripts/python.exe
+          "$PY" .github/scripts/junit_annotations.py junit.xml
       - name: Live hook canary
         shell: bash
         run: |
@@ -56,4 +62,7 @@ jobs:
       - name: Test suite
         env:
           OPENHANDS_SUPPRESS_BANNER: "1"
-        run: .ci-venv/bin/python -m pytest -q -p no:cacheprovider
+        run: .ci-venv/bin/python -m pytest -q -p no:cacheprovider --junitxml=junit.xml
+      - name: Annotate test failures
+        if: failure()
+        run: .ci-venv/bin/python .github/scripts/junit_annotations.py junit.xml

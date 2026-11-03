@@ -171,7 +171,7 @@ What you get inside an opted-in repo:
 
 | Hook | Effect |
 |---|---|
-| `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials), path escapes, and edits to code another agent has locked. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
+| `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials) and edits to code another agent has locked. Files outside the repository are left to Claude Code's own permissions unless `CHRONOS_HOOK_STRICT_BOUNDARY=1`, which denies them. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
 | `UserPromptSubmit` | Injects the matching symbols, callers/callees, tests and recalled memories, only when the match is strong (threshold `CHRONOS_MIN_INJECT_SCORE`, default 12). It is labelled as untrusted reference data and capped in size, because it quotes repository text. |
 
 Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`

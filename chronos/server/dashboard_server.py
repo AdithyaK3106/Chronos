@@ -1335,7 +1335,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
                 limit=limit,
             )
             self._send_json({
-                "memories": [r.to_dict() for r in records],
+                "memories": [r.model_dump(mode="json") for r in records],
                 "count": len(records),
                 "namespace": repo.name,
             })
@@ -1436,7 +1436,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
             )
             self._send_json({
                 "query": query,
-                "results": [r.to_dict() for r in results],
+                "results": [r.model_dump(mode="json") for r in results],
                 "count": len(results),
             })
         finally:

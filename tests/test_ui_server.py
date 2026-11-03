@@ -736,3 +736,35 @@ def test_20_logo_and_favicon_static_routes(tmp_path: Path):
         server.shutdown()
         server.server_close()
 
+
+
+def test_memory_list_returns_stored_memories(tmp_path: Path):
+    """Regression: GET /memory returned HTTP 500 as soon as any memory existed (MemoryRecord.to_dict)."""
+    repo_dir = tmp_path / "mem-repo"
+    repo_dir.mkdir()
+    (repo_dir / "app.py").write_text("x = 1\n", encoding="utf-8")
+    server = create_server("127.0.0.1", 0)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert wait_for_server_ready("127.0.0.1", port, max_seconds=3.0)
+        repo_id = register_repo_with_server("127.0.0.1", port, str(repo_dir))["id"]
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/memory/remember",
+            data=json.dumps({"content": "Use the retry wrapper for payment calls", "tags": "payments"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        urllib.request.urlopen(req).read()
+        data = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/repo/{repo_id}/memory").read())
+        assert data["count"] == 1
+        assert data["memories"][0]["content"] == "Use the retry wrapper for payment calls"
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/repo/{repo_id}/memory/recall",
+            data=json.dumps({"query": "payment retry", "limit": 5}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        rec = json.loads(urllib.request.urlopen(req).read())
+        assert rec["count"] >= 1 and "retry wrapper" in rec["results"][0]["content"]
+    finally:
+        server.shutdown()
+        server.server_close()

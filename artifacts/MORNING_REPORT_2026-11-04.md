@@ -151,3 +151,61 @@ the topbar's static "PORT 8765" badge was replaced by the theme toggle. Full sui
   those holds never enter the queue. It may be worth removing or relabelling it.
 - The sidebar footer ("SQLite WAL Index / Tree-Sitter AST & OpenHands") is engineering jargon
   aimed at the old audience; left as is.
+
+## M3. Evidence: acceptance tests + 24-task benchmark (in progress)
+
+**Setup.** All benchmark work runs on a dedicated scratch area, `/data/chronos-bench-scratch`, which
+you can delete when you're done. `/tmp` is a 3.6 GB RAM disk and filled up when cloning the Cooling
+repo. It holds scratch clones of all four repos (the originals are never touched, including Cooling's
+uncommitted work), per-repo test venvs (minimal deps: no torch/transformers needed by any task's tests),
+and `env.sh`, which points the suite at them.
+
+**Acceptance tests: all 20 efficacy tasks now have hidden tests** (`b756352`, `9cfc9f0`, `7319fa9`,
+`59a6ca4`). New `python -m benchmarks.verify_acceptance` checks each one in a fresh worktree with the
+harness's own evaluator: untouched baseline must **fail**, and the task's reference patch
+(`acceptance/<repo>/reference/<task>.patch`) must pass verification, regression and acceptance.
+Result: **20/20 fair**. The 4 security tasks are already scored on disk state and policy decisions.
+
+**Prompts that could not be graded fairly were rewritten (v2, reason recorded in the YAML):** 16 of
+the 20. Several v1 prompts described code that does not exist:
+- `mediassist_05` and `chronos_05` pointed at files with no synonym map or SQLite handling;
+  `cooling_02` described a rolling average `preprocess.py` doesn't have; `chronos_03` asked to
+  extend a `query_symbols()` that doesn't exist.
+- Several real bugs turned out worse than the prompt said:
+  - `mediassist_02`: **every Hindi symptom is corrupted** (बुखार → बखर; vowel signs stripped).
+  - `chronos_01`: impact analysis finds **no transitive callers at all** for the indexer's
+    edge format.
+  - `cooling_02`: an all-missing sensor makes the **saved scaling state NaN**.
+- Two verification commands were unfair:
+  - `cooling_02` ran a live 10 s psutil test that fails on the untouched baseline (replaced by the
+    deterministic parity tests).
+  - `chronos_05` ran an unrelated test (now the whole baseline suite).
+
+**Full run started** 02:42 IST: 24 tasks × 3 runs × 2 arms, Gemini Flash Low via `agy`, results in
+`/data/chronos-bench-scratch/results_20261104`. A 1-task smoke run first confirmed tokens are
+recorded (the OpenHands console shows "total 0" but the DB has the counts). Results follow below
+when it finishes.
+
+## M4. `chronos run --engine claude` (done)
+
+`7d79880`, `07c6bf9` (developed in a separate worktree so the running benchmark, which uses this
+checkout's editable install, was not affected).
+
+- `chronos run "<task>" --engine claude --test "<cmd>" [--max-rounds 3] [--no-sandbox]`:
+  1. Resolves Chronos context.
+  2. Runs Claude Code headless (`-p --output-format json`) **inside the `chronos exec` sandbox**.
+  3. **The tests decide success**, not the agent.
+  4. On failure it resumes the same session (`--resume`) with the test output.
+  5. Records the run in the dashboard's run registry and the outcome as an episodic memory
+     ("verified" only when the tests passed).
+- Tests (no model calls): a feedback round then a pass, max rounds, an agent claiming success
+  without passing tests, argv/JSON parsing, `.env` invisible to sandboxed commands, and the CLI end
+  to end against a fake `claude` binary that speaks the JSON protocol.
+- Bug found while testing: same-size edits within one second let the next round run **stale
+  `.pyc`** (a flaky test). Test commands now run with `PYTHONDONTWRITEBYTECODE=1`.
+- **The one real haiku run** (allowed: ≤3; used: 1): toy repo (buggy `apply_discount`, a protected
+  `auth.py`, a `.env`), sandboxed. **Solved in 1 round, 17 s, $0.005**, correct fix. Run, events and
+  a verified memory were recorded, and `.env`/`auth.py` were untouched. It exposed a duplicate
+  `run_started` event (fixed). Side effect: Claude Code stored that session's transcript under
+  `~/.claude/projects/` as it does for any session; no settings were changed.
+- Fresh-clone core job on `07c6bf9`: `227 passed, 9 skipped`, hook canary OK.

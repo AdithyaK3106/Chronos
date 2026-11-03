@@ -62,10 +62,10 @@ a toggle; all current engineering views kept under **Advanced**.
 - [ ] Update README numbers or add a clear caveat.
 
 ### M4. Orchestrator: `chronos run --engine claude` (Phase 4b)
-- [ ] Engine adapter interface; `claude` engine (headless `-p`, session resume); fake engine for tests.
-- [ ] Loop: resolve context → start engine in `chronos exec` sandbox → run task tests → resume with
+- [x] Engine adapter interface; `claude` engine (headless `-p`, session resume); fake engine for tests.
+- [x] Loop: resolve context → start engine in `chronos exec` sandbox → run task tests → resume with
       failures (max N rounds) → record memories.
-- [ ] Tests with the fake engine; at most one haiku run end to end.
+- [x] Tests with the fake engine; at most one haiku run end to end.
 
 ### M5. Local polish (Phase 6), as time allows
 - [ ] Audit log outside the repo (user data dir), with migration of the existing log.

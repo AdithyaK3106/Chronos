@@ -21,7 +21,7 @@
 Install Chronos completely with a single command. It provisions an isolated environment, installs polyglot Tree-sitter parsers, links the CLI to your PATH, and sets up IDE integrations:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chronos-agent/chronos/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash
 ```
 
 *Or if you've cloned the repository:*

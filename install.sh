@@ -4,7 +4,7 @@
 #
 # Supports: Linux (x86_64, aarch64), macOS (Intel, Apple Silicon)
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/chronos-agent/chronos/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash
 #   ./install.sh [OPTIONS]
 #
 # Options:
@@ -104,7 +104,7 @@ if [ -z "$TARGET_DIR" ]; then
         mkdir -p "${TARGET_DIR}"
         echo -e "${CYAN}==>${RESET} Cloning Chronos into: ${BOLD}${TARGET_DIR}${RESET}"
         if [ ! -d "${TARGET_DIR}/.git" ]; then
-            git clone --depth 1 https://github.com/chronos-agent/chronos.git "${TARGET_DIR}"
+            git clone --depth 1 https://github.com/AdithyaK3106/Chronos.git "${TARGET_DIR}"
         else
             echo -e "${CYAN}==>${RESET} Repository already exists at ${TARGET_DIR}, pulling latest changes..."
             git -C "${TARGET_DIR}" pull --ff-only || true

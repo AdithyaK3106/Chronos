@@ -11,7 +11,7 @@ Get up and running with **Chronos**—the bi-temporal repository intelligence, a
 Run this single command in your terminal. It automatically configures an isolated environment, installs polyglot Tree-sitter parsers, links `chronos` to your PATH, and runs diagnostic checks:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chronos-agent/chronos/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash
 ```
 
 *Or if you have already cloned the repository:*

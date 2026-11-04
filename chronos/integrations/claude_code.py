@@ -290,7 +290,7 @@ def _strongest(decisions: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
     kinds = [d["hookSpecificOutput"]["permissionDecision"] for d in decisions]
     top = max(kinds, key=lambda k: _RANK.get(k, 0))
-    reasons = [d["hookSpecificOutput"]["permissionDecisionReason"] for d, k in zip(decisions, kinds) if k == top]
+    reasons = [d["hookSpecificOutput"]["permissionDecisionReason"].removeprefix("[Chronos] ") for d, k in zip(decisions, kinds) if k == top]
     reason = reasons[0] if len(reasons) == 1 else " | ".join(reasons[:3]) + (f" (+{len(reasons) - 3} more)" if len(reasons) > 3 else "")
     return _decision(top, reason)
 

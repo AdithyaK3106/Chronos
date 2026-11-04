@@ -16,6 +16,75 @@ from pathlib import PurePosixPath
 
 from chronos.security.command_rules import TEST_PATH_RE, Hit
 
+MANIFEST_RE = re.compile(r"(?:^|/)(?:requirements[\w.-]*\.(?:txt|in)|constraints[\w.-]*\.txt|pyproject\.toml|setup\.py|setup\.cfg|Pipfile|environment\.ya?ml|package\.json|go\.mod|Cargo\.toml|Gemfile|composer\.json|build\.gradle(?:\.kts)?|pom\.xml|[\w.-]+\.csproj|pubspec\.yaml|mix\.exs|deno\.jsonc?)$")
+_JSON_DEP_BLOCK = re.compile(r'"(?:dependencies|devDependencies|peerDependencies|optionalDependencies|require|require-dev|imports)"\s*:\s*\{')
+_TOML_DEP_SECTION = re.compile(r"^\[(?:[\w.-]*\.)?(?:dependencies|dev-dependencies|build-dependencies|optional-dependencies|packages|dev-packages|dependency-groups)(?:\.[\w.-]+)?\]$|^\[tool\.poetry\.(?:group\.[\w-]+\.)?dependencies\]$")
+
+
+def dependency_entries(rel: str, text: str) -> set[str]:
+    """Dependency names declared in a manifest (best effort, per file type)."""
+    name = PurePosixPath(rel).name
+    out: set[str] = set()
+    lines = (text or "").splitlines()
+    if name.endswith((".json", ".jsonc")):
+        depth_in = 0
+        for ln in lines:
+            if _JSON_DEP_BLOCK.search(ln):
+                depth_in = 1
+                continue
+            if depth_in:
+                if "}" in ln:
+                    depth_in = 0
+                    continue
+                m = re.match(r'\s*"([^"]+)"\s*:', ln)
+                if m:
+                    out.add(m.group(1))
+        return out
+    if name.endswith(".toml") or name == "Pipfile":
+        section, in_array = "", False
+        for ln in lines:
+            st = ln.strip()
+            if st.startswith("["):
+                section, in_array = st, False
+                continue
+            if re.match(r"^(?:dependencies|optional-dependencies|requires)\s*=\s*\[", st) and section in ("[project]", "[build-system]"):
+                in_array = True
+            if in_array:
+                out.update(re.findall(r'"([A-Za-z0-9][\w.\-]*)', st))
+                if "]" in st:
+                    in_array = False
+                continue
+            if _TOML_DEP_SECTION.match(section):
+                m = re.match(r"^([A-Za-z0-9][\w.\-]*)\s*=", st)
+                if m:
+                    out.add(m.group(1))
+        return out
+    if name == "go.mod":
+        block = False
+        for ln in lines:
+            st = ln.strip()
+            if st.startswith("require ("):
+                block = True
+                continue
+            if block and st.startswith(")"):
+                block = False
+                continue
+            m = re.match(r"^(?:require\s+)?([\w.\-]+(?:/[\w.\-]+)+)\s+v", st)
+            if m and (block or st.startswith("require")):
+                out.add(m.group(1))
+        return out
+    if name == "Gemfile":
+        return set(re.findall(r"^\s*gem\s+['\"]([\w.\-]+)", text or "", re.M))
+    if name in ("setup.py", "setup.cfg", "pom.xml") or name.endswith((".gradle", ".gradle.kts", ".csproj", ".exs", ".yaml", ".yml")):
+        return {ln.strip().rstrip(",") for ln in lines if ln.strip()}
+    # requirements*.txt, constraints*.txt, *.in
+    for ln in lines:
+        st = ln.split("#", 1)[0].strip()
+        if st and not st.startswith("-"):
+            out.add(re.split(r"[<>=!~;\[\s@]", st, 1)[0].lower())
+    return out
+
+
 # (rule id, category, decision, path regex, why)
 PATH_RULES: list[tuple[str, str, str, re.Pattern, str]] = [
     ("integrity.chronos_state", "integrity", "deny", re.compile(r"^\.chronos/"), "is Chronos's own policy, audit and index data"),
@@ -25,6 +94,7 @@ PATH_RULES: list[tuple[str, str, str, re.Pattern, str]] = [
     ("integrity.git_hooks", "integrity", "ask", re.compile(r"^\.husky/|^\.pre-commit-config\.ya?ml$|^\.?lefthook\.ya?ml$|^\.githooks/|^\.lintstagedrc|^lint-staged\.config\.|^\.simple-git-hooks|(?:^|/)CODEOWNERS$"), "changes pre-commit hooks or required reviewers"),
     ("integrity.secret_scanner", "integrity", "ask", re.compile(r"(?:^|/)(?:\.gitleaks\.toml|\.gitleaksignore|\.secrets\.baseline|\.trufflehog[\w.-]*|\.talismanrc|\.semgrepignore|\.snyk|\.trivyignore|\.bandit)$"), "changes a security scanner's allowlist"),
     ("dependencies.lockfile", "dependencies", "ask", re.compile(r"(?:^|/)(?:package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|poetry\.lock|uv\.lock|Pipfile\.lock|pdm\.lock|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock|packages\.lock\.json|gradle\.lockfile|mix\.lock|pubspec\.lock|flake\.lock|Package\.resolved)$"), "is a lockfile, which tools should generate; hand edits can point dependencies at other code"),
+    ("dependencies.manifest", "dependencies", "ask", MANIFEST_RE, "lists the project's dependencies; check new package names for typos and lookalikes"),
     ("integrity.check_config", "integrity", "log", re.compile(r"(?:^|/)(?:\.eslintrc[\w.]*|eslint\.config\.[cm]?[jt]s|\.flake8|mypy\.ini|\.mypy\.ini|\.pylintrc|pylintrc|\.?ruff\.toml|pytest\.ini|tox\.ini|setup\.cfg|jest\.config\.[\w.]+|vitest\.config\.[\w.]+|\.golangci\.ya?ml|tsconfig[\w.-]*\.json|\.coveragerc|codecov\.ya?ml|\.codecov\.ya?ml|sonar-project\.properties|\.prettierrc[\w.]*|biome\.json|phpstan\.neon|\.rubocop\.yml|clippy\.toml|\.swiftlint\.yml)$"), "configures linters, type checks, tests or coverage"),
 ]
 
@@ -79,6 +149,12 @@ def evaluate_edit(rel: str, old: str | None, new: str | None) -> list[Hit]:
     if new is None:
         return hits
     old = old or ""
+    if any(h.rule == "dependencies.manifest" for h in hits):
+        # Content is known: ask only when a dependency is added, and name it.
+        added = sorted(dependency_entries(rel, new) - dependency_entries(rel, old))
+        hits = [h for h in hits if h.rule != "dependencies.manifest"]
+        if added:
+            hits.append(Hit("dependencies.manifest", "dependencies", "ask", f"adds dependencies to {rel}: {', '.join(a[:40] for a in added[:5])}. Check the names for typos and lookalikes"))
     name = PurePosixPath(rel).name
     if TEST_PATH_RE.search(rel):
         if _count(SKIP_MARKERS, new) > _count(SKIP_MARKERS, old):

@@ -194,7 +194,45 @@ def _strip_heredocs(cmd: str) -> tuple[str, list[tuple[str, str]]]:
     return "\n".join(out), bodies
 
 
+def _newlines_to_separators(cmd: str) -> str:
+    """Turn unquoted newlines into `;`. shlex treats a newline as plain whitespace, which merged
+    every line of a multi-line script into one command (so line 2+ were never checked)."""
+    out: list[str] = []
+    quote: str | None = None
+    i = 0
+    while i < len(cmd):
+        ch = cmd[i]
+        if quote:
+            if ch == "\\" and quote == '"' and i + 1 < len(cmd):
+                out.append(cmd[i:i + 2])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"'):
+            quote = ch
+        elif ch == "\\" and i + 1 < len(cmd):
+            if cmd[i + 1] == "\n":  # line continuation
+                i += 2
+                continue
+            out.append(cmd[i:i + 2])
+            i += 2
+            continue
+        elif ch == "#" and (i == 0 or cmd[i - 1] in " \t\n;&|"):
+            j = cmd.find("\n", i)  # a comment runs to the end of the line
+            i = len(cmd) if j < 0 else j
+            continue
+        elif ch == "\n":
+            out.append(" ; ")
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _tokens(cmd: str) -> list[str]:
+    cmd = _newlines_to_separators(cmd)
     lex = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()<>")
     lex.whitespace_split = True
     lex.commenters = "#"

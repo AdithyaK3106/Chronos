@@ -125,3 +125,33 @@ def test_valid_and_absent_configs_have_no_error(repo):
     assert protected_config_error(repo) is None
     _write(repo, DOCUMENTED)
     assert protected_config_error(repo) is None
+
+
+# ----------------------------------------------------------------------------- item 9: docs are not protected
+@pytest.mark.parametrize("rel,protected", [
+    ("docs/oauth.md", False),
+    ("src/authors/list.py", False),
+    ("SECURITY.md", False),
+    ("auth/README.md", False),
+    ("docs/security/threat-model.rst", False),
+    ("doc/api/auth.html", False),
+    ("docs/policy.mdx", False),
+    ("src/auth/login.py", True),
+    ("src/oauth.py", True),
+    ("auth/__init__.py", True),
+    ("config/permissions.yaml", True),
+    ("src/policies/rate.ts", True),
+    ("docs/credentials.md", True),   # credentials are never exempt
+    ("docs/.env", True),             # the .env rule is not word-based
+])
+def test_default_words_guard_code_not_docs(tmp_path, rel, protected):
+    from chronos.security.gates import find_protected_module
+
+    assert bool(find_protected_module(rel, tmp_path)) is protected
+
+
+def test_custom_policy_can_still_protect_docs(repo):
+    _write(repo, "policies:\n  - id: docs\n    paths: ['docs/**']\n")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "oauth.md").write_text("x\n")
+    assert _edit(repo, "docs/oauth.md")["permissionDecision"] == "ask"

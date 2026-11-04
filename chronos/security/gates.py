@@ -55,12 +55,27 @@ def _is_env_file(path: str) -> bool:
     return name == ".env" or name.startswith(".env.") or name.endswith(".env")
 
 
+DOC_EXTENSIONS = {".md", ".markdown", ".mdx", ".rst", ".adoc", ".asciidoc"}
+DOC_DIRS = {"docs", "doc", "documentation"}
+
+
+def is_doc_path(path: str) -> bool:
+    """Documentation, not code: `docs/oauth.md`, `SECURITY.md`, `auth/README.md`, `doc/api/auth.html`.
+
+    The default protected words (auth, security, policy, ...) guard code and config; a page that
+    describes the auth flow is not a security control.
+    """
+    parts = Path(path).as_posix().lower().split("/")
+    return Path(parts[-1]).suffix in DOC_EXTENSIONS or any(seg in DOC_DIRS for seg in parts[:-1])
+
+
 def _module_matches(mod: dict[str, Any], norm: str) -> str | None:
     """Return the pattern that makes `norm` protected under `mod`, or None."""
     if mod.get("words") is not None or mod.get("env"):
         if mod.get("env") and _is_env_file(norm):
             return mod.get("pattern", ".env")
-        if mod.get("words") and path_words(norm) & set(mod["words"]):
+        doc_exempt = mod.get("pattern") != "*credentials*"  # a credentials file is never "just docs"
+        if mod.get("words") and not (doc_exempt and is_doc_path(norm)) and path_words(norm) & set(mod["words"]):
             return mod.get("pattern")
         return None
     for pat in mod.get("paths", []):

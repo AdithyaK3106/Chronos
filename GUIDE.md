@@ -178,7 +178,10 @@ What you get inside an opted-in repo:
 | `UserPromptSubmit` | Injects the matching symbols, callers/callees, tests and recalled memories, only when the match is strong (threshold `CHRONOS_MIN_INJECT_SCORE`, default 12). It is labelled as untrusted reference data and capped in size, because it quotes repository text. |
 
 Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`
-are protected; `author.py` and `AUTHORS` are not. Add your own in `.chronos/protected.yml`.
+are protected; `author.py` and `AUTHORS` are not. The words apply to code and config, not documentation:
+`docs/oauth.md`, `SECURITY.md` and anything under `docs/` are editable (credentials files and `.env`
+stay protected everywhere). Add your own in `.chronos/protected.yml`; a custom policy such as
+`paths: ["docs/**"]` protects docs too.
 
 Choose how strict to be with a preset:
 

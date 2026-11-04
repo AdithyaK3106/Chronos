@@ -110,6 +110,18 @@ class EmbeddingsConfig(BaseModel):
     timeout_seconds: float = Field(default=10.0, gt=0)
 
 
+class MemoryConfig(BaseModel):
+    """Whether recalled memories are injected into the agent's context.
+
+    Off by default since 2026-11-05: in the memory A/B (artifacts/memory_ab_2026-11-04.json, 30 runs)
+    injecting memories did not clearly help (passed: recall 1/10, always-inject 2/10, none 1/10).
+    Memories are still recorded and remain available through `chronos memory recall` and the
+    `chronos_recall` MCP tool. `CHRONOS_MEMORY_INJECT=1` turns injection on for one process.
+    """
+
+    inject: bool = False
+
+
 class RetrievalConfig(BaseModel):
     embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
 
@@ -127,6 +139,7 @@ class ChronosConfig(BaseModel):
     context_token_budget: int = 4000
     slm: SLMConfig = Field(default_factory=SLMConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
 
     def audit_log_file(self, root: str | Path | None = None) -> Path:
@@ -188,5 +201,9 @@ class ChronosConfig(BaseModel):
 
         if slm_dict:
             cfg_dict["slm"] = slm_dict
+        if os.environ.get("CHRONOS_MEMORY_INJECT") is not None:
+            mem_dict = dict(cfg_dict.get("memory", {})) if isinstance(cfg_dict.get("memory"), dict) else {}
+            mem_dict["inject"] = os.environ["CHRONOS_MEMORY_INJECT"].strip().lower() in ("1", "true", "yes", "on")
+            cfg_dict["memory"] = mem_dict
 
         return cls(**cfg_dict)

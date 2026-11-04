@@ -295,6 +295,10 @@ class PairedRunner:
             return False, str(err)
         return False, None
 
+    # Benchmarks keep measuring Chronos with memory injection on (as in every result recorded before
+    # it was switched off by default on 2026-11-05), so their numbers stay comparable.
+    os.environ.setdefault("CHRONOS_MEMORY_INJECT", "1")
+
     def execute_arm(
         self,
         task: BenchmarkTask,

@@ -65,6 +65,22 @@ class ChronosSessionBootstrap:
         )
         self.memory_store = ChronosMemoryStore(con=self.con)
 
+    def _recall(self, task_prompt: str, repo_ns: str, resolved_symbols: List[str]) -> list:
+        """Memories relevant to the prompt; falls back to the resolved symbols when the prompt finds few."""
+        recalled = self.memory_store.recall(
+            query=task_prompt, repo_namespace=repo_ns, limit=3, current_only=True, min_relevance=MEMORY_MIN_RELEVANCE,
+        )
+        if len(recalled) < 2 and resolved_symbols:
+            seen_ids = {m.id for m in recalled}
+            for sm in self.memory_store.recall(
+                query=" ".join(resolved_symbols[:3]), repo_namespace=repo_ns, limit=2, current_only=True,
+                min_relevance=MEMORY_MIN_RELEVANCE,
+            ):
+                if sm.id not in seen_ids:
+                    recalled.append(sm)
+                    seen_ids.add(sm.id)
+        return recalled
+
     def bootstrap_session(
         self,
         task_prompt: str,
@@ -75,6 +91,7 @@ class ChronosSessionBootstrap:
         repo_namespace: Optional[str] = None,
         refresh_index: bool = True,
         acquire_leases: bool = True,
+        include_memories: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Assemble bi-temporal AST graph context, rules, and leases before first model turn.
 
@@ -200,31 +217,18 @@ class ChronosSessionBootstrap:
                 envelope_lines.append(f"- Held lease: `{l}`")
 
         # 6. Epistemic Living Memory Recall (Past Postmortems, Invariants, & Gotchas)
+        #    Off unless `memory.inject` (config / CHRONOS_MEMORY_INJECT) or include_memories=True.
         recalled_memories = []
         repo_ns = repo_namespace or self.repo_path.name
+        if include_memories is None:
+            try:
+                from chronos.core.config import ChronosConfig
+
+                include_memories = ChronosConfig.load(self.repo_path).memory.inject
+            except Exception:  # noqa: BLE001
+                include_memories = False
         try:
-            recalled_memories = self.memory_store.recall(
-                query=task_prompt,
-                repo_namespace=repo_ns,
-                limit=3,
-                current_only=True,
-                min_relevance=MEMORY_MIN_RELEVANCE,
-            )
-            # If prompt search returned few results, try resolved symbols
-            if len(recalled_memories) < 2 and resolved_symbols:
-                sym_query = " ".join(resolved_symbols[:3])
-                sym_mems = self.memory_store.recall(
-                    query=sym_query,
-                    repo_namespace=repo_ns,
-                    limit=2,
-                    current_only=True,
-                    min_relevance=MEMORY_MIN_RELEVANCE,
-                )
-                seen_ids = {m.id for m in recalled_memories}
-                for sm in sym_mems:
-                    if sm.id not in seen_ids:
-                        recalled_memories.append(sm)
-                        seen_ids.add(sm.id)
+            recalled_memories = self._recall(task_prompt, repo_ns, resolved_symbols) if include_memories else []
         except Exception:
             recalled_memories = []
 

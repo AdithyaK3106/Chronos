@@ -316,6 +316,12 @@ chronos run "Implement regex-based symbol pattern filtering" --model=gemini-3.8-
 
 ### Recipe 4: Epistemic Living Memory (`chronos memory`)
 
+> **Injection is off by default (since 2026-11-05).** In a 30-run A/B (`artifacts/memory_ab_2026-11-04.json`),
+> injecting memories into the agent's context did not clearly help: tasks passed 1/10 with normal recall,
+> 2/10 when the memory was always injected, and 1/10 with no memory. Memories are still recorded and you can
+> query them with `chronos memory recall` or the `chronos_recall` MCP tool. To inject them again, set
+> `{"memory": {"inject": true}}` in `.chronos/config.json` (or `CHRONOS_MEMORY_INJECT=1`).
+
 Chronos maintains cross-session memory with 5 tiers (`core`, `learned`, `episodic`, `working`, `procedural`), recency decay, and verification weighting:
 
 ```bash

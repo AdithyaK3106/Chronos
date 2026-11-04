@@ -159,6 +159,87 @@ def is_gate_approved(
         # Fail closed on query failure
         return False
 
+class ProtectedConfigError(ValueError):
+    """`.chronos/protected.yml` has unknown keys or invalid values."""
+
+
+TOP_LEVEL_KEYS = {"policies", "protected_modules", "exempt_patterns"}
+POLICY_KEYS = {"id", "name", "paths", "mode", "denial_reason", "description"}
+# `human_approval` is the name the docs used first; it means the same as `ask`.
+POLICY_MODES = {"ask": "ask", "human_approval": "ask", "deny": "deny"}
+
+
+def _parse_module(entry: Any, where: str, id_key: str) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        raise ProtectedConfigError(f"{where}: expected a mapping, got {type(entry).__name__}")
+    unknown = set(entry) - POLICY_KEYS
+    if unknown:
+        raise ProtectedConfigError(
+            f"{where}: unknown key(s) {', '.join(sorted(map(str, unknown)))} (allowed: {', '.join(sorted(POLICY_KEYS))})"
+        )
+    name = entry.get(id_key) or entry.get("name") or entry.get("id")
+    if not name or not isinstance(name, str):
+        raise ProtectedConfigError(f"{where}: needs a string `{id_key}`")
+    paths = entry.get("paths")
+    if not isinstance(paths, list) or not paths or not all(isinstance(x, str) and x.strip() for x in paths):
+        raise ProtectedConfigError(f"{where} ({name}): `paths` must be a non-empty list of glob strings")
+    mode = entry.get("mode", "ask")
+    if mode not in POLICY_MODES:
+        raise ProtectedConfigError(f"{where} ({name}): mode {mode!r} is not one of ask, deny, human_approval")
+    reason = entry.get("denial_reason")
+    if reason is not None and not isinstance(reason, str):
+        raise ProtectedConfigError(f"{where} ({name}): `denial_reason` must be a string")
+    mod: dict[str, Any] = {"name": name, "paths": list(paths), "mode": POLICY_MODES[mode]}
+    if reason:
+        mod["denial_reason"] = reason.strip()
+    return mod
+
+
+def parse_protected_config(data: Any) -> tuple[list[dict[str, Any]], set[str]]:
+    """Validate a parsed protected.yml. Returns (custom modules, exempt patterns).
+
+    Two shapes are accepted and may be combined: the documented `policies:` list (`id`, `paths`,
+    `mode`, `denial_reason`) and the older `protected_modules:` list (`name`, `paths`). Unknown keys
+    raise ProtectedConfigError: a typo such as `path:` or `deny_reason:` must not silently leave a
+    module unprotected.
+    """
+    if data is None:
+        return [], set()
+    if not isinstance(data, dict):
+        raise ProtectedConfigError("protected.yml must be a mapping at the top level")
+    unknown = set(data) - TOP_LEVEL_KEYS
+    if unknown:
+        raise ProtectedConfigError(
+            f"unknown top-level key(s) {', '.join(sorted(map(str, unknown)))} (allowed: {', '.join(sorted(TOP_LEVEL_KEYS))})"
+        )
+    modules: list[dict[str, Any]] = []
+    for key, id_key in (("policies", "id"), ("protected_modules", "name")):
+        entries = data.get(key) or []
+        if not isinstance(entries, list):
+            raise ProtectedConfigError(f"`{key}` must be a list")
+        modules += [_parse_module(e, f"{key}[{i}]", id_key) for i, e in enumerate(entries)]
+    exempt = data.get("exempt_patterns") or []
+    if not isinstance(exempt, list) or not all(isinstance(x, str) for x in exempt):
+        raise ProtectedConfigError("`exempt_patterns` must be a list of strings")
+    return modules, set(exempt)
+
+
+def protected_config_error(repo_root: str | Path) -> str | None:
+    """Why `.chronos/protected.yml` was refused, or None if it is absent or valid (for `chronos doctor`)."""
+    cfg_file = Path(repo_root).resolve() / ".chronos" / "protected.yml"
+    if not cfg_file.is_file():
+        return None
+    try:
+        import yaml
+
+        parse_protected_config(yaml.safe_load(cfg_file.read_text(encoding="utf-8")))
+    except ProtectedConfigError as exc:
+        return f"{cfg_file}: {exc}"
+    except Exception as exc:  # noqa: BLE001 - YAML syntax errors, unreadable file
+        return f"{cfg_file}: could not be read ({type(exc).__name__}: {exc})"
+    return None
+
+
 def load_protected_modules(repo_root: str | Path) -> list[dict[str, Any]]:
     """Load protected modules from .chronos/protected.yml or fallback to default safety patterns."""
     cfg_file = Path(repo_root).resolve() / ".chronos" / "protected.yml"
@@ -180,19 +261,22 @@ def load_protected_modules(repo_root: str | Path) -> list[dict[str, Any]]:
     try:
         import yaml  # only when the repo has a protected.yml (saves ~20 ms per hook call)
 
-        data = yaml.safe_load(cfg_file.read_text(encoding="utf-8")) or {}
-        custom_modules = data.get("protected_modules", [])
-        exempt_patterns = set(data.get("exempt_patterns", []))
+        custom_modules, exempt_patterns = parse_protected_config(yaml.safe_load(cfg_file.read_text(encoding="utf-8")))
+    except Exception as exc:  # noqa: BLE001
+        # Refuse to load a bad config, and fail closed: every edit needs approval until it is fixed.
+        return [{
+            "name": "invalid_protected_config",
+            "paths": ["**"],
+            "error": str(exc),
+            "denial_reason": f".chronos/protected.yml is invalid ({exc}); every edit needs approval until it is fixed. Run `chronos doctor`",
+        }]
+    # Merge custom with defaults (unless explicitly exempted)
+    active_defaults = [
+        m for m in default_modules
+        if not any(fnmatch.fnmatch(p, ex) for p in m["paths"] for ex in exempt_patterns)
+    ]
+    return custom_modules + active_defaults
 
-        # Merge custom with defaults (unless explicitly exempted)
-        active_defaults = [
-            m for m in default_modules
-            if not any(fnmatch.fnmatch(p, ex) for p in m["paths"] for ex in exempt_patterns)
-        ]
-        return custom_modules + active_defaults
-    except Exception:
-        # Fail closed: if config file exists but is corrupted, protect everything
-        return [{"name": "corrupted_config_safeguard", "paths": ["**"]}]
 
 def check_gate_approval(
     path_str: str,
@@ -219,9 +303,9 @@ def check_gate_approval(
         mod, pat = match
         if is_gate_approved(con, agent_id, norm):
             return True, f"Approved under active gate grant for '{norm}'"
-        return (
-            False,
-            f"Path '{norm}' requires human gate approval under protected policy '{mod.get('name', pat)}'",
-        )
+        msg = f"Path '{norm}' requires human gate approval under protected policy '{mod.get('name', pat)}'"
+        if mod.get("denial_reason"):
+            msg += f": {mod['denial_reason']}"
+        return False, msg
 
     return True, "Approved"

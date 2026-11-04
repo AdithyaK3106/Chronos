@@ -339,6 +339,15 @@ def main():
                 print(f"SQLite WAL DB   : FAILED ({e})")
                 status_ok = False
 
+        from chronos.security.gates import protected_config_error
+        prot_err = protected_config_error(repo_root)
+        if (chronos_dir / "protected.yml").is_file():
+            if prot_err:
+                print(f"protected.yml   : INVALID, refused ({prot_err}). Until fixed, every edit needs approval.")
+                status_ok = False
+            else:
+                print("protected.yml   : OK")
+
         try:
             import tree_sitter
             print("Tree-Sitter     : OK")

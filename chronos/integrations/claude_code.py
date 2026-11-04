@@ -274,10 +274,22 @@ def _firewall_decision(
         return _deny(msg) if mode == "deny" else _ask(msg + " Approve only if you trust this action.")
     if category == "gate":
         hint = f" To allow it permanently: chronos gate grant '{Path(path).name}' --agent {_agent_id(payload)}"
-        if _policy(root).protected_modules == "ask":
+        if _policy(root).protected_modules == "ask" and _gate_mode(root, path) == "ask":
             return _ask(f"{reason}. Approve this edit only if you intended to change a protected module.{hint}")
         return _deny(reason + "." + hint)
     return _deny(reason)
+
+
+def _gate_mode(root: Path, path: str) -> str:
+    """The protected.yml `mode` of the policy covering `path` (ask unless the policy says deny).
+    The stricter of this and the preset's `protected_modules` wins."""
+    from chronos.security.gates import find_protected_module
+
+    try:
+        match = find_protected_module(path, root)
+    except Exception:  # noqa: BLE001
+        return "ask"
+    return (match[0].get("mode") or "ask") if match else "ask"
 
 
 # ----------------------------------------------------------------------------- Bash

@@ -354,6 +354,16 @@ policies:
     denial_reason: "Security-critical module requires human gate approval."
 ```
 
+Each policy takes `id`, `paths` (globs), `mode` and an optional `denial_reason`, which is shown to the
+agent and to you in the approval prompt. `mode: ask` (or `human_approval`, the same thing) pauses the
+edit for approval; `mode: deny` refuses it unless granted with `chronos gate grant`. The stricter of
+the policy's mode and the preset's `protected_modules` wins, so the `strict` preset denies every
+protected edit. The older `protected_modules:` list (`name`, `paths`) and `exempt_patterns:` still work.
+
+Unknown keys are refused, not ignored: a typo such as `path:` or `deny_reason:` would otherwise leave
+a module unprotected. While the file is invalid every edit needs approval, and `chronos doctor`
+prints what is wrong.
+
 ### Verifying the Cryptographic Audit Trail
 Ensure that all tool executions and blocked attempts are tamper-evident:
 ```bash

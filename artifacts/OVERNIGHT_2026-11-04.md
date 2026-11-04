@@ -81,7 +81,7 @@ This file is the single source of truth for the overnight loop. Work through it 
 - [x] 14. **Hook payload fixtures.** Save real-shaped PreToolUse/PostToolUse/UserPromptSubmit payloads for Bash, Edit, Write, Read, WebFetch and an MCP call under `tests/fixtures/claude_hooks/`. Add one test that runs every fixture through `run_hook` and checks the decision. Commit.
 
 ## C. README and wrap-up
-- [ ] 15. **README rewrite.** Make it look and read like the strong open-source AI-agent repositories (for structure, look at README patterns from projects such as aider, OpenHands, continue, cline and mem0: centred title, one-line pitch, badges, short demo, scannable sections). Keep every claim true and backed by an artifact.
+- [x] 15. **README rewrite.** Make it look and read like the strong open-source AI-agent repositories (for structure, look at README patterns from projects such as aider, OpenHands, continue, cline and mem0: centred title, one-line pitch, badges, short demo, scannable sections). Keep every claim true and backed by an artifact.
   - Header: centred name and a one-line pitch ("Guardrails, context and audit for AI coding agents"). Badges: CI, license (MIT), Python version, Claude Code compatible. Links: Docs (GUIDE.md), Benchmarks, Roadmap.
   - "Why Chronos": 3–4 bullets on the problem (agents delete data, leak secrets, waste tokens; teams can't see or control it).
   - Demo: a short terminal transcript of a blocked force-push and a blocked `.env` read, taken from real hook output. Leave a placeholder comment for a GIF.
@@ -116,3 +116,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - prep for item 18: e068c83 — fixed the red resolver test (bisected to 7e045ef: new code outranked graph.py); prefix fallback for unmatched identifiers; own-repo no-paths top-1 15->16, nothing worse.
 - item 1: done in 4150f41 — passed mem 1/10, forced 2/10, nomem 1/10 (no clear effect; 4/30 overall). Median tokens 159k/94k/161k, tool calls 6.5/8/8. Auto-capture: rule captured in 7/9 nomem runs; recall injected memory in only 4/10 mem runs. 20 first-pass MODEL_API_ERRORs (agy 180 s timeout) re-run with CHRONOS_AGY_TIMEOUT=420; 7 runs TIMEOUT.
 - item 3: done in ad6206a — neither mem nor forced clearly beat nomem, so injection is off by default (memory.inject / CHRONOS_MEMORY_INJECT); recording and recall tools unchanged; benchmarks keep it on; 5 tests, full suite 732 passed.
+- item 15: done in 875b10e — README 346 -> 205 lines; every number linked to an artifact (new: hook latency 88-143 ms median, measured); unbacked claims removed; reference sections moved to GUIDE.md. OPEN: GUIDE still says `uv tool install chronos-agent` (not on PyPI); private vulnerability reporting may need enabling on GitHub.

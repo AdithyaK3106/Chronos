@@ -95,7 +95,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - Contributing, Security (how to report), License.
   - Move long reference material into GUIDE.md rather than deleting it. Keep README under ~250 lines. Commit.
 - [x] 16. **Update the plan files.** Tick finished items in `artifacts/chronos-build-procedure.md` and `artifacts/HARDENING_PLAN.md`. These two were untracked; commit them now. Commit.
-- [ ] 17. **Morning report.** Write `artifacts/MORNING_REPORT_2026-11-05.md`: what changed (with commit hashes), all numbers, what failed, open decisions for the user. Publish it as an Artifact page (load the artifact-design skill first; keep it short and plain), and put its link at the top of the report file. Commit.
+- [x] 17. **Morning report.** Write `artifacts/MORNING_REPORT_2026-11-05.md`: what changed (with commit hashes), all numbers, what failed, open decisions for the user. Publish it as an Artifact page (load the artifact-design skill first; keep it short and plain), and put its link at the top of the report file. Commit.
 - [ ] 18. **Push.** Run the full test suite (`.venv/bin/python -m pytest -q`; it must pass), then `git push origin tanish`. Never push master. Log the result.
 
 ## Log
@@ -117,3 +117,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 1: done in 4150f41 — passed mem 1/10, forced 2/10, nomem 1/10 (no clear effect; 4/30 overall). Median tokens 159k/94k/161k, tool calls 6.5/8/8. Auto-capture: rule captured in 7/9 nomem runs; recall injected memory in only 4/10 mem runs. 20 first-pass MODEL_API_ERRORs (agy 180 s timeout) re-run with CHRONOS_AGY_TIMEOUT=420; 7 runs TIMEOUT.
 - item 3: done in ad6206a — neither mem nor forced clearly beat nomem, so injection is off by default (memory.inject / CHRONOS_MEMORY_INJECT); recording and recall tools unchanged; benchmarks keep it on; 5 tests, full suite 732 passed.
 - item 15: done in 875b10e — README 346 -> 205 lines; every number linked to an artifact (new: hook latency 88-143 ms median, measured); unbacked claims removed; reference sections moved to GUIDE.md. OPEN: GUIDE still says `uv tool install chronos-agent` (not on PyPI); private vulnerability reporting may need enabling on GitHub.
+- item 17: done in a140f5e — artifacts/MORNING_REPORT_2026-11-05.md + Artifact page https://claude.ai/artifact/V5b1ub1hsg5nCpGx2E2adR (private).

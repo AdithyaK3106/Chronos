@@ -66,7 +66,7 @@ This file is the single source of truth for the overnight loop. Work through it 
 ## B. Implementation-plan items (`artifacts/chronos-build-procedure.md`, steps 0–2)
 - [x] 6. **Install URL.** Already edited in the tree. Check with `grep -rn chronos-agent/chronos README.md GUIDE.md install.sh` (expect nothing), then commit.
 - [x] 7. **install.sh MCP merge.** Already written. Run `tests/test_mcp_config.py` and fix anything that fails. Run `bash -n install.sh`, then commit.
-- [ ] 8. **`policies:` format.**
+- [x] 8. **`policies:` format.**
   - In `chronos/security/gates.py`, support the documented `.chronos/protected.yml` `policies:` format: per-policy `mode` (`ask` / `deny`) and `denial_reason`, shown in the hook's reason. See GUIDE.md/README for the documented shape.
   - Reject unknown keys loudly: refuse to load, and print an error from `chronos doctor`.
   - Add tests and commit.
@@ -103,3 +103,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 4: done in dda9d6a — PostToolUse warns (additionalContext + `planted_instruction` audit event) on Bash/Read/WebFetch/MCP output aimed at AI agents; 0 false positives on 459 real docs. Also b2cd688: fixed a test left red by 7c4e817 (manifest paths).
 - item 6: done in 97b3198 — README/GUIDE/install.sh use AdithyaK3106/Chronos/master; old URL gone; raw install.sh returns 200. (Note: memory A/B and embed eval had died at 23:45 with the previous session; restarted detached at 23:53, both resume from cache.)
 - item 7: done in 3ff5f5d — install.sh merges (never overwrites) Cursor/Claude Desktop MCP configs; 11 tests incl. real step 6 on fake HOME; fixed `python -m` exit code on invalid JSON.
+- item 8: done in 3665cae — documented `policies:` format was silently ignored before; now loaded (mode ask/deny/human_approval, denial_reason in reason, stricter of policy/preset wins); unknown keys refused (fail closed) and shown by `chronos doctor`.

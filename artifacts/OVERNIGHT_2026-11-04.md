@@ -53,7 +53,7 @@ This file is the single source of truth for the overnight loop. Work through it 
     - RRF-fused with BM25 in `resolver.py`;
     - no numpy dependency: pure-Python dot products are fine at ~20k vectors, or use `array`.
   - Add tests and commit. If it doesn't win, record that and skip implementation.
-- [ ] 3. **Memory follow-up**, depending on item 1:
+- [x] 3. **Memory follow-up**, depending on item 1:
   - If `forced` or `mem` clearly beats `nomem`: add automatic capture for Claude Code (a Stop/SessionEnd hook that distils files touched plus stated lessons from the transcript at `transcript_path`, redacting secrets).
   - If not: switch memory injection off by default (config flag, default false; implementation-plan item).
   - Either way, add tests and commit.
@@ -115,3 +115,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 2: done in 530a104 — held-out: issue-loc-embed 17/30 top-3 vs BM25 5/30 (results 4bb0b30); implemented off by default. OPEN DECISION: plan said RRF fusion, but RRF scored lower (13/30, 11/20) than embeddings alone, so default mode is `embeddings` and `rrf` is an option. Also found: tests/test_zero_path_resolver.py::test_eval_ground_truth_suite already failing at b3819bc (MRR 0.67 < 0.70); to fix before push.
 - prep for item 18: e068c83 — fixed the red resolver test (bisected to 7e045ef: new code outranked graph.py); prefix fallback for unmatched identifiers; own-repo no-paths top-1 15->16, nothing worse.
 - item 1: done in 4150f41 — passed mem 1/10, forced 2/10, nomem 1/10 (no clear effect; 4/30 overall). Median tokens 159k/94k/161k, tool calls 6.5/8/8. Auto-capture: rule captured in 7/9 nomem runs; recall injected memory in only 4/10 mem runs. 20 first-pass MODEL_API_ERRORs (agy 180 s timeout) re-run with CHRONOS_AGY_TIMEOUT=420; 7 runs TIMEOUT.
+- item 3: done in ad6206a — neither mem nor forced clearly beat nomem, so injection is off by default (memory.inject / CHRONOS_MEMORY_INJECT); recording and recall tools unchanged; benchmarks keep it on; 5 tests, full suite 732 passed.

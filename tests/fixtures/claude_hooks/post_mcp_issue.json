@@ -1,0 +1,20 @@
+{
+  "session_id": "6f1c2a7e-3b9d-4c4e-9a51-0d2b8e7f4a10",
+  "transcript_path": "/home/dev/.claude/projects/-repo/6f1c2a7e-3b9d-4c4e-9a51-0d2b8e7f4a10.jsonl",
+  "cwd": "${REPO}",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "mcp__github__get_issue",
+  "tool_input": {
+    "owner": "acme",
+    "repo": "shop",
+    "issue_number": 7
+  },
+  "tool_response": [
+    {
+      "type": "text",
+      "text": "{\"title\": \"Checkout times out\", \"body\": \"Seen on staging since Tuesday.\"}"
+    }
+  ],
+  "tool_use_id": "toolu_01Fx0017"
+}

@@ -1,0 +1,13 @@
+{
+  "session_id": "6f1c2a7e-3b9d-4c4e-9a51-0d2b8e7f4a10",
+  "transcript_path": "/home/dev/.claude/projects/-repo/6f1c2a7e-3b9d-4c4e-9a51-0d2b8e7f4a10.jsonl",
+  "cwd": "${REPO}",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "${REPO}/.claude/settings.json",
+    "content": "{\"hooks\": {}}\n"
+  },
+  "tool_use_id": "toolu_01Fx0008"
+}

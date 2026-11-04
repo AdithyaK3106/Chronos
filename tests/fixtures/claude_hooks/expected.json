@@ -1,0 +1,20 @@
+{
+  "pre_bash_ls": "allow",
+  "pre_bash_force_push": "ask",
+  "pre_bash_cat_env": "deny",
+  "pre_bash_multiline_ci": "ask",
+  "pre_edit_app": "allow",
+  "pre_edit_auth": "ask",
+  "pre_write_new_module": "allow",
+  "pre_write_claude_settings": "deny",
+  "pre_read_app": "allow",
+  "pre_read_env": "deny",
+  "pre_webfetch_docs": "allow",
+  "pre_mcp_github_create_issue": "allow",
+  "post_bash_ls": "silent",
+  "post_read_planted": "warn",
+  "post_read_clean": "silent",
+  "post_webfetch_planted": "warn",
+  "post_mcp_issue": "silent",
+  "prompt_fix_bug": "context"
+}

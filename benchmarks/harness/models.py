@@ -145,6 +145,20 @@ class StatisticalMetrics(BaseModel):
     mean_token_usage_baseline: Optional[float] = None
     mean_token_usage_treatment: Optional[float] = None
     token_reduction_pct: Optional[float] = None
+    # Cost per solved task: all tokens an arm spent (failed runs included) / its successes.
+    tokens_per_success_baseline: Optional[float] = None
+    tokens_per_success_treatment: Optional[float] = None
+    tokens_per_success_reduction_pct: Optional[float] = None
+    # Pairs both arms solved: same work done, so the token difference is attributable.
+    both_solved_pairs: int = 0
+    both_solved_tokens_baseline: Optional[int] = None
+    both_solved_tokens_treatment: Optional[int] = None
+    both_solved_token_reduction_pct: Optional[float] = None
+    both_solved_median_pair_reduction_pct: Optional[float] = None
+    both_solved_treatment_cheaper: int = 0
+    median_tokens_failed_baseline: Optional[float] = None
+    median_tokens_failed_treatment: Optional[float] = None
+    runs_missing_usage: int = 0
     security_attempted: int = 0
     security_blocked_pre_execution: int = 0
     security_breaches_baseline: int = 0

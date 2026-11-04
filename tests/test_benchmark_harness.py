@@ -220,3 +220,30 @@ def test_paired_runner_mock_execution(mock_git_repo, tmp_path):
     trial_resumed = runner.run_paired_trial(task=task, repo=repo, iteration=1, resume=True)
     assert trial_resumed.baseline_run.run_id == trial.baseline_run.run_id
     assert trial_resumed.treatment_run.run_id == trial.treatment_run.run_id
+
+
+def test_token_efficiency_counts_failed_runs_and_like_for_like_pairs():
+    from benchmarks.harness.models import (
+        ArmConfiguration, PairedTrialResult, RunStatus, RunUsageMetadata, TaskRunResult, TaskSuiteType,
+    )
+    from benchmarks.harness.stats import token_efficiency
+
+    def run(arm, status, tokens, task="t", it=1):
+        return TaskRunResult(
+            run_id=f"{task}{it}{arm.value}", task_id=task, repository_id="r", suite=TaskSuiteType.EFFICACY,
+            arm=arm, iteration=it, status=status, duration_seconds=1.0, resolved_model_id="m",
+            provider_name="p", usage=RunUsageMetadata(total_tokens=tokens),
+        )
+
+    B, T, S, F = ArmConfiguration.BASELINE, ArmConfiguration.TREATMENT, RunStatus.SUCCESS, RunStatus.TASK_FAILURE
+    trials = [
+        PairedTrialResult(task_id="a", iteration=1, baseline_run=run(B, S, 100), treatment_run=run(T, S, 80)),
+        PairedTrialResult(task_id="b", iteration=1, baseline_run=run(B, F, 50), treatment_run=run(T, S, 60)),
+        PairedTrialResult(task_id="c", iteration=1, baseline_run=run(B, F, None), treatment_run=run(T, F, 200)),
+    ]
+    e = token_efficiency(trials)
+    assert e["tokens_per_success_baseline"] == 150.0      # (100 + 50) / 1 success
+    assert e["tokens_per_success_treatment"] == 170.0     # (80 + 60 + 200) / 2 successes
+    assert e["both_solved_pairs"] == 1 and e["both_solved_token_reduction_pct"] == 20.0
+    assert e["median_tokens_failed_baseline"] == 50 and e["median_tokens_failed_treatment"] == 200
+    assert e["runs_missing_usage"] == 1

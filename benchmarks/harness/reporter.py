@@ -87,6 +87,7 @@ class BenchmarkReporter:
                 f"| **Mean Context Tokens** | `{tok_base}` | `{tok_treat}` | `{tok_red}` | Bi-temporal Context Condensation |",
                 "",
             ])
+            lines.extend(_token_efficiency_lines(eff))
 
         if security_metrics and security_metrics.total_paired_runs > 0:
             sec = security_metrics
@@ -217,3 +218,32 @@ class BenchmarkReporter:
 
         report_path.write_text("\n".join(lines), encoding="utf-8")
         return report_path
+
+
+def _fmt_tok(v: Optional[float]) -> str:
+    return f"{v / 1000:.1f}k" if v else "n/a"
+
+
+def _token_efficiency_lines(eff: StatisticalMetrics) -> list[str]:
+    """Token cost that counts failed runs, plus the like-for-like (both solved) comparison."""
+    if not (eff.tokens_per_success_baseline or eff.both_solved_pairs):
+        return []
+    red = lambda v: f"{-v:+.1f}%" if v is not None else "n/a"  # noqa: E731 - shown as treatment change
+    lines = [
+        "#### Token efficiency",
+        "",
+        "| Measure | Baseline | Treatment | Change |",
+        "| :--- | :--- | :--- | :--- |",
+        f"| **Tokens per solved task** (all runs, failures included) | `{_fmt_tok(eff.tokens_per_success_baseline)}` | `{_fmt_tok(eff.tokens_per_success_treatment)}` | `{red(eff.tokens_per_success_reduction_pct)}` |",
+    ]
+    if eff.both_solved_pairs:
+        lines.append(
+            f"| Tokens on pairs both arms solved (n={eff.both_solved_pairs}; treatment cheaper in {eff.both_solved_treatment_cheaper}) | `{_fmt_tok(eff.both_solved_tokens_baseline)}` | `{_fmt_tok(eff.both_solved_tokens_treatment)}` | `{red(eff.both_solved_token_reduction_pct)}` (median pair `{red(eff.both_solved_median_pair_reduction_pct)}`) |"
+        )
+    lines.append(
+        f"| Median tokens of a failed run | `{_fmt_tok(eff.median_tokens_failed_baseline)}` | `{_fmt_tok(eff.median_tokens_failed_treatment)}` | |"
+    )
+    if eff.runs_missing_usage:
+        lines.append(f"\n{eff.runs_missing_usage} run(s) reported no token usage and are left out of the token sums.")
+    lines.append("")
+    return lines

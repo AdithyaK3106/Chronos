@@ -454,3 +454,259 @@ Simply remove the binary link and repository:
 rm -f ~/.local/bin/chronos
 rm -rf ~/.chronos
 ```
+
+---
+
+## 📚 Reference (moved from the README on 2026-11-05)
+
+These sections used to be in the README. They are kept here unchanged apart from heading levels.
+Some figures in them are older than the README's current numbers; the README and
+`artifacts/MORNING_REPORT_2026-11-05.md` are the current source.
+
+### 🏗 Architecture
+
+```mermaid
+flowchart TD
+    UserPrompt["Natural Language Task (Zero Paths Specified)
+    'Fix the infinite loop when traversing graph nodes'"] --> Ingestion
+
+    subgraph IntelligenceLayer["1. Intelligence & Resolution Layer (< 15ms)"]
+        Ingestion["Deterministic Feature Harvester (chronos/context/resolver.py)
+        • Symbols, dotted identifiers, exceptions, keywords, stop-words"]
+        
+        Ingestion --> FTS5["SQLite FTS5 Lexical Search (code_nodes_fts)
+        BM25 ranking across name, path, signature, docstring"]
+        
+        FTS5 --> Scorer["Candidate Scorer & Provenance Engine
+        Exact Symbol (+25) > Path Stem (+15) > BM25 (+10) > Docstring (+5)"]
+        
+        Scorer --> SLM["Optional: CodeScout-1.7B SLM Localization
+        Anti-hallucination gate & ambiguity rejection"]
+        
+        SLM --> TestDiscovery["Co-Located Unit Test Discovery
+        tests/**/test_*.py matching candidate stems"]
+        
+        TestDiscovery --> Memory["Epistemic Living Memory Recall
+        Recalls learned gotchas & procedural invariants"]
+        
+        Memory --> Budgeter["Bi-Temporal Context Budgeter (budgeter.py)
+        Depth-1 caller pruning & 'Reference Only' guardrails"]
+    end
+
+    subgraph GovernanceLayer["2. Governance & Concurrency Layer"]
+        Budgeter --> Leaser["AST Write Lease Coordinator (ledger.py)
+        Sub-file function/class atomic leases with TTL"]
+        
+        Leaser --> Firewall["Pre-Execution Policy Firewall (gates.py & permissions.py)
+        DEFAULT_PROTECTED_PATTERNS + .chronos/protected.yml"]
+        
+        Firewall --> AuditLedger["Tamper-Evident SHA-256 Cryptographic Audit Trail"]
+    end
+
+    subgraph UniversalSurfaces["3. Universal Integration Surfaces"]
+        AuditLedger --> Surface1["FastMCP 3.x Daemon (chronos serve)
+        Cursor, Claude Code, Windsurf, agy, Cline, Roo Code"]
+        AuditLedger --> Surface2["Autonomous CLI Runner (chronos run)
+        OpenHands SDK + Any Model (OpenAI, Anthropic, Ollama, DeepSeek)"]
+        AuditLedger --> Surface3["Pure Python SDK (import chronos)
+        LangGraph, AutoGen, CrewAI, custom agent pipelines"]
+    end
+```
+
+
+### 📊 Benchmark Results (Paired 24-Task Evaluation, 4 Nov 2026)
+
+A paired run of the 24-task suite: OpenHands **without** Chronos (baseline) and **with** Chronos
+(treatment), 3 iterations each, over 4 repositories (`chronos`, `cng`, `cooling_project`,
+`mediassist`), with Gemini Flash (low reasoning) for both arms. Success means the task's
+**hidden acceptance tests** pass. They are copied in only after the agent finishes, and are
+checked to fail on the untouched code and pass with a reference fix
+(`python -m benchmarks.verify_acceptance`). Full analysis:
+[`artifacts/BENCHMARK_REPORT_2026-11-04.md`](artifacts/BENCHMARK_REPORT_2026-11-04.md).
+
+| Efficacy (20 tasks x 3) | Baseline | With Chronos | |
+| :--- | :--- | :--- | :--- |
+| Task success | 22/60 (36.7%) | 25/60 (41.7%) | +5 pts, **not significant** (McNemar p = 0.51) |
+| Tokens, tasks both arms solved (19 pairs) | 1.28M | 1.09M | **-15%**, fewer in 18 of 19 pairs |
+| Median duration, all runs | 82.4 s | 88.0 s | |
+
+| Security (4 adversarial tasks x 3) | Baseline | With Chronos |
+| :--- | :--- | :--- |
+| Protected file modified | 1 | **0** |
+| Attempted protected edits denied | n/a | **9 of 9** |
+
+**Caveats.** One low-tier model with 120-240 s timeouts, and a small sample. With Chronos,
+later iterations can recall memories from earlier attempts at the same task, so iterations are
+not independent. Earlier figures in this README (90% vs 90% success, -32.9% median duration,
+-59.6% tokens) came from a single iteration, judged only by each task's verification commands,
+and were **not reproduced** by this run.
+
+
+### 💻 How to Use Chronos
+
+Chronos is completely **agent-agnostic** and provides four integration options:
+
+#### Option A: IDE & External Agent Integration via FastMCP (`chronos serve`)
+
+Expose Chronos tools to **Cursor, Claude Code, Windsurf, Cline, Roo Code, or LibreChat**:
+
+##### 1. Start the FastMCP Daemon
+```bash
+chronos serve
+```
+
+##### 2. Configure Your IDE / Agent Settings
+Add to your `mcp_config.json` (or Cursor `~/.cursor/mcp.json` / Claude Desktop config):
+
+```json
+{
+  "mcpServers": {
+    "chronos": {
+      "command": "chronos",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+##### Discovered MCP Tools:
+| Tool Name | Parameters | Purpose |
+| :--- | :--- | :--- |
+| `chronos_resolve_zero_path_context` | `prompt`, `token_budget` | Discovers files, symbols, tests & formats Turn 1 context envelope (< 15ms). |
+| `chronos_remember` | `content`, `tier`, `namespace`, `tags` | Stores an epistemic memory record (advisory only). |
+| `chronos_recall` | `query`, `namespace`, `limit` | Searches and ranks past postmortems, gotchas, and invariants. |
+| `chronos_get_procedures` | `namespace` | Retrieves active procedural rules and behavioral invariants. |
+| `chronos_memory_stats` | `namespace` | Aggregated statistics on stored epistemic memories. |
+| `as_of_impact` | `symbol_name`, `max_depth` | Transitive downstream blast radius analysis before refactoring. |
+| `as_of_callers` | `symbol_name` | Direct incoming callers across the repository graph. |
+| `as_of_callees` | `symbol_name` | Outgoing functions/classes invoked by a symbol. |
+| `as_of_diff` | `t1`, `t2` | Bi-temporal structural AST diff between two timestamps. |
+| `chronos_acquire_lock` | `node_id`, `agent_id`, `ttl` | Reserves atomic sub-file AST lease to prevent agent collisions. |
+| `chronos_release_lock` | `node_id`, `agent_id` | Releases held sub-file lock. |
+| `chronos_list_locks` | *(none)* | Lists all active non-expired AST leases. |
+
+
+#### Option B: Autonomous Problem Solving via CLI (`chronos run`)
+
+`chronos run` executes autonomous tasks using the OpenHands SDK under Chronos governance. It is **provider-agnostic** and works with any model:
+
+```bash
+# 1. Using OpenAI (GPT-4o)
+export OPENAI_API_KEY="sk-..."
+chronos run "Fix race condition in lock ledger" --model=gpt-4o
+
+# 2. Using Anthropic (Claude 3.7 Sonnet)
+export ANTHROPIC_API_KEY="sk-ant-..."
+chronos run "Refactor payment webhook processing" --model=claude-3-7-sonnet
+
+# 3. Using Free Local Models (Ollama / vLLM)
+chronos run "Add boundary checks to cylinder verification" \
+  --model=ollama/qwen2.5-coder \
+  --base-url=http://localhost:11434
+
+# 4. Using Local Antigravity CLI (Zero External API Keys)
+chronos run "Implement regex-based symbol pattern filtering" --model=gemini-3.8-flash-low
+```
+
+
+#### Option C: Epistemic Living Memory Management (`chronos memory`)
+
+Chronos provides CLI commands for managing persistent repository memory across 5 tiers (`core`, `learned`, `episodic`, `working`, `procedural`):
+
+```bash
+# 1. Remember a learned gotcha or invariant
+chronos memory remember "Cycle prevention in SQLiteGraphStore requires tracking visited paths in recursive CTE" --tier learned
+
+# 2. Add an explicit behavioral procedure / coding invariant
+chronos memory remember "Always run pytest before committing code changes" --tier procedural
+
+# 3. Recall past lessons for a task
+chronos memory recall "cycle prevention graph traversal"
+
+# 4. List stored memories
+chronos memory list --tier learned
+
+# 5. Inspect memory statistics
+chronos memory stats
+```
+
+
+#### Option D: Python SDK Integration (LangGraph, AutoGen, CrewAI)
+
+Integrate Chronos directly into custom agent workflows:
+
+```python
+import chronos
+
+# 1. Connect to repository graph & database
+con = chronos.get_connection(".chronos/chronos.db")
+graph_store = chronos.SQLiteGraphStore(con)
+
+# 2. Zero-Path Context Resolution (< 15ms)
+resolver = chronos.DeterministicContextResolver(repo_root=".", graph_store=graph_store)
+resolution = resolver.resolve("Fix timeout in payment webhook processing")
+
+print("Files to edit   :", resolution.target_files)
+print("Symbols to check :", resolution.seed_symbols)
+print("Associated tests :", resolution.test_files)
+print("Context envelope :\n", resolution.provenance_summary)
+
+# 3. Sub-File AST Write Lease
+lock = chronos.acquire_lock(
+    con=con,
+    node_id="src/payment.py::process_webhook::Function",
+    agent_id="worker_01",
+    session_id="session_xyz",
+    intent="Updating webhook retry logic",
+    ttl=300,
+)
+
+# 4. Pre-Execution Policy Check
+allowed, reason = chronos.check_action_allowed(
+    con=con,
+    agent_id="worker_01",
+    tool_name="file_editor",
+    target_path="src/payment.py",
+    repo_root=".",
+)
+if not allowed:
+    raise PermissionError(f"Action blocked by Chronos: {reason}")
+```
+
+
+### 🧪 Testing & Verification
+
+Run the complete test suite (unit tests, integration tests, security vector tests, and SLM verification):
+
+```bash
+pytest tests/ -q
+```
+
+```text
+........................................................................ [ 71%]
+.............................                                            [100%]
+============================== 101 passed in 55.47s ==============================
+```
+
+
+### 📂 Repository Structure
+
+```
+chronos/
+├── chronos/
+│   ├── audit/             # Append-only SHA-256 cryptographic audit logger
+│   ├── cli/               # CLI commands: init, doctor, sync, run, serve, audit, config, memory, resolve
+│   ├── context/           # Polyglot AST indexer, SQLite FTS5 graph store, budgeter, resolver, SLM
+│   ├── coordination/      # Sub-file AST node locking ledger & conflict detection
+│   ├── core/              # SQLite WAL schema, database connection, config models (SLMConfig)
+│   ├── memory/            # Epistemic living memory engine (agentmem integration, distillation hooks)
+│   ├── security/          # Fail-closed gates, human approvals, permission manifests
+│   ├── server/            # FastMCP 3.x server for IDE / external agent integration
+│   └── telemetry/         # Token accounting, latency metrics, session telemetry
+├── runtime/               # OpenHands adapter, tool wrappers, hooks, context condenser
+├── benchmarks/            # 24-task paired benchmark harness, runs, diffs, and reports
+├── tests/                 # 101 unit & integration tests covering security, context, memory, SLM, MCP
+├── install.sh             # Universal 1-line installer for Linux & macOS
+├── GUIDE.md               # 2-minute quickstart guide and recipes
+└── pyproject.toml         # Packaging configuration & CLI entry points
+```

@@ -1,0 +1,971 @@
+{
+  "summary": {
+    "as written": {
+      "tasks": 20,
+      "injected": 20,
+      "file_hit@1": 19,
+      "file_hit@3": 20,
+      "file_hit@5": 20,
+      "all_gold_files@5": 19,
+      "gold_file_in_envelope": 20,
+      "symbol_hit@3": 18,
+      "gold_symbol_in_envelope": 19,
+      "median_file_rank": 1.0,
+      "median_ms": 17.5
+    },
+    "no paths": {
+      "tasks": 20,
+      "injected": 19,
+      "file_hit@1": 16,
+      "file_hit@3": 17,
+      "file_hit@5": 17,
+      "all_gold_files@5": 15,
+      "gold_file_in_envelope": 17,
+      "symbol_hit@3": 14,
+      "gold_symbol_in_envelope": 16,
+      "median_file_rank": 1,
+      "median_ms": 10.3
+    }
+  },
+  "tasks": [
+    {
+      "task_id": "chronos_task_01",
+      "gold_files": [
+        "chronos/context/graph.py"
+      ],
+      "gold_symbols": [
+        "SQLiteGraphStore.as_of_impact"
+      ],
+      "no_paths_prompt": "Fix as_of_impact() for recursive code. Edges store the callee as a bare name (ASTEdge dst='is_odd'), as as_of_callers() expects, but the recursive traversal joins on node ids, so it finds no transitive callers; and once it does, mutually recursive functions (is_even <-> is_odd) and self-recursive ones make the traversal cycle until max_depth, reporting the queried function as its own caller and the same callers again at every depth. Return each transitive caller once, at its shortest depth (<= max_depth), never the queried symbol itself, as dicts with id, name, path, kind and depth.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (125)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (125)",
+            "chronos/context/graph.py::GraphStore.as_of_impact (105)"
+          ],
+          "ms": 14.8
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 2,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/server/mcp_server.py::as_of_impact (75)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (75)",
+            "chronos/context/kuzu_backend.py::KuzuGraphStore.as_of_impact (75)"
+          ],
+          "ms": 10.6
+        }
+      ]
+    },
+    {
+      "task_id": "chronos_task_02",
+      "gold_files": [
+        "chronos/coordination/ledger.py"
+      ],
+      "gold_symbols": [
+        "release_lock"
+      ],
+      "no_paths_prompt": "Fix the release-vs-heartbeat race: heartbeats renew leases through acquire_lock(), so a heartbeat that arrives just after release_lock() silently re-creates the released lock. Add renew_lock(con, node_id, agent_id, session_id, ttl=DEFAULT_TTL) -> dict for heartbeats: in one BEGIN IMMEDIATE transaction it extends expires_at only if the lock still exists, is unexpired and is held by the same agent_id and session_id, returning {'renewed': True, 'expires_at':...}; otherwise it changes nothing and returns {'renewed': False, 'reason': 'not_held'}. Record a 'renew' provenance event only on success. Also make release_lock() refuse (reason 'not_owner') a lock held by a different session of the same agent.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/coordination/ledger.py::acquire_lock (125)",
+            "chronos/coordination/ledger.py::release_lock (125)",
+            "tests/security/test_security_vectors.py::acquire_lock (75)"
+          ],
+          "ms": 16.5
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 3,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/coordination/ledger.py::acquire_lock (75)",
+            "tests/security/test_security_vectors.py::acquire_lock (75)",
+            "chronos/coordination/ledger.py::release_lock (75)"
+          ],
+          "ms": 9.7
+        }
+      ]
+    },
+    {
+      "task_id": "chronos_task_03",
+      "gold_files": [
+        "chronos/context/graph.py"
+      ],
+      "gold_symbols": [
+        "SQLiteGraphStore"
+      ],
+      "no_paths_prompt": "Add regex-based symbol search: SQLiteGraphStore.query_symbols(pattern: str | None = None, kind: str | None = None, limit: int = 100) -> list[dict] returns indexed code nodes (id, name, path, kind) whose name matches the Python regular expression pattern (re.search), optionally only of the given kind, sorted by name and at most limit rows. pattern=None returns all symbols; an invalid regular expression raises ValueError.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/context/graph.py::SQLiteGraphStore (125)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (70)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (70)"
+          ],
+          "ms": 12.1
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 85.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/context/graph.py::SQLiteGraphStore (85)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (35)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (35)"
+          ],
+          "ms": 7.3
+        }
+      ]
+    },
+    {
+      "task_id": "chronos_task_04",
+      "gold_files": [
+        "chronos/verification/rule_store.py"
+      ],
+      "gold_symbols": [
+        "get_active_blocking_rules"
+      ],
+      "no_paths_prompt": "Add a JSON Schema export for active security rules: export_rules_json_schema(con, path=None) -> dict returns a JSON Schema (draft 2020-12, '$schema': 'https://json-schema.org/draft/2020-12/schema') document of type 'array' whose 'items' object schema has properties rule_id, language, rule_text, yaml_pattern, status, promoted_at and promoted_by and requires rule_id, language and status. Include the currently active (blocking) rules, with only those fields and sorted by rule_id, under 'examples'. When path is given, also write the document there as JSON.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 70.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 3,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/verification/rule_store.py::upsert_rule (70)",
+            "chronos/verification/rule_store.py::promote_rule (70)",
+            "chronos/verification/rule_store.py::get_active_blocking_rules (70)"
+          ],
+          "ms": 15.1
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 20.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 5,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/verification/rule_store.py::upsert_rule (20)",
+            "chronos/security/identity.py::authenticate_key (20)",
+            "chronos/context/kuzu_backend.py::KuzuGraphStore._ensure_schema (20)"
+          ],
+          "ms": 8.8
+        }
+      ]
+    },
+    {
+      "task_id": "chronos_task_05",
+      "gold_files": [
+        "chronos/cli/main.py",
+        "chronos/core/db.py",
+        "chronos/server/mcp_server.py"
+      ],
+      "gold_symbols": [
+        "main",
+        "get_connection",
+        "_get_con",
+        "as_of_callers",
+        "as_of_callees",
+        "as_of_impact",
+        "as_of_diff",
+        "chronos_acquire_lock",
+        "chronos_release_lock",
+        "chronos_check_conflicts",
+        "chronos_list_locks",
+        "chronos_assemble_context"
+      ],
+      "no_paths_prompt": "Add a reusable connection context manager: connection(db_path) yields a connection from get_connection(db_path) and always closes it, even when the body raises. Use it instead of the manual get_connection() / con.close() pairs (init, doctor, sync) and the try/finally blocks of the MCP tools, so no connection is closed by hand there any more. Behaviour must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 3,
+          "files_total": 3,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/cli/main.py::main (125)",
+            "chronos/server/mcp_server.py::main (125)",
+            "chronos/core/db.py::get_connection (125)"
+          ],
+          "ms": 11.0
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 90.0,
+          "file_rank": 1,
+          "files_found_top5": 2,
+          "files_total": 3,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "chronos/core/db.py::get_connection (90)",
+            "chronos/server/mcp_server.py::chronos_assemble_context (20)",
+            "runtime/hooks.py::evaluate_tool_security (20)"
+          ],
+          "ms": 10.3
+        }
+      ]
+    },
+    {
+      "task_id": "cng_task_01",
+      "gold_files": [
+        "backend/src/app/domain/registration_normalizer.py"
+      ],
+      "gold_symbols": [
+        "IndianRegistrationNormalizer._fix_ocr_confusions"
+      ],
+      "no_paths_prompt": "Fix the 1-digit vs 2-digit RTO code boundary. Delhi plates such as 'DL 1S AB 1234' have a single-digit RTO code followed by a category letter, but the OCR correction turns that letter into a digit, so the plate normalizes to DL15AB1234 instead of DL01SAB1234.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 90.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (90)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._fix_ocr_confusions (70)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer (70)"
+          ],
+          "ms": 21.3
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 36.4,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 5,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (36)",
+            "backend/src/app/api/routes/ocr.py::set_plate_detector (35)",
+            "backend/src/app/api/routes/ocr.py::get_plate_detector (35)"
+          ],
+          "ms": 10.7
+        }
+      ]
+    },
+    {
+      "task_id": "cng_task_02",
+      "gold_files": [
+        "backend/src/app/services/verification_service.py"
+      ],
+      "gold_symbols": [
+        "VerificationService.verify"
+      ],
+      "no_paths_prompt": "Fix timezone-naive datetime comparison causing premature cylinder expiry flag.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 65.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/services/verification_service.py::VerificationService.verify (65)",
+            "backend/src/app/services/verification_service.py::VerificationService (65)",
+            "backend/src/app/services/verification_service.py::VerificationService.__init__ (65)"
+          ],
+          "ms": 15.3
+        },
+        {
+          "variant": "no paths",
+          "injected": false,
+          "top_score": 10.4,
+          "file_rank": null,
+          "files_found_top5": 0,
+          "files_total": 1,
+          "gold_file_in_envelope": false,
+          "symbol_rank": null,
+          "gold_symbol_in_envelope": false,
+          "top_candidates": [
+            "backend/src/app/adapters/mock_compliance_provider.py::MockComplianceProvider._query_government_registry (10)",
+            "backend/alembic/versions/002_system_config.py::upgrade (10)",
+            "backend/tests/test_auth.py::create_test_token (10)"
+          ],
+          "ms": 9.6
+        }
+      ]
+    },
+    {
+      "task_id": "cng_task_03",
+      "gold_files": [
+        "backend/src/app/domain/registration_normalizer.py"
+      ],
+      "gold_symbols": [
+        "IndianRegistrationNormalizer.normalize",
+        "IndianRegistrationNormalizer"
+      ],
+      "no_paths_prompt": "Add validation support for Indian military and diplomatic plates. Military plates: an upward arrow (optional in OCR text), a 2-digit year, one class letter, a 6-digit serial and one check letter, e.g. '\u2191 15 B 123456 K' -> normalized_plate '15B123456K', formatted_plate '15 B 123456 K'. Diplomatic plates: a 1-3 digit mission code, then CD, CC or UN, then a 1-4 digit serial, e.g. '77 CD 12' -> '77CD12', formatted '77 CD 12'. Both are is_valid=True; near-misses (wrong digit counts, other letter pairs) stay invalid, and standard state plates and BH-series plates must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 95.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (95)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._fix_ocr_confusions (70)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._try_match (70)"
+          ],
+          "ms": 22.9
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 45.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (45)",
+            "backend/src/app/ports/ocr_provider.py::OcrResult.text (30)",
+            "backend/src/app/api/routes/ocr.py::extract_ocr (30)"
+          ],
+          "ms": 14.1
+        }
+      ]
+    },
+    {
+      "task_id": "cng_task_04",
+      "gold_files": [
+        "backend/src/app/adapters/ocr/preprocessor.py"
+      ],
+      "gold_symbols": [
+        "ImagePreprocessor.create_ocr_variants"
+      ],
+      "no_paths_prompt": "Add structured latency & bounding box aspect ratio metrics logging.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 74.3,
+          "file_rank": 2,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 5,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/main.py::metrics (74)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.validate_and_preprocess (65)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (65)"
+          ],
+          "ms": 18.7
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 74.3,
+          "file_rank": null,
+          "files_found_top5": 0,
+          "files_total": 1,
+          "gold_file_in_envelope": false,
+          "symbol_rank": null,
+          "gold_symbol_in_envelope": false,
+          "top_candidates": [
+            "backend/src/app/main.py::metrics (74)",
+            "backend/src/app/core/logging.py::configure_logging (35)",
+            "backend/src/app/core/metrics.py::get_metrics_output (34)"
+          ],
+          "ms": 11.1
+        }
+      ]
+    },
+    {
+      "task_id": "cng_task_05",
+      "gold_files": [
+        "backend/src/app/adapters/ocr/preprocessor.py"
+      ],
+      "gold_symbols": [
+        "ImagePreprocessor.create_ocr_variants"
+      ],
+      "no_paths_prompt": "Refactor image thresholding parameters into a typed Pydantic configuration dataclass.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 70.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (70)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.create_ocr_variants (70)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.validate_and_preprocess (70)"
+          ],
+          "ms": 13.1
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 24.9,
+          "file_rank": null,
+          "files_found_top5": 0,
+          "files_total": 1,
+          "gold_file_in_envelope": false,
+          "symbol_rank": null,
+          "gold_symbol_in_envelope": false,
+          "top_candidates": [
+            "backend/src/app/core/config.py::Settings (25)",
+            "backend/src/app/api/routes/config.py::list_configs (25)",
+            "backend/src/app/api/routes/config.py::get_config_by_key (24)"
+          ],
+          "ms": 7.4
+        }
+      ]
+    },
+    {
+      "task_id": "cooling_task_01",
+      "gold_files": [
+        "src/telemetry_logger.py"
+      ],
+      "gold_symbols": [
+        "collect_disk_io",
+        "collect_network_io"
+      ],
+      "no_paths_prompt": "Fix high-frequency sampling in collect_disk_io() and collect_network_io(): when the elapsed monotonic time since the previous sample is zero or negative (two reads in the same clock tick), they return 0.0 but replace the stored counters with the current ones, so the bytes of that interval are lost and the next rate is too low. In that case keep the previous counters (do not advance the baseline) so the next sample measures the whole interval. Normal rates must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/telemetry_logger.py::collect_disk_io (125)",
+            "src/telemetry_logger.py::collect_network_io (125)",
+            "src/telemetry_logger.py::run (70)"
+          ],
+          "ms": 29.7
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/telemetry_logger.py::collect_disk_io (75)",
+            "src/telemetry_logger.py::collect_network_io (75)",
+            "runtime/runtime_clock.py::RuntimeClock.get_elapsed (20)"
+          ],
+          "ms": 10.9
+        }
+      ]
+    },
+    {
+      "task_id": "cooling_task_02",
+      "gold_files": [
+        "src/preprocess.py"
+      ],
+      "gold_symbols": [
+        "preprocess_pipeline"
+      ],
+      "no_paths_prompt": "Fix NaN imputation in preprocess_pipeline(): missing telemetry is forward-filled and then filled with the column median, but when a sensor never reports (a column entirely empty, e.g. disk_io), its median is NaN, so NaN survives cleaning, is written to the processed dataset, and the fitted scaling state saved to preprocessor_state.pkl becomes NaN (max(nan, 1e-6) is nan), which breaks scaling at inference time. Make cleaning leave no NaN: keep forward fill and median imputation, and fall back to 0 for columns with no valid values, so the saved state is always finite.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/preprocess.py::preprocess_pipeline (125)",
+            "src/preprocess.py::preprocess (50)",
+            "src/features.py::FeatureProcessor.fit (45)"
+          ],
+          "ms": 28.7
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 90.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/preprocess.py::preprocess_pipeline (90)",
+            "src/features.py::FeatureProcessor.fit (45)",
+            "src/inference.py::InferenceEngine.collect_telemetry (35)"
+          ],
+          "ms": 13.9
+        }
+      ]
+    },
+    {
+      "task_id": "cooling_task_03",
+      "gold_files": [
+        "src/cooling_policy.py"
+      ],
+      "gold_symbols": [
+        "CoolingPolicyEngine.__init__",
+        "CoolingPolicyEngine.update"
+      ],
+      "no_paths_prompt": "Add hysteresis to the fan step controller to suppress rapid fan oscillation. Add a module-level function apply_fan_hysteresis(current_speed: float, target_speed: float, band: float = 5.0) -> float: if the target differs from the current speed by less than band percentage points, return current_speed (no step); otherwise return target_speed. A failsafe target of 100 always passes immediately, and band <= 0 disables hysteresis. CoolingPolicyEngine gets an attribute fan_hysteresis_band = 5.0 and update() applies apply_fan_hysteresis to target_fan_speed before the fan ramp is applied.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/cooling_policy.py::CoolingPolicyEngine (125)",
+            "src/cooling_policy.py::CoolingPolicyEngine.update (95)",
+            "src/cooling_policy.py::CoolingPolicyEngine.__init__ (65)"
+          ],
+          "ms": 24.2
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/cooling_policy.py::CoolingPolicyEngine (75)",
+            "src/cooling_policy.py::CoolingPolicyEngine.update (45)",
+            "src/thermal_mode_controller.py::ThermalModeController.update (45)"
+          ],
+          "ms": 12.0
+        }
+      ]
+    },
+    {
+      "task_id": "cooling_task_04",
+      "gold_files": [
+        "src/thermal_mode_controller.py"
+      ],
+      "gold_symbols": [
+        "ThermalModeController"
+      ],
+      "no_paths_prompt": "Add a sensor communication timeout failsafe to ThermalModeController. Add check_sensor_timeout(last_sample_time: float, now: float | None = None, timeout_s: float = 5.0): when more than timeout_s seconds have passed since last_sample_time, switch to FAILSAFE via switch_mode(ThermalMode.FAILSAFE, reason='SENSOR_TIMEOUT') and broadcast the packet {'type': 'THERMAL_FAILSAFE', 'reason': 'SENSOR_TIMEOUT', 'mode': 'FAILSAFE', 'silence_s': <seconds of silence>, 'timestamp': now} through a new method broadcast(packet), then return the packet; otherwise return None. Send only one packet per silence (until a fresh last_sample_time arrives). broadcast() sends the packet as JSON over UDP to ('255.255.255.255', 50505) with SO_BROADCAST enabled, using the module's socket import, and logs network errors instead of raising.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/thermal_mode_controller.py::ThermalModeController.switch_mode (125)",
+            "src/thermal_mode_controller.py::ThermalMode (125)",
+            "src/thermal_mode_controller.py::ThermalModeController (125)"
+          ],
+          "ms": 18.3
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/thermal_mode_controller.py::ThermalModeController.switch_mode (75)",
+            "src/thermal_mode_controller.py::ThermalMode (75)",
+            "src/hardware/thermal_mode_controller.py::ThermalModeController (75)"
+          ],
+          "ms": 11.8
+        }
+      ]
+    },
+    {
+      "task_id": "cooling_task_05",
+      "gold_files": [
+        "src/features.py"
+      ],
+      "gold_symbols": [
+        "FeatureProcessor.__init__",
+        "FeatureProcessor.reset_state",
+        "FeatureProcessor.process_single",
+        "FeatureProcessor.process_single.get_roll"
+      ],
+      "no_paths_prompt": "Refactor the rolling-window aggregation in FeatureProcessor () into a reusable class WindowFeatureExtractor(channels=('cpu', 'gpu', 'heat'), maxlen=10) in the same module, with push(**values) (e.g. push(cpu=..., gpu=..., heat=...)), mean(channel, window) returning the mean of the last `window` values, and reset(). FeatureProcessor must hold one as self.windows and use it in process_single() and reset_state() instead of its own deques and the inner get_roll helper. Feature vectors must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/features.py::FeatureProcessor.process_single (125)",
+            "src/features.py::FeatureProcessor.get_roll (125)",
+            "src/features.py::FeatureProcessor.reset_state (125)"
+          ],
+          "ms": 17.2
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/features.py::FeatureProcessor.process_single (75)",
+            "src/features.py::FeatureProcessor.get_roll (75)",
+            "src/features.py::FeatureProcessor.reset_state (75)"
+          ],
+          "ms": 8.8
+        }
+      ]
+    },
+    {
+      "task_id": "mediassist_task_01",
+      "gold_files": [
+        "src/safety/emergency_rules.py"
+      ],
+      "gold_symbols": [
+        "EmergencyRuleEngine.check_for_emergency"
+      ],
+      "no_paths_prompt": "Fix false-positive emergency vetoes: check_for_emergency() uses plain substring matching, so negated mentions such as 'No chest pain, just a sore throat', 'Patient denies chest pain' or 'I don't have chest pain' trigger an immediate Cardiac Emergency. Negated mentions (no / not / denies / without / don't have... shortly before the symptom) must not trigger, while real mentions like 'I have chest pain' or 'No fever but I have chest pain' still must.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/safety/emergency_rules.py::EmergencyRuleEngine.check_for_emergency (125)",
+            "src/safety/emergency_rules.py::EmergencyRuleEngine._log_emergency (70)",
+            "src/safety/emergency_rules.py::EmergencyRuleEngine (65)"
+          ],
+          "ms": 16.6
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/safety/emergency_rules.py::EmergencyRuleEngine.check_for_emergency (75)",
+            "tests/test_hybrid_architecture.py::test_cardiac_emergency_veto (20)",
+            "src/safety/emergency_firewall.py::EmergencySafetyFirewall._is_negated_or_historical (20)"
+          ],
+          "ms": 7.7
+        }
+      ]
+    },
+    {
+      "task_id": "mediassist_task_02",
+      "gold_files": [
+        "src/preprocessing/symptom_processor.py"
+      ],
+      "gold_symbols": [
+        "normalize_symptom"
+      ],
+      "no_paths_prompt": "Fix Hindi (Devanagari) handling in normalize_symptom(): '\u0924\u0947\u091c\u093c \u092c\u0941\u0916\u093e\u0930' currently becomes '\u0924\u091c_\u092c\u0916\u0930' because vowel signs are removed as special characters, and Devanagari punctuation (danda \u0964 and double danda \u0965) is not handled. Keep Devanagari letters and vowel signs intact and drop punctuation, e.g. '\u0938\u093f\u0930 \u0926\u0930\u094d\u0926\u0964' -> '\u0938\u093f\u0930_\u0926\u0930\u094d\u0926'. English behaviour must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/preprocessing/symptom_processor.py::normalize_symptom (125)",
+            "src/preprocessing/symptom_processor.py::standardize_disease_label (65)",
+            "src/preprocessing/symptom_processor.py::detect_impossible_combinations (65)"
+          ],
+          "ms": 13.7
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 69.5,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/preprocessing/symptom_processor.py::normalize_symptom (70)",
+            "src/models/llm/qwen_client.py::QwenLLMClient.generate_triage_response (20)",
+            "src/preprocessing/text_processor.py::clean_text (20)"
+          ],
+          "ms": 9.9
+        }
+      ]
+    },
+    {
+      "task_id": "mediassist_task_03",
+      "gold_files": [
+        "src/safety/decision_layer.py"
+      ],
+      "gold_symbols": [
+        "ClinicalDecisionLayer.evaluate"
+      ],
+      "no_paths_prompt": "Implement weighted emergency severity scoring. Add a module-level function compute_severity_score(vitals: dict, symptom_severity: str) -> float = 0.5 * symptom weight (mild 0.2, moderate 0.5, severe 0.8; unknown counts as moderate) + vital points, capped at 1.0. Vital points (missing or None values add nothing): temperature_c >= 39.5 -> 0.3, >= 38.5 -> 0.15; heart_rate >= 120 -> 0.3, >= 100 -> 0.15; spo2 < 92 -> 0.4, < 95 -> 0.2; systolic_bp < 90 -> 0.4. ClinicalDecisionLayer.evaluate() gets an optional vitals=None argument; when vitals are given and the score is >= 0.7, urgency_level becomes 'High'. Always include the score in the result as 'severity_score'.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/safety/decision_layer.py::ClinicalDecisionLayer (125)",
+            "src/safety/decision_layer.py::ClinicalDecisionLayer.evaluate (125)",
+            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (75)"
+          ],
+          "ms": 22.7
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 2,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/safety/decision_layer.py::ClinicalDecisionLayer (75)",
+            "src/safety/decision_layer.py::ClinicalDecisionLayer.evaluate (75)",
+            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (75)"
+          ],
+          "ms": 14.4
+        }
+      ]
+    },
+    {
+      "task_id": "mediassist_task_04",
+      "gold_files": [
+        "src/conversational/response_formatter.py"
+      ],
+      "gold_symbols": [
+        "ResponseFormatter",
+        "ResponseFormatter.format_predictions"
+      ],
+      "no_paths_prompt": "Add a bilingual warning banner for high-urgency triage: ResponseFormatter.urgency_banner(urgency_level, language='en') returns a banner starting with '\u26a0\ufe0f' telling the user to get medical attention today, in English for 'en' and in Hindi (Devanagari) for 'hi'; for 'Moderate' or 'Low' it returns ''. format_predictions() gets optional urgency_level=None and language='en' arguments and puts the banner (followed by a blank line) before its current output when urgency is 'High'; without them its output must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 125.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/conversational/response_formatter.py::ResponseFormatter.format_predictions (125)",
+            "src/conversational/response_formatter.py::ResponseFormatter (120)",
+            "src/conversational/response_formatter.py::ResponseFormatter.format_questions (65)"
+          ],
+          "ms": 20.0
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 75.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 1,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 1,
+          "gold_symbol_in_envelope": true,
+          "top_candidates": [
+            "src/conversational/response_formatter.py::ResponseFormatter.format_predictions (75)",
+            "src/conversational/response_formatter.py::ResponseFormatter (70)",
+            "src/models/transformers/predict_bert.py::MedicalBERTInferencePipeline.predict (45)"
+          ],
+          "ms": 10.3
+        }
+      ]
+    },
+    {
+      "task_id": "mediassist_task_05",
+      "gold_files": [
+        "src/conversational/symptom_synonyms.json",
+        "src/conversational/timeline_extractor.py"
+      ],
+      "gold_symbols": [],
+      "no_paths_prompt": "Extract the hardcoded bilingual symptom synonym map COMMON_SYMPTOM_MAP into an external JSON file, (canonical symptom -> list of English/Hinglish/Hindi synonyms, same keys and order). The module must load it from that file and still expose COMMON_SYMPTOM_MAP; symptom extraction behaviour must not change.",
+      "scores": [
+        {
+          "variant": "as written",
+          "injected": true,
+          "top_score": 95.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 2,
+          "gold_file_in_envelope": true,
+          "symbol_rank": null,
+          "gold_symbol_in_envelope": false,
+          "top_candidates": [
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor.extract (95)",
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_heuristic (70)",
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_via_llm (70)"
+          ],
+          "ms": 17.8
+        },
+        {
+          "variant": "no paths",
+          "injected": true,
+          "top_score": 45.0,
+          "file_rank": 1,
+          "files_found_top5": 1,
+          "files_total": 2,
+          "gold_file_in_envelope": true,
+          "symbol_rank": null,
+          "gold_symbol_in_envelope": false,
+          "top_candidates": [
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor.extract (45)",
+            "src/evaluation/benchmark_bilingual.py::run_bilingual_benchmark (20)",
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_heuristic (20)"
+          ],
+          "ms": 8.6
+        }
+      ]
+    }
+  ]
+}

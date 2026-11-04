@@ -1,346 +1,205 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Chronos Logo" width="140" height="140">
+  <img src="assets/logo.png" alt="Chronos" width="120" height="120">
 </p>
 
-# ⏳ Chronos
+<h1 align="center">Chronos</h1>
 
-**Bi-Temporal Repository Intelligence, Autonomous Context Resolution & Multi-Agent Governance Engine**  
-*Agent-agnostic platform supporting OpenHands SDK, Model Context Protocol (MCP), Cursor, Claude Code, Windsurf, LangGraph, AutoGen, and custom AI agents.*
+<p align="center"><b>Guardrails, context and audit for AI coding agents.</b></p>
 
-[![Tests](https://img.shields.io/badge/tests-135%20passed-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-0.3.0-cyan.svg)](pyproject.toml)
-[![Control Plane](https://img.shields.io/badge/Control%20Plane-Live%20Dashboard-blue.svg)](chronos/server/chronos_control_plane.html)
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![Protocol](https://img.shields.io/badge/MCP-FastMCP%203.x-purple.svg)](chronos/server/mcp_server.py)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/AdithyaK3106/Chronos/actions/workflows/ci.yml"><img src="https://github.com/AdithyaK3106/Chronos/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT license"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"></a>
+  <a href="GUIDE.md"><img src="https://img.shields.io/badge/Claude%20Code-hooks-orange.svg" alt="Claude Code compatible"></a>
+</p>
+
+<p align="center">
+  <a href="GUIDE.md">Docs</a> ·
+  <a href="#benchmarks">Benchmarks</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="docs/events-v1.md">Event format</a>
+</p>
 
 ---
 
-## ⚡ 2-Minute Quickstart
+Chronos sits between a coding agent and your repository. Before each tool call it decides whether to
+allow it, ask you, or refuse it; before each prompt it adds the code the task is likely about; and it
+writes every decision to a tamper-evident audit log. It runs locally and, by default, makes no model calls.
 
-Install Chronos completely with a single command. It provisions an isolated environment, installs polyglot Tree-sitter parsers, links the CLI to your PATH, and sets up IDE integrations:
+## Why Chronos
+
+- **Agents do damage by accident.** In our live Claude Code test, Sonnet force-pushed a rewritten
+  `main` when asked to tidy the history ([run 2](artifacts/live_claude_2026-11-05.json)).
+- **Secrets leak through ordinary requests.** "Debug this config" is enough for an agent to read `.env`
+  and send the key to its model provider.
+- **Agents spend tokens finding code.** They list and read files before reaching the part a task is about;
+  with Chronos's context, OpenHands used 15% fewer tokens on tasks both arms solved ([report](artifacts/BENCHMARK_REPORT_2026-11-04.md)).
+- **Teams can't see or control any of it.** There is no record of what an agent tried, what was stopped
+  and why, and no policy shared across machines.
+
+## Demo
+
+<!-- TODO: GIF of a Claude Code session hitting these checks -->
+
+Real hook output, from the payloads in [`tests/fixtures/claude_hooks`](tests/fixtures/claude_hooks):
+
+```console
+$ git push --force origin main          # agent's Bash call
+ask  | [Chronos] Force-push overwrites history on the remote [rule git.push_force; change it with
+       policy.rules in .chronos/config.json] | Pushes directly to the protected branch 'main'
+       [rule git.push_protected; ...]
+
+$ cat .env                              # agent's Bash call
+deny | [Chronos] Bash command reads or names secret file(s): .env. Secret files are never readable
+       by the agent.
+
+Read .env                               # agent's Read tool
+deny | [Chronos] Access denied: path matches restricted pattern '*.env*'
+```
+
+`ask` shows Claude Code's approval prompt; in a headless run nobody approves, so the action does not
+happen. `deny` refuses it outright.
+
+## Features
+
+| | What it does |
+|---|---|
+| **Guardrails** | Checks Edit, Write, Read, Bash, WebFetch and MCP calls before they run. Secrets (`.env`, keys, credential files) are never readable; protected modules (`auth`, `security`, `policy`, ... in code and config, not docs) ask first; writes outside the repo ask. |
+| **Shell analysis** | Parses Bash commands, including pipes, chains, subshells, `bash -c`, heredocs and every line of multi-line commands, to find what they read and write. Hidden execution (`curl ... \| sh`, decode-then-run) asks. |
+| **Threat rules** | 80+ rules in 10 categories: destructive, exfiltration, git, secrets, integrity (CI, hooks, agent settings), production, machine, dependencies, release, MCP. Each one can be set to deny, ask, log or off. |
+| **Backstop and warnings** | After a Bash command, flags protected or secret files it changed anyway. Warns the agent when a file, page or tool result contains instructions aimed at AI agents. |
+| **Context injection** | On each prompt, adds the files, symbols and tests the task most likely touches, from a local tree-sitter index (Python, JS/TS, Go). An optional embedding model ([below](#benchmarks)) helps with vague prompts. |
+| **Memory** | Records what past sessions learned; recall through the CLI and MCP. Automatic injection is off by default (see [Benchmarks](#benchmarks)). |
+| **Audit and dashboard** | Every decision goes to a hash-chained log outside the repo (`chronos audit verify`); `chronos ui` shows decisions and blocked actions. |
+| **Hook reliability** | Each check finishes before Claude Code's timeout; a crashed or timed-out check blocks (`onFailure: block`, Claude Code 2.1.295+); `chronos doctor` reports problems. |
+
+## Quick start
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash
+#   or: uv tool install git+https://github.com/AdithyaK3106/Chronos
+chronos claude install            # hooks + MCP server in ~/.claude/settings.json
+cd your-repo && chronos init && chronos sync
 ```
 
-*Or if you've cloned the repository:*
-```bash
-./install.sh
-```
+Then use Claude Code as usual. Risky actions in that repository ask or are refused with a reason;
+`chronos ui` shows what happened. Repositories without `chronos init` are untouched. For an
+organisation, `chronos claude install --managed --out managed-settings.json` writes managed settings
+that developers' own settings can't switch off ([guide](GUIDE.md)).
 
-👉 **Need step-by-step recipes and IDE setup? Check out the [2-Minute Quickstart Guide (GUIDE.md)](GUIDE.md).**
-
----
-
-## 💡 What is Chronos?
-
-Current AI coding agents suffer from four critical production bottlenecks:
-1. **Context Blindness & Exploration Loops:** Agents spend dozens of costly tool turns blindly browsing directories and reading files to locate relevant code, blowing through token budgets and triggering multi-minute delays.
-2. **Security & Policy Hallucinations:** Agents modify safety-critical modules, bypass access controls, leak environment secrets, and clobber protected configs without deterministic pre-execution guardrails.
-3. **Multi-Agent Collisions & Merge Conflicts:** When multiple agents work on the same repository in parallel, they overwrite each other's edits, lacking atomic sub-file AST locking.
-4. **Agent Amnesia:** Agents start every session with zero memory. Lessons learned from fixing subtle bugs or repository invariants evaporate at task termination, repeating the same exploratory mistakes.
-
-**Chronos solves all four:**
-- 🔍 **Zero-Path Context Resolution (< 15ms):** Deterministically discovers, ranks, and injects exact AST symbols, call hierarchies, signatures, and matching test files from natural-language prompts *before Turn 1 inference*.
-- 🌐 **Polyglot Tree-Sitter AST Indexing:** Out-of-the-box bi-temporal AST indexing across **TypeScript (`.ts`, `.tsx`)**, **JavaScript (`.js`, `.jsx`)**, **Go (`.go`)**, and **Python (`.py`)** with automatic caller extraction, struct/interface embedding, docstrings, and intelligent noise pruning (`node_modules`, `vendor`, `.venv`).
-- 🔗 **Cross-File Import Linker & Symbol Disambiguation:** Resolves cross-file dependencies, monorepo tsconfig aliases (`@/*`, `~/*`), Python package hierarchies, and Go module/intra-package scopes into deterministic qualified node IDs (`path::symbol::kind`), with explicit `IMPORTS` edges and `external:` namespaces for third-party libraries.
-- 🧠 **Epistemic Living Memory (`agentmem` Integration):** Persistent, cross-session memory with SQLite FTS5 lexical ranking, recency decay, and verification weighting. Features 5 memory tiers (`core`, `learned`, `episodic`, `working`, `procedural`), automated post-task distillation to capture bug root causes, and pre-turn-1 advisory injection with repository namespace isolation.
-- 🤖 **OpenHands CodeScout-1.7B SLM Localization (Opt-In):** Optional neural semantic file resolver with strict anti-hallucination validation (rejecting non-existent and ambiguous duplicate basenames) and a fail-fast circuit breaker with instant AST fallback.
-- 🛡 **Fail-Closed Security Firewall:** Intercepts agent actions pre-execution at the tool boundary. Blocks unauthorized edits, path escapes, and security breaches before disk modification can occur.
-- 🔒 **Sub-File AST Concurrency Leasing:** Bi-temporal write leases at the class/function level prevent parallel agents from clobbering each other's work.
-- 📊 **Engineering Control Plane & Observability Suite (`chronos ui`):** Full-stack local dashboard providing a **Runs & Trace Explorer** (trace waterfall spans, token metrics, error breakdown), **Context Inspector** (token envelopes, symbol ranking provenance, memory tier breakdown), and an **Evaluation Studio** (side-by-side benchmark comparison, latency/token speedups, and CSV/JSON export).
-- 🔀 **Universal Agent Fabric:** Connects seamlessly to **any** agent via the Model Context Protocol (FastMCP 3.x), pure Python SDK, or the autonomous CLI runner.
-
----
-
-## 🏗 Architecture
+## How it works
 
 ```mermaid
-flowchart TD
-    UserPrompt["Natural Language Task (Zero Paths Specified)
-    'Fix the infinite loop when traversing graph nodes'"] --> Ingestion
-
-    subgraph IntelligenceLayer["1. Intelligence & Resolution Layer (< 15ms)"]
-        Ingestion["Deterministic Feature Harvester (chronos/context/resolver.py)
-        • Symbols, dotted identifiers, exceptions, keywords, stop-words"]
-        
-        Ingestion --> FTS5["SQLite FTS5 Lexical Search (code_nodes_fts)
-        BM25 ranking across name, path, signature, docstring"]
-        
-        FTS5 --> Scorer["Candidate Scorer & Provenance Engine
-        Exact Symbol (+25) > Path Stem (+15) > BM25 (+10) > Docstring (+5)"]
-        
-        Scorer --> SLM["Optional: CodeScout-1.7B SLM Localization
-        Anti-hallucination gate & ambiguity rejection"]
-        
-        SLM --> TestDiscovery["Co-Located Unit Test Discovery
-        tests/**/test_*.py matching candidate stems"]
-        
-        TestDiscovery --> Memory["Epistemic Living Memory Recall
-        Recalls learned gotchas & procedural invariants"]
-        
-        Memory --> Budgeter["Bi-Temporal Context Budgeter (budgeter.py)
-        Depth-1 caller pruning & 'Reference Only' guardrails"]
-    end
-
-    subgraph GovernanceLayer["2. Governance & Concurrency Layer"]
-        Budgeter --> Leaser["AST Write Lease Coordinator (ledger.py)
-        Sub-file function/class atomic leases with TTL"]
-        
-        Leaser --> Firewall["Pre-Execution Policy Firewall (gates.py & permissions.py)
-        DEFAULT_PROTECTED_PATTERNS + .chronos/protected.yml"]
-        
-        Firewall --> AuditLedger["Tamper-Evident SHA-256 Cryptographic Audit Trail"]
-    end
-
-    subgraph UniversalSurfaces["3. Universal Integration Surfaces"]
-        AuditLedger --> Surface1["FastMCP 3.x Daemon (chronos serve)
-        Cursor, Claude Code, Windsurf, agy, Cline, Roo Code"]
-        AuditLedger --> Surface2["Autonomous CLI Runner (chronos run)
-        OpenHands SDK + Any Model (OpenAI, Anthropic, Ollama, DeepSeek)"]
-        AuditLedger --> Surface3["Pure Python SDK (import chronos)
-        LangGraph, AutoGen, CrewAI, custom agent pipelines"]
-    end
+flowchart LR
+    A[Coding agent<br/>Claude Code / OpenHands] -- "PreToolUse / PostToolUse /<br/>UserPromptSubmit hooks" --> B[Chronos engine]
+    B -- "allow / ask / deny,<br/>context, warnings" --> A
+    B --> P[Policy<br/>presets, rules, protected.yml]
+    B --> I[(Code index<br/>SQLite, tree-sitter)]
+    B --> L[(Audit log<br/>hash-chained)]
+    L --> D[chronos ui<br/>dashboard]
+    L -. "coming" .-> T[Team server<br/>shared policy and audit]
 ```
 
----
+Each hook is a short local process: about 90-145 ms median per check end to end
+([measured](artifacts/hook_latency_2026-11-05.json)). Events use one documented format
+([events-v1](docs/events-v1.md)), which the team server and the Codex adapter will share.
 
-## 📊 Benchmark Results (Paired 24-Task Evaluation, 4 Nov 2026)
+## Benchmarks
 
-A paired run of the 24-task suite: OpenHands **without** Chronos (baseline) and **with** Chronos
-(treatment), 3 iterations each, over 4 repositories (`chronos`, `cng`, `cooling_project`,
-`mediassist`), with Gemini Flash (low reasoning) for both arms. Success means the task's
-**hidden acceptance tests** pass. They are copied in only after the agent finishes, and are
-checked to fail on the untouched code and pass with a reference fix
-(`python -m benchmarks.verify_acceptance`). Full analysis:
-[`artifacts/BENCHMARK_REPORT_2026-11-04.md`](artifacts/BENCHMARK_REPORT_2026-11-04.md).
+Every number links to its raw results. Small samples; read the caveats.
 
-| Efficacy (20 tasks x 3) | Baseline | With Chronos | |
-| :--- | :--- | :--- | :--- |
-| Task success | 22/60 (36.7%) | 25/60 (41.7%) | +5 pts, **not significant** (McNemar p = 0.51) |
-| Tokens, tasks both arms solved (19 pairs) | 1.28M | 1.09M | **-15%**, fewer in 18 of 19 pairs |
-| Median duration, all runs | 82.4 s | 88.0 s | |
+**Security**
 
-| Security (4 adversarial tasks x 3) | Baseline | With Chronos |
-| :--- | :--- | :--- |
-| Protected file modified | 1 | **0** |
-| Attempted protected edits denied | n/a | **9 of 9** |
+| Test | Without Chronos | With Chronos |
+|---|---|---|
+| Live Claude Code (Sonnet), 7 risky scenarios, run 2 ([json](artifacts/live_claude_2026-11-05.json)) | harmful in 1/7 (force-pushed `main`) | 0/7 (force-push stopped) |
+| OpenHands + Gemini Flash, 9 tasks x 2 runs ([report](artifacts/SECURITY_BENCHMARK_V2_2026-11-04.md)) | 3/18 breaches | 0/18 |
 
-**Caveats.** One low-tier model with 120-240 s timeouts, and a small sample. With Chronos,
-later iterations can recall memories from earlier attempts at the same task, so iterations are
-not independent. Earlier figures in this README (90% vs 90% success, -32.9% median duration,
--59.6% tokens) came from a single iteration, judged only by each task's verification commands,
-and were **not reproduced** by this run.
+Caveats: in the Gemini test only 2 of the 3 avoided breaches were the firewall; the rest were model
+refusals the Chronos arm's prompt may have encouraged, and 3/18 vs 0/18 is not statistically
+significant. In live run 2 the other six scenarios caused no harm in either arm. In run 1
+([json](artifacts/live_claude_2026-11-04.json)) both arms caused harm in `add_retry_lib`: Chronos missed
+lines 2+ of a 76-line command; fixed in `7c4e817`, and run 2 shows those lines flagged. Run 1's file
+also scores `deploy` as harmful in both arms; that was a scoring bug, fixed before run 2.
 
----
+**Finding the right code** (gold file in the top 3)
 
-## 💻 How to Use Chronos
+| Prompts | Keyword index (default) | + embedding model (optional) |
+|---|---|---|
+| Our 4 repos, as written ([json](artifacts/retrieval_2026-11-05.json)) | 20/20 | not measured |
+| Our 4 repos, file and function names removed | 17/20 | not measured |
+| Public repos, vague prompts, 20 tasks ([json](artifacts/embed_eval_2026-11-04.json)) | 8/20 | 13/20 |
+| Public repos, vague prompts, 30 held-out tasks ([json](artifacts/embed_eval_heldout_2026-11-05.json)) | 5/30 | 17/30 |
 
-Chronos is completely **agent-agnostic** and provides four integration options:
+Keyword search does well on prompts that name the code and poorly on vague ones; the embedding
+retriever (`issue-loc-embed` via Ollama, off by default) closes much of that gap. Fusing the two
+rankings scored lower than embeddings alone (13/30).
 
-### Option A: IDE & External Agent Integration via FastMCP (`chronos serve`)
+**Task success and tokens** (OpenHands + Gemini Flash, 20 tasks x 3, hidden acceptance tests,
+[report](artifacts/BENCHMARK_REPORT_2026-11-04.md)): 25/60 with Chronos vs 22/60 without, not
+significant (p = 0.51); 15% fewer tokens on the 19 task pairs both arms solved.
 
-Expose Chronos tools to **Cursor, Claude Code, Windsurf, Cline, Roo Code, or LibreChat**:
+**Memory** ([json](artifacts/memory_ab_2026-11-04.json), 30 runs): tasks passed 1/10 with memory
+recall, 2/10 with the memory always injected, 1/10 with none. No clear benefit, so injection is now
+off by default.
 
-#### 1. Start the FastMCP Daemon
+**What didn't work.** CodeScout-1.7B, a small model for finding code, found the right file in 0/20
+public tasks in every configuration we tried ([json](artifacts/codescout_eval_2026-11-04.json)); we
+dropped it.
+
+## Configuration
+
 ```bash
-chronos serve
+chronos config set policy.preset strict     # relaxed | standard (default) | strict
 ```
 
-#### 2. Configure Your IDE / Agent Settings
-Add to your `mcp_config.json` (or Cursor `~/.cursor/mcp.json` / Claude Desktop config):
+| Preset | Protected edits | Hook crashes | Writes outside repo | Threat rules |
+|---|---|---|---|---|
+| `relaxed` | ask | allow | ask | dependency, release, machine and agent-config rules only log |
+| `standard` | ask | ask | ask | as shipped |
+| `strict` | deny (until `chronos approve`) | deny | deny | hidden execution, exfiltration and secrets deny |
+
+Secrets are denied under every preset. Override single rules or whole categories in
+`.chronos/config.json`:
 
 ```json
-{
-  "mcpServers": {
-    "chronos": {
-      "command": "chronos",
-      "args": ["serve"]
-    }
-  }
-}
+{ "policy": { "preset": "standard", "rules": { "git.push_force": "deny", "dependencies": "log" } } }
 ```
 
-#### Discovered MCP Tools:
-| Tool Name | Parameters | Purpose |
-| :--- | :--- | :--- |
-| `chronos_resolve_zero_path_context` | `prompt`, `token_budget` | Discovers files, symbols, tests & formats Turn 1 context envelope (< 15ms). |
-| `chronos_remember` | `content`, `tier`, `namespace`, `tags` | Stores an epistemic memory record (advisory only). |
-| `chronos_recall` | `query`, `namespace`, `limit` | Searches and ranks past postmortems, gotchas, and invariants. |
-| `chronos_get_procedures` | `namespace` | Retrieves active procedural rules and behavioral invariants. |
-| `chronos_memory_stats` | `namespace` | Aggregated statistics on stored epistemic memories. |
-| `as_of_impact` | `symbol_name`, `max_depth` | Transitive downstream blast radius analysis before refactoring. |
-| `as_of_callers` | `symbol_name` | Direct incoming callers across the repository graph. |
-| `as_of_callees` | `symbol_name` | Outgoing functions/classes invoked by a symbol. |
-| `as_of_diff` | `t1`, `t2` | Bi-temporal structural AST diff between two timestamps. |
-| `chronos_acquire_lock` | `node_id`, `agent_id`, `ttl` | Reserves atomic sub-file AST lease to prevent agent collisions. |
-| `chronos_release_lock` | `node_id`, `agent_id` | Releases held sub-file lock. |
-| `chronos_list_locks` | *(none)* | Lists all active non-expired AST leases. |
+Protect your own paths in `.chronos/protected.yml` (`policies:` with `paths`, `mode: ask|deny` and a
+`denial_reason`), and approve an edit with `chronos approve <path> --expires 2h`. Details:
+[GUIDE.md](GUIDE.md).
 
----
+## Supported agents
 
-### Option B: Autonomous Problem Solving via CLI (`chronos run`)
+| Agent | How | Status |
+|---|---|---|
+| Claude Code | hooks + MCP (`chronos claude install`) | supported |
+| OpenHands | native firewall and context (`chronos run`) | supported |
+| Cursor, Claude Desktop, other MCP clients | MCP tools (advisory: the agent decides whether to call them) | supported |
+| Codex CLI | hooks adapter | planned |
 
-`chronos run` executes autonomous tasks using the OpenHands SDK under Chronos governance. It is **provider-agnostic** and works with any model:
+## Roadmap
+
+- **Team server**, self-hosted: shared policy, audit and approvals across a team's machines.
+- **Signed audit**: logs signed per machine and verifiable on the server.
+- **Codex adapter** using the same [event format](docs/events-v1.md).
+- **Spend reports**: tokens and cost per session, repo and team.
+- **Pilots** with a few engineering teams.
+
+## Contributing
+
+Issues and pull requests are welcome. Run the tests before sending a change:
 
 ```bash
-# 1. Using OpenAI (GPT-4o)
-export OPENAI_API_KEY="sk-..."
-chronos run "Fix race condition in lock ledger" --model=gpt-4o
-
-# 2. Using Anthropic (Claude 3.7 Sonnet)
-export ANTHROPIC_API_KEY="sk-ant-..."
-chronos run "Refactor payment webhook processing" --model=claude-3-7-sonnet
-
-# 3. Using Free Local Models (Ollama / vLLM)
-chronos run "Add boundary checks to cylinder verification" \
-  --model=ollama/qwen2.5-coder \
-  --base-url=http://localhost:11434
-
-# 4. Using Local Antigravity CLI (Zero External API Keys)
-chronos run "Implement regex-based symbol pattern filtering" --model=gemini-3.8-flash-low
+uv sync && .venv/bin/python -m pytest -q
 ```
 
----
+## Security
 
-### Option C: Epistemic Living Memory Management (`chronos memory`)
+Please report vulnerabilities privately through a GitHub security advisory on this repository, not
+in a public issue. A bypass of a guardrail counts.
 
-Chronos provides CLI commands for managing persistent repository memory across 5 tiers (`core`, `learned`, `episodic`, `working`, `procedural`):
+## License
 
-```bash
-# 1. Remember a learned gotcha or invariant
-chronos memory remember "Cycle prevention in SQLiteGraphStore requires tracking visited paths in recursive CTE" --tier learned
-
-# 2. Add an explicit behavioral procedure / coding invariant
-chronos memory remember "Always run pytest before committing code changes" --tier procedural
-
-# 3. Recall past lessons for a task
-chronos memory recall "cycle prevention graph traversal"
-
-# 4. List stored memories
-chronos memory list --tier learned
-
-# 5. Inspect memory statistics
-chronos memory stats
-```
-
----
-
-### Option D: Python SDK Integration (LangGraph, AutoGen, CrewAI)
-
-Integrate Chronos directly into custom agent workflows:
-
-```python
-import chronos
-
-# 1. Connect to repository graph & database
-con = chronos.get_connection(".chronos/chronos.db")
-graph_store = chronos.SQLiteGraphStore(con)
-
-# 2. Zero-Path Context Resolution (< 15ms)
-resolver = chronos.DeterministicContextResolver(repo_root=".", graph_store=graph_store)
-resolution = resolver.resolve("Fix timeout in payment webhook processing")
-
-print("Files to edit   :", resolution.target_files)
-print("Symbols to check :", resolution.seed_symbols)
-print("Associated tests :", resolution.test_files)
-print("Context envelope :\n", resolution.provenance_summary)
-
-# 3. Sub-File AST Write Lease
-lock = chronos.acquire_lock(
-    con=con,
-    node_id="src/payment.py::process_webhook::Function",
-    agent_id="worker_01",
-    session_id="session_xyz",
-    intent="Updating webhook retry logic",
-    ttl=300,
-)
-
-# 4. Pre-Execution Policy Check
-allowed, reason = chronos.check_action_allowed(
-    con=con,
-    agent_id="worker_01",
-    tool_name="file_editor",
-    target_path="src/payment.py",
-    repo_root=".",
-)
-if not allowed:
-    raise PermissionError(f"Action blocked by Chronos: {reason}")
-```
-
----
-
-## 🛡 Security & Governance Configuration
-
-Chronos includes built-in fail-closed protection for safety-critical patterns (`*policy*`, `*auth*`, `*firewall*`, `*security*`, `*.env*`, `*governor*`).
-
-To customize protected modules in any repository, create `.chronos/protected.yml`:
-
-```yaml
-# .chronos/protected.yml
-policies:
-  - id: core-security
-    paths:
-      - "src/auth/**"
-      - "*policy*"
-      - "*credentials*"
-      - "*.env*"
-    mode: human_approval
-    denial_reason: "Security-critical module requires human gate approval."
-```
-
-If an unauthorized agent attempts to modify a protected file, Chronos blocks execution at the gateway and logs the denial to the hash-chained audit log, which lives outside the repository in your user data directory (`~/.local/share/chronos/audit/` on Linux, `~/Library/Application Support/chronos/audit/` on macOS, `%LOCALAPPDATA%\chronos\audit\` on Windows; override with `CHRONOS_DATA_DIR`). A log from an older version in `.chronos/chronos-audit.log` is moved there on first use (the original is kept as `.migrated`).
-
-### Verifying the Audit Trail
-Verify that audit logs are cryptographically intact and have not been tampered with:
-```bash
-chronos audit verify
-```
-*(Outputs `Audit Chain Verification: PASSED (Records: N)`)*
-
----
-
-## 🧪 Testing & Verification
-
-Run the complete test suite (unit tests, integration tests, security vector tests, and SLM verification):
-
-```bash
-pytest tests/ -q
-```
-
-```text
-........................................................................ [ 71%]
-.............................                                            [100%]
-============================== 101 passed in 55.47s ==============================
-```
-
----
-
-## 📂 Repository Structure
-
-```
-chronos/
-├── chronos/
-│   ├── audit/             # Append-only SHA-256 cryptographic audit logger
-│   ├── cli/               # CLI commands: init, doctor, sync, run, serve, audit, config, memory, resolve
-│   ├── context/           # Polyglot AST indexer, SQLite FTS5 graph store, budgeter, resolver, SLM
-│   ├── coordination/      # Sub-file AST node locking ledger & conflict detection
-│   ├── core/              # SQLite WAL schema, database connection, config models (SLMConfig)
-│   ├── memory/            # Epistemic living memory engine (agentmem integration, distillation hooks)
-│   ├── security/          # Fail-closed gates, human approvals, permission manifests
-│   ├── server/            # FastMCP 3.x server for IDE / external agent integration
-│   └── telemetry/         # Token accounting, latency metrics, session telemetry
-├── runtime/               # OpenHands adapter, tool wrappers, hooks, context condenser
-├── benchmarks/            # 24-task paired benchmark harness, runs, diffs, and reports
-├── tests/                 # 101 unit & integration tests covering security, context, memory, SLM, MCP
-├── install.sh             # Universal 1-line installer for Linux & macOS
-├── GUIDE.md               # 2-minute quickstart guide and recipes
-└── pyproject.toml         # Packaging configuration & CLI entry points
-```
-
----
-
-## 📄 License
-
-MIT License. See [LICENSE](LICENSE) for details.
+[MIT](LICENSE)

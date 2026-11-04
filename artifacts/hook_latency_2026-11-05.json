@@ -1,0 +1,34 @@
+{
+  "method": "chronos hook claude <event> as a fresh process per call (as Claude Code runs it), fixture payloads from tests/fixtures/claude_hooks, 10 timed calls after 2 warm-up, small git repo, Linux desktop",
+  "cli": [
+    "/home/adithya/.local/bin/chronos"
+  ],
+  "python": "3.13.16",
+  "load_avg": [
+    0.4921875,
+    0.5244140625,
+    0.65087890625
+  ],
+  "results": {
+    "pre_bash_ls": {
+      "median_ms": 111,
+      "p90_ms": 116
+    },
+    "pre_bash_force_push": {
+      "median_ms": 113,
+      "p90_ms": 115
+    },
+    "pre_edit_auth": {
+      "median_ms": 143,
+      "p90_ms": 165
+    },
+    "pre_read_env": {
+      "median_ms": 89,
+      "p90_ms": 94
+    },
+    "post_read_clean": {
+      "median_ms": 88,
+      "p90_ms": 95
+    }
+  }
+}

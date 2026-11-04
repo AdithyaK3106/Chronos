@@ -225,6 +225,12 @@ def main():
     p_cl.add_argument("--repo", default=".", help="Repository (used for --scope project)")
     p_cl.add_argument("--no-mcp", action="store_true", help="Install hooks only")
 
+    # mcp-config (used by install.sh: merge, never overwrite, an editor's MCP config)
+    p_mc = subparsers.add_parser("mcp-config", help="Add/remove the Chronos MCP server in an editor's JSON config (keeps other servers)")
+    p_mc.add_argument("action", choices=["add", "remove"])
+    p_mc.add_argument("path", help="Config file, e.g. ~/.cursor/mcp.json")
+    p_mc.add_argument("--command", dest="server_command", default=None, help="Server command (default: this chronos)")
+
     # exec (OS sandbox around an agent)
     p_exec = subparsers.add_parser(
         "exec",
@@ -269,6 +275,22 @@ def main():
         if err:
             sys.stderr.write(err)
         sys.exit(code)
+
+    if args.command == "mcp-config":
+        from chronos.integrations.mcp_config import ConfigError, add_server, remove_server
+        try:
+            if args.action == "add":
+                from chronos.integrations.claude_code import resolve_cli
+                cli = resolve_cli()
+                command = args.server_command or cli[0]
+                server_args = (cli[1:] if not args.server_command else []) + ["serve"]
+                print(add_server(args.path, command, server_args))
+            else:
+                print(remove_server(args.path))
+        except ConfigError as exc:
+            print(f"warning: {exc}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
 
     if args.command == "claude":
         from chronos.integrations import claude_code as cc

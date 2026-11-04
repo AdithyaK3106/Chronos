@@ -229,21 +229,16 @@ fi
 
 # Step 6: IDE FastMCP Configuration (Cursor / Claude Desktop / Windsurf)
 if [ "$CONFIGURE_MCP" = true ]; then
-    # Cursor
+    # Merge the chronos server into existing configs: other MCP servers and settings are kept,
+    # the original is backed up once to <file>.chronos-bak, and a file that isn't valid JSON is
+    # left untouched (with a warning).
     CURSOR_MCP="${HOME}/.cursor/mcp.json"
     if [ -d "${HOME}/.cursor" ] || [ -f "$CURSOR_MCP" ]; then
-        mkdir -p "${HOME}/.cursor"
-        cat <<EOF > "$CURSOR_MCP"
-{
-  "mcpServers": {
-    "chronos": {
-      "command": "${CHRONOS_BIN}",
-      "args": ["serve"]
-    }
-  }
-}
-EOF
-        echo -e "${GREEN}✓${RESET} Configured Cursor FastMCP integration: ${BOLD}${CURSOR_MCP}${RESET}"
+        if MSG=$("${CHRONOS_BIN}" mcp-config add "$CURSOR_MCP" 2>&1); then
+            echo -e "${GREEN}✓${RESET} Cursor MCP: ${MSG}"
+        else
+            echo -e "${YELLOW}!${RESET} Cursor MCP not changed: ${MSG}"
+        fi
     fi
 
     # Claude Desktop (macOS / Linux)
@@ -254,17 +249,11 @@ EOF
         CLAUDE_CONFIG="${HOME}/.config/Claude/claude_desktop_config.json"
     fi
     if [ -d "$(dirname "$CLAUDE_CONFIG")" ]; then
-        cat <<EOF > "$CLAUDE_CONFIG"
-{
-  "mcpServers": {
-    "chronos": {
-      "command": "${CHRONOS_BIN}",
-      "args": ["serve"]
-    }
-  }
-}
-EOF
-        echo -e "${GREEN}✓${RESET} Configured Claude Desktop FastMCP integration: ${BOLD}${CLAUDE_CONFIG}${RESET}"
+        if MSG=$("${CHRONOS_BIN}" mcp-config add "$CLAUDE_CONFIG" 2>&1); then
+            echo -e "${GREEN}✓${RESET} Claude Desktop MCP: ${MSG}"
+        else
+            echo -e "${YELLOW}!${RESET} Claude Desktop MCP not changed: ${MSG}"
+        fi
     fi
 fi
 

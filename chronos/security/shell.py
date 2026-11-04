@@ -305,9 +305,34 @@ def analyze(command: str, cwd: str | Path, _depth: int = 0) -> ShellAnalysis:
     return res
 
 
+EXCLUDE_OPTIONS = {"--exclude", "--exclude-dir", "--exclude-from", "--ignore", "--ignore-file", "-x", "--skip", "--prune", "--ignore-dir"}
+GLOB_OPTIONS = {"-g", "--glob", "--iglob"}  # rg/ag: '!pattern' excludes, 'pattern' includes
+
+
+def _is_exclusion(prog: str, opt: str, value: str) -> bool:
+    if opt in GLOB_OPTIONS:
+        return value.lstrip("'\"").startswith("!")
+    return opt in EXCLUDE_OPTIONS and prog not in ("cat", "cp", "mv", "tar", "rsync") or (opt == "--exclude" and prog in ("tar", "rsync"))
+
+
 def _secret_scan_args(prog: str, args: list[str], res: ShellAnalysis) -> None:
+    """Secret names among a command's arguments. Naming a secret in order to leave it out
+    (`grep --exclude=.env`, `rg -g '!.env'`, `zip -x .env`) is safe and not counted."""
     skip_next = False
-    for idx, a in enumerate(args):
+    i = 0
+    while i < len(args):
+        a = args[i]
+        opt, sep, val = a.partition("=")
+        if opt in EXCLUDE_OPTIONS | GLOB_OPTIONS:
+            if not sep:  # value in the next argument
+                val = args[i + 1] if i + 1 < len(args) else ""
+                if _is_exclusion(prog, opt, val):
+                    i += 2
+                    continue
+            elif _is_exclusion(prog, opt, val):
+                i += 1
+                continue
+        i += 1
         if skip_next:
             skip_next = False
             res._add("secrets", _prose_secret_names(a))

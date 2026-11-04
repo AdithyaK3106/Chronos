@@ -318,3 +318,17 @@ def test_installed_matcher_covers_mcp_and_webfetch():
     for tool in ("Bash", "Edit", "Write", "Read", "WebFetch", "mcp__github__create_issue"):
         assert rx.match(tool), tool
     assert not rx.match("TodoWrite")
+
+
+@pytest.mark.parametrize("cmd,secret", [
+    ("grep -rn PAYMENTS . --exclude=.env --exclude=.env.*", False),
+    ("grep --exclude .env -rn x .", False),
+    ("rg -g '!.env' TOKEN", False),
+    ("zip -r a.zip . -x .env", False),
+    ("tar czf x.tgz --exclude=.env .", False),
+    ("rg -g '.env' TOKEN", True),
+    ("rg --glob=.env TOKEN", True),
+    ("cat .env", True),
+])
+def test_excluding_secret_files_is_not_reading_them(repo, cmd, secret):
+    assert bool(analyze(cmd, repo).secrets) is secret

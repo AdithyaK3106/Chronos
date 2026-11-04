@@ -78,7 +78,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - `chronos claude install --managed --out <file>` writes a `managed-settings.json` with the Chronos hooks, `onFailure: block` on PreToolUse, and `allowManagedHooksOnly: true`. Check the field names in the Claude Code docs (https://code.claude.com/docs/en/managed-settings) before writing them.
   - `chronos claude install` warns when Claude Code is older than 2.1.295.
   - Add tests and commit.
-- [ ] 14. **Hook payload fixtures.** Save real-shaped PreToolUse/PostToolUse/UserPromptSubmit payloads for Bash, Edit, Write, Read, WebFetch and an MCP call under `tests/fixtures/claude_hooks/`. Add one test that runs every fixture through `run_hook` and checks the decision. Commit.
+- [x] 14. **Hook payload fixtures.** Save real-shaped PreToolUse/PostToolUse/UserPromptSubmit payloads for Bash, Edit, Write, Read, WebFetch and an MCP call under `tests/fixtures/claude_hooks/`. Add one test that runs every fixture through `run_hook` and checks the decision. Commit.
 
 ## C. README and wrap-up
 - [ ] 15. **README rewrite.** Make it look and read like the strong open-source AI-agent repositories (for structure, look at README patterns from projects such as aider, OpenHands, continue, cline and mem0: centred title, one-line pitch, badges, short demo, scannable sections). Keep every claim true and backed by an artifact.
@@ -110,3 +110,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 11: done in 0a9c3da — every write under .codex/ is denied (Edit/Write and Bash); 8 new tests; 266 rule/firewall tests pass.
 - item 12: done in 47ddc35 — docs/events-v1.md: today's record (v0) verified against code, v1 additions marked proposed, versioning + v0 mapping. Found: dashboard writes upper-case statuses; no session_id in audit records.
 - item 13: done in dbf45fb — `claude install --managed --out` (hooks, onFailure: block, allowManagedHooksOnly; fields checked against the managed-settings docs); version warnings tested; 313 tests pass.
+- item 14: done in ac263c8 — 18 fixtures (Bash/Edit/Write/Read/WebFetch/MCP; pre/post/prompt) + expected.json; one parametrized test, 19 pass.

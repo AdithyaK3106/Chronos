@@ -92,3 +92,59 @@ def test_connect_and_full_resync_stay_fast_on_a_large_repo(tmp_path):
         assert len(_fts_hits(con, "f299_14")) == 1
     finally:
         con.close()
+
+
+V2_SCHEMA = """
+CREATE TABLE code_nodes (id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL, kind TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'python', signature TEXT, docstring TEXT);
+CREATE VIRTUAL TABLE code_nodes_fts USING fts5(id UNINDEXED, name, path, signature, docstring,
+    tokenize='unicode61 remove_diacritics 1');
+CREATE TRIGGER trg_code_nodes_ai AFTER INSERT ON code_nodes BEGIN
+    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring)
+    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+END;
+INSERT INTO code_nodes (id, name, path, kind) VALUES ('a.py::check_expiry::Function', 'check_expiry', 'a.py', 'Function');
+PRAGMA user_version = 2;
+"""
+
+
+def test_v2_database_gains_body_terms_and_stemming(tmp_path):
+    import sqlite3
+
+    db = tmp_path / ".chronos" / "chronos.db"
+    db.parent.mkdir()
+    raw = sqlite3.connect(db)
+    raw.executescript(V2_SCHEMA)
+    raw.close()
+    marker = db.parent / "last_index"
+    marker.touch()
+
+    con = get_connection(db)
+    try:
+        assert con.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 3
+        assert "terms" in {r[1] for r in con.execute("PRAGMA table_info(code_nodes)")}
+        assert "porter" in con.execute("SELECT sql FROM sqlite_master WHERE name='code_nodes_fts'").fetchone()[0]
+        assert _fts_hits(con, "check_expiry")  # existing rows were carried over
+        assert not marker.exists()  # the hook will re-index and fill in terms
+        # new rows index their body terms, stemmed
+        (tmp_path / "svc.py").write_text("def verify(rec):\n    return rec.expires_at < utc_now()\n")
+        nodes, edges = index_repository(tmp_path)
+        SQLiteGraphStore(con).sync_repository(nodes, edges)
+        assert any("verify" in h for h in _fts_hits(con, "expire"))
+        assert [r["name"] for r in SQLiteGraphStore(con).query_symbols_lexical(["expiry"])] == ["verify"]
+    finally:
+        con.close()
+
+
+def test_body_terms_split_identifiers_and_skip_nested_functions():
+    import ast
+
+    from chronos.context.indexer import python_body_terms
+
+    fn = ast.parse(
+        "def f(rec):\n    if rec.expiresAt < parse_utc_date('Expired cylinder'):\n        pass\n"
+        "    def inner():\n        secret_inner_name()\n"
+    ).body[0]
+    terms = python_body_terms(fn).split()
+    assert {"expires", "parse", "utc", "date", "expired", "cylinder", "rec"} <= set(terms)
+    assert "secret" not in terms and "inner" not in terms  # nested defs are indexed as their own nodes

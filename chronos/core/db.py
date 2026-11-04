@@ -87,7 +87,8 @@ CREATE TABLE IF NOT EXISTS code_nodes (
     kind      TEXT NOT NULL,
     language  TEXT NOT NULL DEFAULT 'python',
     signature TEXT,
-    docstring TEXT
+    docstring TEXT,
+    terms     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_code_nodes_name ON code_nodes(name);
 CREATE INDEX IF NOT EXISTS idx_code_nodes_path ON code_nodes(path);
@@ -99,15 +100,16 @@ CREATE VIRTUAL TABLE IF NOT EXISTS code_nodes_fts USING fts5(
     path,
     signature,
     docstring,
-    tokenize='unicode61 remove_diacritics 1'
+    terms,
+    tokenize='porter unicode61 remove_diacritics 1'
 );
 
 -- Triggers to maintain code_nodes_fts in sync with code_nodes
 -- (FTS rows share the source row's rowid: FTS5 can look up rowid, but not the UNINDEXED id column,
 --  so `WHERE id = old.id` was a full scan per changed row and re-indexing became O(n^2).)
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ai AFTER INSERT ON code_nodes BEGIN
-    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring)
-    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring, terms)
+    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''), COALESCE(new.terms, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_ad AFTER DELETE ON code_nodes BEGIN
@@ -116,8 +118,8 @@ END;
 
 CREATE TRIGGER IF NOT EXISTS trg_code_nodes_au AFTER UPDATE ON code_nodes BEGIN
     DELETE FROM code_nodes_fts WHERE rowid = old.rowid;
-    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring)
-    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
+    INSERT INTO code_nodes_fts(rowid, id, name, path, signature, docstring, terms)
+    VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''), COALESCE(new.terms, ''));
 END;
 
 -- Bi-Temporal Code Edges (Wedge 1 GraphStore)
@@ -289,11 +291,12 @@ def _migrate_memories_schema(con: sqlite3.Connection) -> None:
     except Exception:
         pass
 
-# PRAGMA user_version: 2 = FTS rows keyed by the source row's rowid (see the trigger comment).
-SCHEMA_VERSION = 2
+# PRAGMA user_version: 2 = FTS rows keyed by the source row's rowid (see the trigger comment);
+# 3 = code_nodes.terms (body identifiers) and a `terms` column in code_nodes_fts.
+SCHEMA_VERSION = 3
 _FTS_TABLES = (
-    ("code_nodes", "code_nodes_fts", "id, name, path, signature, docstring",
-     "n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, '')"),
+    ("code_nodes", "code_nodes_fts", "id, name, path, signature, docstring, terms",
+     "n.id, n.name, n.path, COALESCE(n.signature, ''), COALESCE(n.docstring, ''), COALESCE(n.terms, '')"),
     ("memories", "memories_fts", "id, content, summary, tags, evidence",
      "n.id, n.content, n.summary, n.tags, n.evidence"),
 )
@@ -301,8 +304,12 @@ _FTS_TRIGGERS = ("trg_code_nodes_ai", "trg_code_nodes_ad", "trg_code_nodes_au",
                  "trg_memories_ai", "trg_memories_ad", "trg_memories_au")
 
 
-def _migrate_fts_to_rowid(con: sqlite3.Connection) -> None:
-    """One-time: replace id-keyed FTS triggers and rebuild the FTS tables keyed by rowid."""
+def _migrate_fts_to_rowid(con: sqlite3.Connection, db_path: str = ":memory:") -> None:
+    """One-time: rebuild the FTS tables (keyed by rowid, with the current columns) and triggers.
+
+    v3 adds `terms` to code_nodes_fts, so that table is recreated. Existing nodes have no terms
+    yet; removing the hook's `last_index` marker makes the next hook call re-index the repo.
+    """
     if con.execute("PRAGMA user_version").fetchone()[0] >= SCHEMA_VERSION:
         return
     con.execute("BEGIN IMMEDIATE")  # concurrent hook processes: exactly one migrates
@@ -310,16 +317,36 @@ def _migrate_fts_to_rowid(con: sqlite3.Connection) -> None:
         if con.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
             for trg in _FTS_TRIGGERS:
                 con.execute(f"DROP TRIGGER IF EXISTS {trg}")
+            fts_cols_now = {r[1] for r in con.execute("PRAGMA table_info(code_nodes_fts)").fetchall()}
+            fts_sql = (con.execute("SELECT sql FROM sqlite_master WHERE name = 'code_nodes_fts'").fetchone() or [""])[0] or ""
+            if "terms" not in fts_cols_now or "porter" not in fts_sql:
+                con.execute("DROP TABLE IF EXISTS code_nodes_fts")
+                con.execute(re.search(r"CREATE VIRTUAL TABLE IF NOT EXISTS code_nodes_fts.*?\);", SCHEMA, re.S).group(0))
             for table, fts, fts_cols, select_cols in _FTS_TABLES:
                 con.execute(f"DELETE FROM {fts}")
                 con.execute(f"INSERT INTO {fts}(rowid, {fts_cols}) SELECT n.rowid, {select_cols} FROM {table} n")
             for stmt in re.findall(r"CREATE TRIGGER IF NOT EXISTS trg_(?:code_nodes|memories)_a[iud]\b.*?\bEND;", SCHEMA, re.S):
                 con.execute(stmt)
             con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            if db_path != ":memory:":
+                try:
+                    (Path(db_path).parent / "last_index").unlink()
+                except OSError:
+                    pass
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
+
+
+def _add_code_node_columns(con: sqlite3.Connection) -> None:
+    """Add columns introduced after a DB was created (no-op on new or current DBs)."""
+    try:
+        cols = {row[1] for row in con.execute("PRAGMA table_info(code_nodes)").fetchall()}
+        if cols and "terms" not in cols:
+            con.execute("ALTER TABLE code_nodes ADD COLUMN terms TEXT")
+    except Exception:
+        pass
 
 
 def _backfill_fts(con: sqlite3.Connection, table: str, fts: str, fts_cols: str, select_cols: str) -> None:
@@ -357,9 +384,10 @@ def get_connection(db_path: Union[str, Path] = ":memory:") -> sqlite3.Connection
     con.execute("PRAGMA foreign_keys = ON")
     con.execute("PRAGMA busy_timeout = 30000")
     
+    _add_code_node_columns(con)  # before SCHEMA: its triggers reference code_nodes.terms
     con.executescript(SCHEMA)
     _migrate_memories_schema(con)
-    _migrate_fts_to_rowid(con)
+    _migrate_fts_to_rowid(con, path_str)
     for table, fts, fts_cols, select_cols in _FTS_TABLES:
         _backfill_fts(con, table, fts, fts_cols, select_cols)
     return con

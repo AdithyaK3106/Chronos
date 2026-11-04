@@ -15,6 +15,7 @@ class ASTNode(BaseModel):
     language: str = "python"
     docstring: str | None = None
     signature: str | None = None
+    terms: str | None = None  # identifiers/words used in the body, for lexical search
 
 class ASTEdge(BaseModel):
     src: str

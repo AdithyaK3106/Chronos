@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -222,6 +223,51 @@ def get_tree_sitter_parser(lang_key: str) -> Any | None:
 
 # --- Python Native AST Extractor (Fast Path) ---
 
+MAX_BODY_TERMS = 120
+_TERM_SPLIT_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+")
+_WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]{2,}")
+
+
+def _split_identifier(name: str) -> list[str]:
+    """`parse_expiry_date` -> [parse, expiry, date]; `isExpired` -> [is, expired]."""
+    out = []
+    for part in name.split("_"):
+        out.extend(w.lower() for w in _TERM_SPLIT_RE.findall(part))
+    return out
+
+
+def python_body_terms(fn: ast.AST) -> str | None:
+    """Identifiers and words a function body uses (names, attributes, keyword args, short strings),
+    split into lower-case words, deduplicated in order of first use and capped. Lets a prompt that
+    describes behaviour ("timezone-naive expiry check") find a function whose name does not say so.
+    Nested function bodies are left to their own nodes."""
+    seen: dict[str, None] = {}
+
+    def add(word: str) -> None:
+        for w in _split_identifier(word):
+            if len(w) >= 3 and w not in seen:
+                seen[w] = None
+
+    stack = list(ast.iter_child_nodes(fn))
+    while stack and len(seen) < MAX_BODY_TERMS:
+        node = stack.pop(0)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if isinstance(node, ast.Name):
+            add(node.id)
+        elif isinstance(node, ast.Attribute):
+            add(node.attr)
+        elif isinstance(node, ast.keyword) and node.arg:
+            add(node.arg)
+        elif isinstance(node, ast.arg):
+            add(node.arg)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) <= 200:
+            for w in _WORD_RE.findall(node.value):
+                add(w)
+        stack.extend(ast.iter_child_nodes(node))
+    return " ".join(list(seen)[:MAX_BODY_TERMS]) or None
+
+
 class PythonASTExtractor(ast.NodeVisitor):
     def __init__(self, file_path: str):
         self.file_path = Path(file_path).as_posix()
@@ -287,6 +333,7 @@ class PythonASTExtractor(ast.NodeVisitor):
                 language="python",
                 docstring=doc,
                 signature=sig,
+                terms=python_body_terms(node),
             )
         )
 

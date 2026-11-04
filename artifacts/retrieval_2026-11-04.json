@@ -11,20 +11,20 @@
       "symbol_hit@3": 18,
       "gold_symbol_in_envelope": 19,
       "median_file_rank": 1.0,
-      "median_ms": 39.5
+      "median_ms": 47.15
     },
     "no paths": {
       "tasks": 20,
       "injected": 19,
-      "file_hit@1": 14,
-      "file_hit@3": 15,
-      "file_hit@5": 16,
-      "all_gold_files@5": 14,
-      "gold_file_in_envelope": 16,
+      "file_hit@1": 15,
+      "file_hit@3": 17,
+      "file_hit@5": 17,
+      "all_gold_files@5": 15,
+      "gold_file_in_envelope": 17,
       "symbol_hit@3": 13,
-      "gold_symbol_in_envelope": 15,
-      "median_file_rank": 1.0,
-      "median_ms": 27.9
+      "gold_symbol_in_envelope": 16,
+      "median_file_rank": 1,
+      "median_ms": 27.15
     }
   },
   "tasks": [
@@ -53,7 +53,7 @@
             "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (125)",
             "chronos/context/graph.py::GraphStore.as_of_callers (105)"
           ],
-          "ms": 40.8
+          "ms": 30.5
         },
         {
           "variant": "no paths",
@@ -63,14 +63,14 @@
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 3,
+          "symbol_rank": 5,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "chronos/server/mcp_server.py::as_of_callers (75)",
-            "chronos/server/mcp_server.py::as_of_impact (75)",
-            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (75)"
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (75)",
+            "chronos/context/kuzu_backend.py::KuzuGraphStore.as_of_callers (75)"
           ],
-          "ms": 20.7
+          "ms": 19.7
         }
       ]
     },
@@ -99,7 +99,7 @@
             "chronos/coordination/ledger.py::release_lock (125)",
             "tests/security/test_security_vectors.py::acquire_lock (75)"
           ],
-          "ms": 33.1
+          "ms": 36.9
         },
         {
           "variant": "no paths",
@@ -116,7 +116,7 @@
             "tests/security/test_security_vectors.py::acquire_lock (75)",
             "chronos/coordination/ledger.py::release_lock (75)"
           ],
-          "ms": 17.5
+          "ms": 20.3
         }
       ]
     },
@@ -133,7 +133,7 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 119.3,
+          "top_score": 125.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -141,16 +141,16 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "chronos/context/graph.py::SQLiteGraphStore (119)",
-            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (68)",
-            "chronos/context/graph.py::SQLiteGraphStore.as_of_callees (68)"
+            "chronos/context/graph.py::SQLiteGraphStore (125)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (70)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (70)"
           ],
-          "ms": 41.6
+          "ms": 43.6
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 76.0,
+          "top_score": 85.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -158,11 +158,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "chronos/context/graph.py::SQLiteGraphStore (76)",
-            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (30)",
-            "chronos/context/graph.py::SQLiteGraphStore.as_of_callees (30)"
+            "chronos/context/graph.py::SQLiteGraphStore (85)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_impact (35)",
+            "chronos/context/graph.py::SQLiteGraphStore.as_of_callers (35)"
           ],
-          "ms": 32.0
+          "ms": 20.0
         }
       ]
     },
@@ -184,14 +184,14 @@
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 2,
+          "symbol_rank": 3,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "chronos/verification/rule_store.py::upsert_rule (70)",
-            "chronos/verification/rule_store.py::get_active_blocking_rules (70)",
-            "chronos/verification/rule_store.py::promote_rule (70)"
+            "chronos/verification/rule_store.py::promote_rule (70)",
+            "chronos/verification/rule_store.py::get_active_blocking_rules (70)"
           ],
-          "ms": 33.3
+          "ms": 45.8
         },
         {
           "variant": "no paths",
@@ -201,14 +201,14 @@
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 4,
+          "symbol_rank": 5,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "chronos/verification/rule_store.py::upsert_rule (20)",
             "chronos/security/identity.py::authenticate_key (20)",
-            "chronos/verification/enforcer.py::evaluate_rules_on_content (20)"
+            "chronos/context/kuzu_backend.py::KuzuGraphStore._ensure_schema (20)"
           ],
-          "ms": 25.3
+          "ms": 27.1
         }
       ]
     },
@@ -246,11 +246,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "chronos/server/mcp_server.py::main (125)",
             "chronos/core/db.py::get_connection (125)",
-            "chronos/cli/main.py::main (121)"
+            "chronos/cli/main.py::main (125)",
+            "chronos/server/mcp_server.py::main (125)"
           ],
-          "ms": 31.1
+          "ms": 33.7
         },
         {
           "variant": "no paths",
@@ -264,10 +264,10 @@
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "chronos/core/db.py::get_connection (90)",
-            "chronos/context/graph.py::SQLiteGraphStore.__init__ (13)",
-            "runtime/openhands_adapter.py::ChronosAgentRuntime.__init__ (12)"
+            "chronos/server/mcp_server.py::chronos_assemble_context (20)",
+            "runtime/hooks.py::evaluate_tool_security (20)"
           ],
-          "ms": 28.9
+          "ms": 24.5
         }
       ]
     },
@@ -284,7 +284,7 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 86.2,
+          "top_score": 90.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -292,28 +292,28 @@
           "symbol_rank": 2,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (86)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (90)",
             "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._fix_ocr_confusions (70)",
             "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer (70)"
           ],
-          "ms": 37.2
+          "ms": 58.1
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 28.2,
-          "file_rank": null,
-          "files_found_top5": 0,
+          "top_score": 36.6,
+          "file_rank": 1,
+          "files_found_top5": 1,
           "files_total": 1,
-          "gold_file_in_envelope": false,
-          "symbol_rank": null,
-          "gold_symbol_in_envelope": false,
+          "gold_file_in_envelope": true,
+          "symbol_rank": 5,
+          "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/api/routes/ocr.py::extract_ocr (28)",
-            "backend/src/app/api/routes/ocr.py::get_plate_detector (27)",
-            "backend/src/app/api/routes/ocr.py::set_plate_detector (27)"
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (37)",
+            "backend/src/app/api/routes/ocr.py::set_plate_detector (35)",
+            "backend/src/app/api/routes/ocr.py::extract_ocr (35)"
           ],
-          "ms": 22.4
+          "ms": 27.2
         }
       ]
     },
@@ -330,32 +330,36 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 61.4,
+          "top_score": 65.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 3,
+          "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/services/verification_service.py::VerificationService (61)",
-            "backend/src/app/services/verification_service.py::VerificationService.__init__ (61)",
-            "backend/src/app/services/verification_service.py::VerificationService.verify (61)"
+            "backend/src/app/services/verification_service.py::VerificationService.verify (65)",
+            "backend/src/app/services/verification_service.py::VerificationService (65)",
+            "backend/src/app/services/verification_service.py::VerificationService.__init__ (65)"
           ],
-          "ms": 37.4
+          "ms": 53.2
         },
         {
           "variant": "no paths",
           "injected": false,
-          "top_score": 0.0,
+          "top_score": 10.9,
           "file_rank": null,
           "files_found_top5": 0,
           "files_total": 1,
           "gold_file_in_envelope": false,
           "symbol_rank": null,
           "gold_symbol_in_envelope": false,
-          "top_candidates": [],
-          "ms": 1.8
+          "top_candidates": [
+            "backend/src/app/adapters/mock_compliance_provider.py::MockComplianceProvider._query_government_registry (11)",
+            "backend/tests/test_auth.py::create_test_token (10)",
+            "backend/alembic/versions/001_initial_schema.py::upgrade (10)"
+          ],
+          "ms": 31.2
         }
       ]
     },
@@ -373,7 +377,7 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 94.5,
+          "top_score": 95.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -381,28 +385,28 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (94)",
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (95)",
             "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._fix_ocr_confusions (70)",
-            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer (70)"
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer._try_match (70)"
           ],
-          "ms": 52.6
+          "ms": 42.3
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 68.0,
-          "file_rank": 4,
+          "top_score": 45.0,
+          "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 5,
+          "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/ports/ocr_provider.py::OcrResult.text (68)",
-            "backend/src/app/api/routes/ocr.py::get_ocr_provider (21)",
-            "backend/src/app/api/routes/ocr.py::set_ocr_provider (21)"
+            "backend/src/app/domain/registration_normalizer.py::IndianRegistrationNormalizer.normalize (45)",
+            "backend/src/app/ports/ocr_provider.py::OcrResult.text (30)",
+            "backend/src/app/api/routes/ocr.py::extract_ocr (30)"
           ],
-          "ms": 28.7
+          "ms": 27.7
         }
       ]
     },
@@ -419,24 +423,24 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 66.4,
+          "top_score": 74.3,
           "file_rank": 2,
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 4,
+          "symbol_rank": 5,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/main.py::metrics (66)",
-            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (58)",
-            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.__init__ (58)"
+            "backend/src/app/main.py::metrics (74)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.validate_and_preprocess (65)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (65)"
           ],
-          "ms": 60.8
+          "ms": 65.4
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 66.0,
+          "top_score": 74.3,
           "file_rank": null,
           "files_found_top5": 0,
           "files_total": 1,
@@ -444,11 +448,11 @@
           "symbol_rank": null,
           "gold_symbol_in_envelope": false,
           "top_candidates": [
-            "backend/src/app/main.py::metrics (66)",
-            "backend/src/app/core/logging.py::configure_logging (33)",
-            "backend/src/app/core/metrics.py::get_metrics_output (26)"
+            "backend/src/app/main.py::metrics (74)",
+            "backend/src/app/core/logging.py::configure_logging (35)",
+            "backend/src/app/core/metrics.py::get_metrics_output (34)"
           ],
-          "ms": 35.4
+          "ms": 26.0
         }
       ]
     },
@@ -465,24 +469,24 @@
         {
           "variant": "as written",
           "injected": true,
-          "top_score": 65.7,
+          "top_score": 70.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 2,
+          "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (66)",
-            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.create_ocr_variants (64)",
-            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.validate_and_preprocess (64)"
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.create_ocr_variants (70)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor (70)",
+            "backend/src/app/adapters/ocr/preprocessor.py::ImagePreprocessor.validate_and_preprocess (70)"
           ],
-          "ms": 32.1
+          "ms": 48.5
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 24.0,
+          "top_score": 24.8,
           "file_rank": null,
           "files_found_top5": 0,
           "files_total": 1,
@@ -490,11 +494,11 @@
           "symbol_rank": null,
           "gold_symbol_in_envelope": false,
           "top_candidates": [
-            "backend/src/app/core/config.py::Settings (24)",
-            "backend/src/app/api/routes/config.py::update_config (23)",
-            "backend/src/app/api/routes/config.py::get_config_by_key (23)"
+            "backend/src/app/core/config.py::Settings (25)",
+            "backend/src/app/api/routes/config.py::list_configs (25)",
+            "backend/src/app/api/routes/config.py::get_config_by_key (24)"
           ],
-          "ms": 26.1
+          "ms": 30.9
         }
       ]
     },
@@ -520,11 +524,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/telemetry_logger.py::collect_disk_io (125)",
             "src/telemetry_logger.py::collect_network_io (125)",
-            "src/telemetry_logger.py::collect_cpu_usage (69)"
+            "src/telemetry_logger.py::collect_disk_io (125)",
+            "src/telemetry_logger.py::run (70)"
           ],
-          "ms": 45.5
+          "ms": 68.1
         },
         {
           "variant": "no paths",
@@ -537,11 +541,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/telemetry_logger.py::collect_disk_io (75)",
             "src/telemetry_logger.py::collect_network_io (75)",
+            "src/telemetry_logger.py::collect_disk_io (75)",
             "runtime/runtime_clock.py::RuntimeClock.get_elapsed (20)"
           ],
-          "ms": 41.3
+          "ms": 30.4
         }
       ]
     },
@@ -567,15 +571,15 @@
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/preprocess.py::preprocess_pipeline (125)",
-            "training/research/gnn_model.py::ThermalGNN.forward (66)",
-            "training/gnn_model.py::ThermalGNN.forward (66)"
+            "src/preprocess.py::preprocess (50)",
+            "src/features.py::FeatureProcessor.fit (45)"
           ],
-          "ms": 68.5
+          "ms": 60.0
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 84.5,
+          "top_score": 90.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -583,11 +587,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/preprocess.py::preprocess_pipeline (85)",
-            "training/research/gnn_model.py::ThermalGNN.forward (66)",
-            "training/gnn_model.py::ThermalGNN.forward (66)"
+            "src/preprocess.py::preprocess_pipeline (90)",
+            "src/features.py::FeatureProcessor.fit (45)",
+            "src/inference.py::InferenceEngine.collect_telemetry (35)"
           ],
-          "ms": 35.3
+          "ms": 45.1
         }
       ]
     },
@@ -617,7 +621,7 @@
             "src/cooling_policy.py::CoolingPolicyEngine.update (95)",
             "src/cooling_policy.py::CoolingPolicyEngine.__init__ (65)"
           ],
-          "ms": 42.9
+          "ms": 72.9
         },
         {
           "variant": "no paths",
@@ -632,9 +636,9 @@
           "top_candidates": [
             "src/cooling_policy.py::CoolingPolicyEngine (75)",
             "src/cooling_policy.py::CoolingPolicyEngine.update (45)",
-            "src/thermal_mode_controller.py::ThermalModeController.update (44)"
+            "src/thermal_mode_controller.py::ThermalModeController.update (45)"
           ],
-          "ms": 27.5
+          "ms": 39.5
         }
       ]
     },
@@ -659,28 +663,28 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/thermal_mode_controller.py::ThermalModeController.switch_mode (125)",
+            "src/thermal_mode_controller.py::ThermalModeController (125)",
             "src/thermal_mode_controller.py::ThermalMode (125)",
-            "runtime/event_broadcaster.py::EventBroadcaster.broadcast (74)"
+            "src/thermal_mode_controller.py::ThermalModeController.switch_mode (125)"
           ],
-          "ms": 38.2
+          "ms": 71.6
         },
         {
           "variant": "no paths",
           "injected": true,
           "top_score": 75.0,
-          "file_rank": 1,
+          "file_rank": 2,
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 1,
+          "symbol_rank": 2,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/thermal_mode_controller.py::ThermalModeController.switch_mode (75)",
-            "src/thermal_mode_controller.py::ThermalMode (74)",
-            "runtime/event_broadcaster.py::EventBroadcaster.broadcast (74)"
+            "src/hardware/thermal_mode_controller.py::ThermalModeController (75)",
+            "src/thermal_mode_controller.py::ThermalModeController (75)",
+            "src/thermal_mode_controller.py::ThermalMode (75)"
           ],
-          "ms": 28.3
+          "ms": 37.6
         }
       ]
     },
@@ -705,14 +709,14 @@
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 2,
+          "symbol_rank": 3,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/features.py::FeatureProcessor.get_roll (125)",
-            "src/features.py::FeatureProcessor.process_single (125)",
-            "src/features.py::FeatureProcessor.reset_state (125)"
+            "src/features.py::FeatureProcessor (125)",
+            "src/features.py::FeatureProcessor.process_single (125)"
           ],
-          "ms": 41.3
+          "ms": 34.7
         },
         {
           "variant": "no paths",
@@ -722,14 +726,14 @@
           "files_found_top5": 1,
           "files_total": 1,
           "gold_file_in_envelope": true,
-          "symbol_rank": 2,
+          "symbol_rank": 3,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/features.py::FeatureProcessor.get_roll (75)",
-            "src/features.py::FeatureProcessor.process_single (75)",
-            "src/features.py::FeatureProcessor.reset_state (75)"
+            "src/features.py::FeatureProcessor (75)",
+            "src/features.py::FeatureProcessor.process_single (75)"
           ],
-          "ms": 33.0
+          "ms": 29.1
         }
       ]
     },
@@ -758,12 +762,12 @@
             "src/safety/emergency_rules.py::EmergencyRuleEngine._log_emergency (70)",
             "src/safety/emergency_rules.py::EmergencyRuleEngine (65)"
           ],
-          "ms": 29.0
+          "ms": 50.4
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 74.1,
+          "top_score": 75.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -771,11 +775,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/safety/emergency_rules.py::EmergencyRuleEngine.check_for_emergency (74)",
+            "src/safety/emergency_rules.py::EmergencyRuleEngine.check_for_emergency (75)",
             "tests/test_hybrid_architecture.py::test_cardiac_emergency_veto (20)",
             "src/safety/emergency_firewall.py::EmergencySafetyFirewall._is_negated_or_historical (20)"
           ],
-          "ms": 23.8
+          "ms": 17.4
         }
       ]
     },
@@ -801,15 +805,15 @@
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/preprocessing/symptom_processor.py::normalize_symptom (125)",
-            "src/preprocessing/symptom_processor.py::standardize_disease_label (61)",
-            "src/preprocessing/symptom_processor.py::detect_impossible_combinations (60)"
+            "src/preprocessing/symptom_processor.py::standardize_disease_label (65)",
+            "src/preprocessing/symptom_processor.py::detect_impossible_combinations (65)"
           ],
-          "ms": 38.0
+          "ms": 28.2
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 66.7,
+          "top_score": 69.5,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 1,
@@ -817,11 +821,11 @@
           "symbol_rank": 1,
           "gold_symbol_in_envelope": true,
           "top_candidates": [
-            "src/preprocessing/symptom_processor.py::normalize_symptom (67)",
+            "src/preprocessing/symptom_processor.py::normalize_symptom (70)",
             "src/models/llm/qwen_client.py::QwenLLMClient.generate_triage_response (20)",
-            "tests/test_hybrid_architecture.py::test_hindi_language_detection (18)"
+            "src/preprocessing/text_processor.py::clean_text (20)"
           ],
-          "ms": 16.3
+          "ms": 25.6
         }
       ]
     },
@@ -848,9 +852,9 @@
           "top_candidates": [
             "src/safety/decision_layer.py::ClinicalDecisionLayer (125)",
             "src/safety/decision_layer.py::ClinicalDecisionLayer.evaluate (125)",
-            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (68)"
+            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (75)"
           ],
-          "ms": 41.9
+          "ms": 55.2
         },
         {
           "variant": "no paths",
@@ -864,10 +868,10 @@
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/safety/decision_layer.py::ClinicalDecisionLayer (75)",
-            "src/safety/decision_layer.py::ClinicalDecisionLayer.evaluate (70)",
-            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (66)"
+            "src/safety/decision_layer.py::ClinicalDecisionLayer.evaluate (75)",
+            "src/safety/emergency_firewall.py::EmergencySafetyFirewall.evaluate (75)"
           ],
-          "ms": 28.5
+          "ms": 32.0
         }
       ]
     },
@@ -897,7 +901,7 @@
             "src/conversational/response_formatter.py::ResponseFormatter (120)",
             "src/conversational/response_formatter.py::ResponseFormatter.format_questions (65)"
           ],
-          "ms": 52.0
+          "ms": 43.0
         },
         {
           "variant": "no paths",
@@ -911,10 +915,10 @@
           "gold_symbol_in_envelope": true,
           "top_candidates": [
             "src/conversational/response_formatter.py::ResponseFormatter.format_predictions (75)",
-            "src/conversational/response_formatter.py::ResponseFormatter (65)",
-            "src/models/transformers/predict_bert.py::MedicalBERTInferencePipeline.predict (35)"
+            "src/conversational/response_formatter.py::ResponseFormatter (70)",
+            "src/models/transformers/predict_bert.py::MedicalBERTInferencePipeline.predict (45)"
           ],
-          "ms": 32.3
+          "ms": 25.7
         }
       ]
     },
@@ -939,15 +943,15 @@
           "gold_symbol_in_envelope": false,
           "top_candidates": [
             "src/conversational/timeline_extractor.py::SymptomTimelineExtractor.extract (95)",
-            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_via_llm (70)",
-            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_heuristic (70)"
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_heuristic (70)",
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_via_llm (70)"
           ],
-          "ms": 37.4
+          "ms": 37.9
         },
         {
           "variant": "no paths",
           "injected": true,
-          "top_score": 40.8,
+          "top_score": 45.0,
           "file_rank": 1,
           "files_found_top5": 1,
           "files_total": 2,
@@ -955,11 +959,11 @@
           "symbol_rank": null,
           "gold_symbol_in_envelope": false,
           "top_candidates": [
-            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor.extract (41)",
-            "src/models/llm/qwen_client.py::QwenLLMClient.generate_triage_response (20)",
-            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_via_llm (20)"
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor.extract (45)",
+            "src/evaluation/benchmark_bilingual.py::run_bilingual_benchmark (20)",
+            "src/conversational/timeline_extractor.py::SymptomTimelineExtractor._extract_heuristic (20)"
           ],
-          "ms": 20.9
+          "ms": 21.0
         }
       ]
     }

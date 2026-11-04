@@ -86,13 +86,13 @@ class SQLiteGraphStore(GraphStore):
             for n in nodes:
                 self.con.execute(
                     """
-                    INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring, terms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         name=excluded.name, path=excluded.path, kind=excluded.kind,
-                        signature=excluded.signature, docstring=excluded.docstring
+                        signature=excluded.signature, docstring=excluded.docstring, terms=excluded.terms
                     """,
-                    (n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring),
+                    (n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring, n.terms),
                 )
 
             for e in edges:
@@ -224,6 +224,12 @@ class SQLiteGraphStore(GraphStore):
             return []
         # Sanitize FTS5 query terms: wrap alphanumeric tokens in quotes to prevent FTS syntax injection
         clean_terms = ['"' + t.replace('"', '""') + '"' for t in query_terms if t and (t.isalnum() or '_' in t)]
+        # Crude stemming on top of the porter tokenizer: `expiry` -> `expir*` also finds
+        # `expires`/`expired`/`expiration`, which porter stems differently.
+        clean_terms += [
+            '"' + t[: max(5, len(t) - 2)].lower() + '"*' for t in query_terms
+            if t and t.isalpha() and len(t) >= 6
+        ]
         if not clean_terms:
             return []
         fts_query = " OR ".join(clean_terms)
@@ -231,7 +237,7 @@ class SQLiteGraphStore(GraphStore):
             rows = self.con.execute(
                 """
                 SELECT n.id, n.name, n.path, n.kind, n.signature, n.docstring,
-                       bm25(code_nodes_fts) AS bm25_rank
+                       bm25(code_nodes_fts, 0.0, 10.0, 2.0, 3.0, 2.0, 1.0) AS bm25_rank
                 FROM code_nodes_fts f
                 JOIN code_nodes n ON f.id = n.id
                 WHERE code_nodes_fts MATCH ?
@@ -330,14 +336,14 @@ class SQLiteGraphStore(GraphStore):
             # 1. Upsert current nodes
             self.con.executemany(
                 """
-                INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring, terms)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     name=excluded.name, path=excluded.path, kind=excluded.kind,
                     language=excluded.language, signature=excluded.signature,
-                    docstring=excluded.docstring
+                    docstring=excluded.docstring, terms=excluded.terms
                 """,
-                [(n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring) for n in nodes],
+                [(n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring, n.terms) for n in nodes],
             )
 
             # 2. Remove nodes that no longer exist

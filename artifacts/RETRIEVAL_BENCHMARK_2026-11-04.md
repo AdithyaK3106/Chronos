@@ -35,12 +35,30 @@ Two prompt variants:
 5. **Seed symbols keep score order.** They were sorted alphabetically, so the token budget dropped
    symbols by name instead of by relevance.
 
+## Body identifiers and stemming (schema v3)
+
+Python functions now index the identifiers and short strings their bodies use (`terms`, split on
+snake_case/camelCase), the code FTS table uses the porter stemmer, and long query words also match
+by prefix (`expiry` -> `expir*` finds `expires`). Migration v3 rebuilds the code FTS table and removes
+the hook's `last_index` marker so the next prompt re-indexes (0.37 s on this checkout's 616-node DB,
+checked on a copy).
+
+| Measure (of 20), no paths | resolver fixes | + body terms + stemming |
+|---|---|---|
+| gold file ranked 1st | 14 | 15 |
+| gold file in top 3 | 15 | **17** |
+| all gold files in top 5 | 14 | 15 |
+| gold file in injected context | 16 | **17** |
+| gold function in injected context | 15 | **16** |
+
+"As written" is unchanged (19/20 file ranked 1st, 19/20 gold function in context).
+
 ## What is still weak
-- **Prompts without identifiers.** `cng_task_02` without paths ("Fix timezone-naive datetime
-  comparison causing premature cylinder expiry flag") returns no candidates: the lexical index
-  holds names, paths, signatures and docstrings, not the identifiers used inside function bodies.
-  4 of 5 CNG tasks miss the gold file without paths for this reason. Indexing body identifiers is
-  the next retrieval improvement (schema change + migration).
+- **Purely descriptive prompts.** `cng_task_02` without paths ("Fix timezone-naive datetime
+  comparison causing premature cylinder expiry flag") still finds nothing useful: keyword search
+  cannot connect "premature expiry flag" to `expires_at < now`. Below the injection threshold the
+  hook injects nothing, so the agent is not misled, but it gets no help either. Closing this needs
+  meaning-based search (a small local embedding model; code stays on the machine). Open decision.
 - The extra ~20 ms per prompt is the Python `ast` parse for abstract detection (cached by mtime).
 
 ## Implication for the agent benchmark

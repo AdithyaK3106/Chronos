@@ -88,6 +88,7 @@ ABSTRACT_PENALTY = 20.0
 # Embedding-ranked files: above lexical-only scores (BM25 is capped at 15 plus bonuses), below
 # nothing that names a file explicitly (explicit paths disable the embedding step altogether).
 EMBED_TOP_SCORE = 120.0
+PREFIX_MATCH_SCORE = 20.0  # below an exact identifier match (30)
 EMBED_RANK_STEP = 10.0
 
 
@@ -357,6 +358,19 @@ class DeterministicContextResolver:
                 matched_nodes = self.graph_store.get_nodes_by_name(sym, include_members=True)
             except TypeError:  # graph backends without member matching
                 matched_nodes = self.graph_store.get_nodes_by_name(sym)
+            if not matched_nodes and "_" in sym.strip("_") and len(sym) >= 6:
+                # `query_symbols` when the code has `query_symbols_lexical`: a near-exact identifier.
+                for mn in getattr(self.graph_store, "get_nodes_by_prefix", lambda *_a, **_k: [])(sym, limit=3):
+                    nid = mn["id"]
+                    reason = f"Identifier starts with '{sym}'"
+                    if nid in candidates_map:
+                        candidates_map[nid].score += PREFIX_MATCH_SCORE
+                        candidates_map[nid].reasons.append(reason)
+                    else:
+                        candidates_map[nid] = CandidateEvidence(
+                            node_id=nid, name=mn["name"], path=mn["path"], kind=mn.get("kind", "Symbol"),
+                            score=PREFIX_MATCH_SCORE, reasons=[reason],
+                        )
             for mn in matched_nodes:
                 nid = mn["id"]
                 score = 30.0

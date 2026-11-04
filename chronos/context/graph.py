@@ -61,6 +61,10 @@ class GraphStore(ABC):
         """Search code_nodes using lexical full-text matching."""
         return []
 
+    def get_nodes_by_prefix(self, prefix: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Code nodes whose name (or method name) starts with `prefix`. Backends may not support it."""
+        return []
+
     def update_file(self, file_path: str | Path, valid_at: str | None = None) -> tuple[int, int]:
         """Incrementally update AST nodes and bi-temporal edges for a modified file."""
         return (0, 0)
@@ -204,6 +208,19 @@ class SQLiteGraphStore(GraphStore):
             "removed_edges": removed,
             "unchanged_count": unchanged,
         }
+
+    def get_nodes_by_prefix(self, prefix: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Names starting with `prefix` (`query_symbols` -> `query_symbols_lexical`), methods included."""
+        esc = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        rows = self.con.execute(
+            """
+            SELECT id, name, path, kind, language, signature, docstring FROM code_nodes
+            WHERE (name LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\') AND name != ?
+            ORDER BY length(name) ASC, id ASC LIMIT ?
+            """,
+            (esc + "%", "%." + esc + "%", prefix, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     def get_nodes_by_name(self, symbol_name: str, include_members: bool = False) -> list[dict[str, Any]]:
         """Return code nodes matching name or id, exact matches first.

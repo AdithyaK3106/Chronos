@@ -59,6 +59,8 @@ def _pre(repo: Path, tool: str, **tool_input) -> dict | None:
         ({"status": "deny", "reason": "Path 'auth.py' requires human gate approval under x"}, "ask", "asked"),
         ({"status": "deny", "metadata": {"category": "error"}}, "ask", "error"),
         ({"status": "error"}, "ask", "error"),
+        ({"status": "ask", "metadata": {"category": "boundary"}}, "ask", "asked"),
+        ({"status": "violation", "metadata": {"category": "backstop"}}, "ask", "flagged"),
     ],
 )
 def test_classify_decision(record, mode, expected):
@@ -74,12 +76,12 @@ def test_overview_reports_what_the_hooks_did(repo):
 
     ov = build_overview(inspect_repository(repo), probe_hooks=False)
 
-    assert ov["decisions"]["today"] == {"allowed": 1, "asked": 1, "denied": 1, "error": 0}
+    assert ov["decisions"]["today"] == {"allowed": 1, "asked": 1, "denied": 1, "error": 0, "flagged": 0}
     assert ov["decisions"]["week"] == ov["decisions"]["today"]
     assert [d["decision"] for d in ov["decisions"]["latest_not_allowed"]] == ["denied", "asked"]
 
     health = ov["health"]
-    assert health["hooks"]["installed"] == ["PreToolUse", "UserPromptSubmit"] and health["hooks"]["complete"]
+    assert health["hooks"]["installed"] == ["PostToolUse", "PreToolUse", "UserPromptSubmit"] and health["hooks"]["complete"]
     assert health["index"]["indexed"] and health["index"]["changed_files"] == 0
     assert health["audit"]["valid"] is True and health["audit"]["records"] == 3
 

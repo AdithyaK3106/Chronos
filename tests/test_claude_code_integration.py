@@ -240,7 +240,7 @@ def test_install_is_idempotent_and_uninstall_restores(tmp_path):
     cmds = [h["command"] for e in data["hooks"]["PreToolUse"] for h in e["hooks"]]
     assert sum(cc.is_chronos_hook(c) for c in cmds) == 1 and "echo mine" in cmds
     assert len(data["hooks"]["UserPromptSubmit"]) == 1 and data["model"] == "sonnet"
-    assert cc.status("project", tmp_path)["hooks_installed"] == ["PreToolUse", "UserPromptSubmit"]
+    assert cc.status("project", tmp_path)["hooks_installed"] == ["PreToolUse", "PostToolUse", "UserPromptSubmit"]
 
     cc.uninstall("project", tmp_path)
     data = json.loads(settings.read_text())
@@ -272,7 +272,7 @@ def test_status_probes_the_installed_command(tmp_path):
     (tmp_path / ".claude").mkdir()
     cc.install("project", tmp_path, with_mcp=False)
     st = cc.status("project", tmp_path)
-    assert st["hooks_installed"] == ["PreToolUse", "UserPromptSubmit"]
+    assert st["hooks_installed"] == ["PreToolUse", "PostToolUse", "UserPromptSubmit"]
     assert st["hook_commands_work"] is True
 
     data = json.loads((tmp_path / ".claude" / "settings.json").read_text())

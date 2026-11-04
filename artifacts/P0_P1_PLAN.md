@@ -3,13 +3,13 @@
 Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
 
 ## P0: make current claims true
-- [ ] **1. Bash gap.**
-  - [ ] PreToolUse on `Bash`: parse the command, apply the same rules as the file tools (secrets
+- [x] **1. Bash gap.**
+  - [x] PreToolUse on `Bash`: parse the command, apply the same rules as the file tools (secrets
         denied, protected modules ask, writes outside the repo ask, locks).
-  - [ ] PostToolUse backstop on `Bash`: detect protected/secret files that changed anyway; audit
+  - [x] PostToolUse backstop on `Bash`: detect protected/secret files that changed anyway; audit
         them and tell the agent.
-  - [ ] Install/status/uninstall include the new matchers; live hook canary covers Bash.
-  - [ ] Tests (no model calls), GUIDE updated.
+  - [x] Install/status/uninstall include the new matchers; live hook canary covers Bash.
+  - [x] Tests (no model calls), GUIDE updated.
 - [ ] **2. Cheap measurements.**
   - [ ] A: tokens per solved task (all runs, failures included) in the harness report.
   - [ ] B: retrieval-only benchmark: recall of the reference-patch files/symbols in what the

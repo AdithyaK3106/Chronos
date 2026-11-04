@@ -29,9 +29,10 @@ from typing import Any
 
 # Matches both the current form (`.../chronos hook claude pre`) and the legacy
 # interpreter form (`python -m chronos.cli.main hook claude pre`), and Windows' `chronos.exe`.
-HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main|\.exe)?[\"']?\s+hook\s+claude\s+(?:pre|prompt)\b", re.IGNORECASE)
+HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main|\.exe)?[\"']?\s+hook\s+claude\s+(?:pre|prompt|post)\b", re.IGNORECASE)
 PATH_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit", "Grep"}
-PRE_MATCHER = "|".join(sorted(PATH_TOOLS))
+PRE_MATCHER = "|".join(sorted(PATH_TOOLS | {"Bash"}))
+POST_MATCHER = "Bash"
 WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 MIN_INJECT_SCORE = float(os.environ.get("CHRONOS_MIN_INJECT_SCORE", "12"))
 MAX_INCREMENTAL_FILES = 25
@@ -131,11 +132,13 @@ def _to_policy_input(tool: str, tool_input: dict[str, Any]) -> tuple[str | None,
 # ----------------------------------------------------------------------------- PreToolUse
 def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
     tool = payload.get("tool_name", "")
-    if tool not in PATH_TOOLS:
+    if tool not in PATH_TOOLS and tool != "Bash":
         return None
     root = _find_repo(payload.get("cwd"))
     if root is None:
         return None
+    if tool == "Bash":
+        return _handle_bash(root, payload)
 
     tool_input = payload.get("tool_input") or {}
     if tool == "Grep" and _grep_targets_secrets(tool_input):
@@ -151,30 +154,41 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
             return None
         return _outside_repo_write(root, target, payload)
 
-    from chronos.core.db import get_connection
-    from chronos.governance.firewall import evaluate_tool_security_detailed
+    con = _open_db(root, payload, str(target))
+    try:
+        return _firewall_decision(root, payload, path, policy_input, con)
+    finally:
+        con.close()
 
+
+def _open_db(root: Path, payload: dict[str, Any], target: str):
+    from chronos.core.db import get_connection
     from chronos.core.paths import audit_log_path
 
-    log_path = audit_log_path(root)
     try:
-        con = get_connection(root / ".chronos" / "chronos.db")
+        return get_connection(root / ".chronos" / "chronos.db")
     except Exception as exc:
         # The firewall audits every decision it makes, but it never ran: record the failure here so
         # no pre-tool decision is missing from the audit trail, then let run_hook apply on_hook_error.
-        _audit_hook_failure(log_path, _agent_id(payload), str(target), exc)
+        _audit_hook_failure(audit_log_path(root), _agent_id(payload), target, exc)
         raise
-    try:
-        allowed, reason, category = evaluate_tool_security_detailed(
-            con=con,
-            agent_id=_agent_id(payload),
-            tool_name="file_editor",
-            tool_input=policy_input,
-            repo_root=root,
-            log_path=log_path,
-        )
-    finally:
-        con.close()
+
+
+def _firewall_decision(
+    root: Path, payload: dict[str, Any], path: str, policy_input: dict[str, Any], con: Any
+) -> dict[str, Any] | None:
+    """Run the firewall on one file action and turn its verdict into a Claude Code decision."""
+    from chronos.core.paths import audit_log_path
+    from chronos.governance.firewall import evaluate_tool_security_detailed
+
+    allowed, reason, category = evaluate_tool_security_detailed(
+        con=con,
+        agent_id=_agent_id(payload),
+        tool_name="file_editor",
+        tool_input=policy_input,
+        repo_root=root,
+        log_path=audit_log_path(root),
+    )
     if allowed:
         return None
     if category in ("audit", "error"):
@@ -191,6 +205,234 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
             return _ask(f"{reason}. Approve this edit only if you intended to change a protected module.{hint}")
         return _deny(reason + "." + hint)
     return _deny(reason)
+
+
+# ----------------------------------------------------------------------------- Bash
+_RANK = {"deny": 2, "ask": 1}
+
+
+def _strongest(decisions: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """deny beats ask; several asks are merged into one prompt."""
+    if not decisions:
+        return None
+    kinds = [d["hookSpecificOutput"]["permissionDecision"] for d in decisions]
+    top = max(kinds, key=lambda k: _RANK.get(k, 0))
+    reasons = [d["hookSpecificOutput"]["permissionDecisionReason"] for d, k in zip(decisions, kinds) if k == top]
+    reason = reasons[0] if len(reasons) == 1 else " | ".join(reasons[:3]) + (f" (+{len(reasons) - 3} more)" if len(reasons) > 3 else "")
+    return _decision(top, reason)
+
+
+def _handle_bash(root: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Apply the file rules to what a shell command writes, and deny commands that touch secrets.
+
+    Static analysis cannot see inside scripts (`python fix.py`); the PostToolUse backstop checks
+    afterwards whether protected or secret files changed anyway.
+    """
+    from chronos.audit.logger import append_audit_event
+    from chronos.core.paths import audit_log_path
+    from chronos.security.shell import analyze, is_temp_path
+
+    command = str((payload.get("tool_input") or {}).get("command") or "")
+    if not command.strip():
+        return None
+    cwd = Path(payload.get("cwd") or root)
+    analysis = analyze(command, cwd)
+    agent = _agent_id(payload)
+
+    if analysis.secrets:
+        names = ", ".join(analysis.secrets[:3])
+        reason = f"Bash command reads or names secret file(s): {names}"
+        try:
+            append_audit_event(
+                log_path=audit_log_path(root), event_type="tool_authorization", agent_id=agent,
+                action="bash", target=command[:500], status="deny", reason=reason,
+                metadata={"category": "permission", "secrets": analysis.secrets[:10]},
+            )
+        except Exception:  # noqa: BLE001 - deny regardless
+            pass
+        return _deny(reason + ". Secret files are never readable by the agent.")
+
+    strict = os.environ.get("CHRONOS_HOOK_STRICT_BOUNDARY") == "1"
+    decisions: list[dict[str, Any]] = []
+    inside = sorted({w for w in analysis.writes if _inside(root, Path(w))})[:50]
+    outside = sorted({w for w in analysis.writes if not _inside(root, Path(w)) and not is_temp_path(w)})[:20]
+    if inside or (strict and outside):
+        con = _open_db(root, payload, inside[0] if inside else outside[0])
+        try:
+            for w in inside + (outside if strict else []):
+                d = _firewall_decision(root, payload, w, {"command": "create", "path": w}, con)
+                if d is not None:
+                    decisions.append(d)
+                    if d["hookSpecificOutput"]["permissionDecision"] == "deny":
+                        break
+        finally:
+            con.close()
+    if not strict:
+        for w in outside:
+            d = _outside_repo_write(root, Path(w), payload)
+            if d is not None:
+                decisions.append(d)
+    decision = _strongest(decisions)
+    if decision is None or decision["hookSpecificOutput"]["permissionDecision"] != "deny":
+        _save_bash_snapshot(root, payload, declared=inside + outside)
+    return decision
+
+
+def _bash_key(payload: dict[str, Any]) -> str:
+    import hashlib
+
+    raw = payload.get("tool_use_id") or f"{payload.get('session_id', '')}:{(payload.get('tool_input') or {}).get('command', '')}"
+    return hashlib.sha256(str(raw).encode()).hexdigest()[:24]
+
+
+def _snapshot_path(root: Path, payload: dict[str, Any]) -> Path:
+    from chronos.core.paths import data_dir
+    from chronos.core.repo import canonicalize_path, generate_repo_id
+
+    return data_dir() / "bash" / generate_repo_id(canonicalize_path(root)) / f"{_bash_key(payload)}.json"
+
+
+def sensitive_state(root: Path) -> dict[str, list[int] | None] | None:
+    """(mtime_ns, size) of protected and secret files that git reports as changed, untracked or
+    ignored. None if git is unavailable. Clean tracked files are not listed: if a command changes
+    one, it shows up as new in the after-state."""
+    from chronos.security.gates import find_protected_module
+    from chronos.security.shell import find_secret_names
+
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=traditional"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    state: dict[str, list[int] | None] = {}
+    entries = r.stdout.split("\0")
+    i = 0
+    while i < len(entries):
+        e = entries[i]
+        i += 1
+        if len(e) < 4:
+            continue
+        code, rel = e[:2], e[3:]
+        if code[0] in "RC":  # rename/copy: the next entry is the source path
+            i += 1
+        if rel.endswith("/"):
+            continue
+        if not (find_secret_names(rel) or find_protected_module(rel, root)):
+            continue
+        try:
+            st = (root / rel).stat()
+            state[rel] = [st.st_mtime_ns, st.st_size]
+        except OSError:
+            state[rel] = None  # deleted
+    return state
+
+
+def _save_bash_snapshot(root: Path, payload: dict[str, Any], declared: list[str]) -> None:
+    if not _policy(root).bash_backstop:
+        return
+    try:
+        state = sensitive_state(root)
+        if state is None:
+            return
+        p = _snapshot_path(root, payload)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        rel_declared = []
+        for w in declared:
+            try:
+                rel_declared.append(Path(w).resolve().relative_to(root).as_posix())
+            except ValueError:
+                pass
+        p.write_text(json.dumps({"state": state, "declared": rel_declared, "t": time.time()}), encoding="utf-8")
+        _prune_snapshots(p.parent)
+    except Exception:  # noqa: BLE001 - the backstop is best effort; the pre-check already ran
+        pass
+
+
+def _prune_snapshots(folder: Path, max_age: float = 3600.0) -> None:
+    now = time.time()
+    for f in folder.glob("*.json"):
+        try:
+            if now - f.stat().st_mtime > max_age:
+                f.unlink()
+        except OSError:
+            pass
+
+
+# ----------------------------------------------------------------------------- PostToolUse
+def handle_post_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Backstop for Bash: flag protected or secret files the command changed without approval."""
+    if payload.get("tool_name") != "Bash":
+        return None
+    root = _find_repo(payload.get("cwd"))
+    if root is None:
+        return None
+    p = _snapshot_path(root, payload)
+    try:
+        snap = json.loads(p.read_text(encoding="utf-8"))
+        p.unlink()
+    except (OSError, ValueError):
+        return None
+    after = sensitive_state(root)
+    if after is None:
+        return None
+    before = snap.get("state", {})
+    declared = set(snap.get("declared", []))
+    changed = sorted(rel for rel in set(before) | set(after) if before.get(rel) != after.get(rel) and rel not in declared)
+    if not changed:
+        return None
+
+    from chronos.audit.logger import append_audit_event
+    from chronos.core.paths import audit_log_path
+    from chronos.security.gates import check_gate_approval
+    from chronos.security.shell import find_secret_names
+
+    agent = _agent_id(payload)
+    flagged: list[str] = []
+    con = None
+    try:
+        from chronos.core.db import get_connection
+
+        con = get_connection(root / ".chronos" / "chronos.db")
+    except Exception:  # noqa: BLE001 - without the DB, grants can't be checked: flag everything
+        con = None
+    try:
+        for rel in changed:
+            if not find_secret_names(rel):
+                try:
+                    approved, _ = check_gate_approval(rel, root, con=con, agent_id=agent)
+                except Exception:  # noqa: BLE001
+                    approved = False
+                if approved:
+                    continue
+            flagged.append(rel)
+    finally:
+        if con is not None:
+            con.close()
+    if not flagged:
+        return None
+    command = str((payload.get("tool_input") or {}).get("command") or "")
+    for rel in flagged:
+        kind = "secret" if find_secret_names(rel) else "protected"
+        try:
+            append_audit_event(
+                log_path=audit_log_path(root), event_type="tool_violation", agent_id=agent,
+                action="bash", target=rel, status="violation",
+                reason=f"Bash command changed {kind} file {rel} without approval",
+                metadata={"category": "backstop", "kind": kind, "command": command[:500]},
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    files = ", ".join(flagged[:5])
+    msg = (
+        f"Chronos: this command changed protected or secret file(s) without approval: {files}. "
+        "The change was recorded in the audit log. Do not continue editing these files; tell the user "
+        "what changed, and revert it (for tracked files: git checkout -- <file>) unless they asked for it."
+    )
+    return {"decision": "block", "reason": msg, "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": msg}}
 
 
 def _outside_repo_write(root: Path, target: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -383,13 +625,13 @@ def frame_untrusted_context(text: str, max_chars: int) -> str:
 # ----------------------------------------------------------------------------- dispatcher
 def run_hook(event: str, stdin_text: str) -> tuple[int, str, str]:
     """Entry point used by ``chronos hook claude <pre|prompt>``. Returns (exit, stdout, stderr)."""
-    handlers = {"pre": handle_pre_tool_use, "prompt": handle_user_prompt_submit}
+    handlers = {"pre": handle_pre_tool_use, "prompt": handle_user_prompt_submit, "post": handle_post_tool_use}
     try:
         payload = json.loads(stdin_text) if stdin_text.strip() else {}
         out = handlers[event](payload)
         return 0, (json.dumps(out) if out else ""), ""
     except Exception as exc:  # noqa: BLE001 - hooks must never crash the host
-        if event != "pre":
+        if event != "pre":  # prompt context and the post-run backstop fail open
             # Context is a convenience: fail open, but say so on stderr.
             return 1, "", f"chronos hook error ({event}): {exc}\n"
         mode = _error_mode(stdin_text)
@@ -469,10 +711,13 @@ def install(scope: str = "user", repo: Path | None = None, with_mcp: bool = True
         shutil.copy2(path, path.with_suffix(".json.chronos-bak"))
 
     hooks = data.setdefault("hooks", {})
-    for name in ("PreToolUse", "UserPromptSubmit"):
+    for name in ("PreToolUse", "PostToolUse", "UserPromptSubmit"):
         hooks[name] = _strip_chronos(hooks.get(name, []))
     hooks["PreToolUse"].append(
         {"matcher": PRE_MATCHER, "hooks": [{"type": "command", "command": _hook_command("pre"), "timeout": 10}]}
+    )
+    hooks["PostToolUse"].append(
+        {"matcher": POST_MATCHER, "hooks": [{"type": "command", "command": _hook_command("post"), "timeout": 10}]}
     )
     hooks["UserPromptSubmit"].append(
         {"hooks": [{"type": "command", "command": _hook_command("prompt"), "timeout": 30}]}
@@ -571,6 +816,9 @@ def live_check(command: str | None = None) -> dict[str, Any]:
             "protected_edit_held": ({"tool_name": "Edit", "tool_input": {"file_path": str(repo / "auth.py"), "old_string": "1", "new_string": "2"}}, {"ask", "deny"}),
             "secret_read_denied": ({"tool_name": "Read", "tool_input": {"file_path": str(repo / ".env")}}, {"deny"}),
             "normal_edit_allowed": ({"tool_name": "Edit", "tool_input": {"file_path": str(repo / "app.py"), "old_string": "0", "new_string": "1"}}, {None}),
+            "bash_secret_read_denied": ({"tool_name": "Bash", "tool_input": {"command": "cat .env"}}, {"deny"}),
+            "bash_protected_edit_held": ({"tool_name": "Bash", "tool_input": {"command": "sed -i 's/1/2/' auth.py"}}, {"ask", "deny"}),
+            "bash_ordinary_allowed": ({"tool_name": "Bash", "tool_input": {"command": "ls -la && git status"}}, {None}),
         }
         for name, (event, expected) in cases.items():
             event["cwd"] = str(repo)

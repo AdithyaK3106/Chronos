@@ -12,11 +12,11 @@ from pydantic import BaseModel, Field, model_validator
 # Named policy presets. A preset only fills in fields the config does not set explicitly.
 POLICY_PRESETS: dict[str, dict[str, object]] = {
     # Fewer interruptions: protected edits still ask, but a broken hook fails open.
-    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "outside_repo_writes": "ask", "max_context_chars": 8000},
+    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 8000},
     # The defaults: ask for protected edits, ask when the hook itself fails.
-    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "outside_repo_writes": "ask", "max_context_chars": 6000},
+    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 6000},
     # Fail closed: protected edits need `chronos gate grant`, hook failures deny, smaller context.
-    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "outside_repo_writes": "deny", "max_context_chars": 4000},
+    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "outside_repo_writes": "deny", "bash_backstop": True, "max_context_chars": 4000},
 }
 
 
@@ -45,6 +45,11 @@ class PolicyConfig(BaseModel):
         default="ask",
         description="Edits/writes to files outside the repository: ask the developer, deny, or "
         "allow (leave them to the agent's own permissions). Reads outside the repo are not checked.",
+    )
+    bash_backstop: bool = Field(
+        default=True,
+        description="After each Bash command, check whether protected or secret files changed without "
+        "approval (needs git), and tell the agent and the audit log if so.",
     )
     max_context_chars: int = Field(
         default=6000, description="Upper bound on injected context, to limit prompt injection surface."

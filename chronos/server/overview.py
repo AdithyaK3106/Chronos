@@ -35,6 +35,8 @@ def classify_decision(record: dict[str, Any], protected_mode: str) -> str:
         return "error"
     if status == "ask":
         return "asked"
+    if status == "violation":
+        return "flagged"
     category = (record.get("metadata") or {}).get("category", "")
     if category == "error":
         return "error"
@@ -76,7 +78,7 @@ def decisions_section(root: Path, protected_mode: str, now: datetime, latest: in
     records = _read_audit(audit_log_path(root))
     day_start = now.astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = now - timedelta(days=7)
-    empty = {"allowed": 0, "asked": 0, "denied": 0, "error": 0}
+    empty = {"allowed": 0, "asked": 0, "denied": 0, "error": 0, "flagged": 0}
     today, week = dict(empty), dict(empty)
     rows = []
     for rec in records:
@@ -131,10 +133,14 @@ def _hook_status(root: Path, probe: bool) -> dict[str, Any]:
     works = [s.get("hook_commands_work") for s in scopes.values() if s.get("hooks_installed")]
     result = {
         "installed": installed,
-        "complete": {"PreToolUse", "UserPromptSubmit"} <= set(installed),
+        "complete": {"PreToolUse", "PostToolUse", "UserPromptSubmit"} <= set(installed),
         "commands_work": (all(works) if works and None not in works else None),
         "scopes": scopes,
-        "fix": None if installed else "Run `chronos claude install` (all your projects) or `chronos claude install --scope project` (this one).",
+        "fix": (
+            "Run `chronos claude install` (all your projects) or `chronos claude install --scope project` (this one)."
+            if not installed else
+            "Re-run `chronos claude install` to add the Bash checks (PostToolUse)." if "PostToolUse" not in installed else None
+        ),
     }
     _hook_status_cache[key] = (time.monotonic(), result)
     return result

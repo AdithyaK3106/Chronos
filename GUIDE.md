@@ -172,6 +172,8 @@ What you get inside an opted-in repo:
 | Hook | Effect |
 |---|---|
 | `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials) and edits to code another agent has locked. Templates such as `.env.example`, `.env.sample` and `.env.template` are not secrets and are allowed. **Asks you** before a write outside the repository (`policy.outside_repo_writes`); reads outside it are left to Claude Code's own permissions unless `CHRONOS_HOOK_STRICT_BOUNDARY=1`, which denies every path outside the repo. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
+| `PreToolUse` (Bash) | Reads the command before it runs. **Denies** commands that read or name a secret file (`cat .env`, `python -c "open('.env')"`, `F=.env; cat $F`). Applies the file rules above to what the command writes: redirections, `rm`/`mv`/`cp`/`tee`/`touch`, `sed -i`/`perl -pi`, `git checkout -- <file>`, including inside `bash -c '...'`, `$(...)` and heredocs fed to a shell. Writes under the system temp directory are routine and not asked about. |
+| `PostToolUse` (Bash) | **Backstop.** After the command, checks (with `git status`) whether a protected or secret file changed that the pre-check did not see, for example through `python fix.py` or `make`. If so, the agent is told to stop and report it, and the change is recorded in the audit log and shown on the dashboard as *changed without approval*. Approved files (`chronos gate grant`) are not flagged. Disable with `policy.bash_backstop: false`. |
 | `UserPromptSubmit` | Injects the matching symbols, callers/callees, tests and recalled memories, only when the match is strong (threshold `CHRONOS_MIN_INJECT_SCORE`, default 12). It is labelled as untrusted reference data and capped in size, because it quotes repository text. |
 
 Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`
@@ -198,6 +200,7 @@ settings:
 | `protected_modules` | `ask` (approve in Claude Code's prompt) or `deny` (until `chronos gate grant`) | `ask` |
 | `outside_repo_writes` | `ask`, `deny`, or `allow` (leave writes outside the repo to Claude Code) | `ask` |
 | `on_hook_error` | `ask`, `deny` (strict) or `allow` (silent fail-open) | `ask` |
+| `bash_backstop` | after each Bash command, flag protected/secret files that changed without approval (needs git) | `true` |
 | `max_context_chars` | upper bound on injected context | `6000` |
 
 Approve a protected edit (the denial message prints this command):
@@ -208,9 +211,11 @@ chronos gate list
 chronos gate revoke auth.py --agent claude_code
 ```
 
-**Shell commands need the sandbox.** Hooks only see tool calls, so on their own they can't stop a
-`Bash` command such as `sed -i` from editing a protected file. On Linux, start the agent with
-`chronos exec` to enforce the same policy at the operating-system level:
+**What the Bash checks cannot do.** They read the command line, not what a program does once it runs.
+A script (`python fix.py`), a build (`make`) or a recursive search (`grep -r TOKEN .`) can still read
+a secret, and can change a protected file; the backstop then reports the change after the fact but
+cannot prevent it. On Linux, start the agent with `chronos exec` to enforce the same policy at the
+operating-system level:
 
 ```bash
 chronos exec -- claude            # interactive Claude Code, sandboxed

@@ -42,7 +42,7 @@ def bench_main():
 
 def _hook_fast_path(argv: list[str]) -> None:
     """`chronos hook claude <pre|prompt>`: skip argparse setup and unrelated imports."""
-    if len(argv) == 3 and argv[0] == "hook" and argv[1] == "claude" and argv[2] in ("pre", "prompt"):
+    if len(argv) == 3 and argv[0] == "hook" and argv[1] == "claude" and argv[2] in ("pre", "prompt", "post"):
         from chronos.integrations.claude_code import run_hook
 
         code, out, err = run_hook(argv[2], sys.stdin.read())
@@ -217,7 +217,7 @@ def main():
     # hook (internal; invoked by Claude Code hooks, reads the event JSON from stdin)
     p_hook = subparsers.add_parser("hook", help="Internal: host-agent hook entry point")
     p_hook.add_argument("host", choices=["claude"])
-    p_hook.add_argument("event", choices=["pre", "prompt"])
+    p_hook.add_argument("event", choices=["pre", "prompt", "post"])
 
     # claude (installer)
     p_cl = subparsers.add_parser("claude", help="Install/inspect the Claude Code integration (hooks + MCP)")

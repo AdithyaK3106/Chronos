@@ -4247,12 +4247,12 @@ function renderOverviewDecisions(d, root) {
   const el = document.getElementById('ovDecisions');
   if (!d.available) { el.innerHTML = `<div class="ov-empty">${ovRich(d.empty_hint)}</div>`; return; }
   const t = d.today, w = d.week;
-  document.getElementById('ovDecisionsSub').textContent = `Today · this week: ${w.allowed} allowed, ${w.asked} asked, ${w.denied} blocked` + (w.error ? `, ${w.error} could not be checked` : '');
+  document.getElementById('ovDecisionsSub').textContent = `Today · this week: ${w.allowed} allowed, ${w.asked} asked, ${w.denied} blocked` + (w.flagged ? `, ${w.flagged} changed without approval` : '') + (w.error ? `, ${w.error} could not be checked` : '');
   const items = (d.latest_not_allowed || []).slice(0, 6).map(x => {
-    const tag = { asked: '<span class="tag amber">ASKED YOU</span>', denied: '<span class="tag red">BLOCKED</span>', error: '<span class="tag violet">NOT CHECKED</span>' }[x.decision] || '';
+    const tag = { asked: '<span class="tag amber">ASKED YOU</span>', denied: '<span class="tag red">BLOCKED</span>', error: '<span class="tag violet">NOT CHECKED</span>', flagged: '<span class="tag red">CHANGED WITHOUT APPROVAL</span>' }[x.decision] || '';
     return `<li><div class="row1">${tag}<span class="file" title="${escapeHtml(x.target)}">${escapeHtml(ovShortPath(x.target, root))}</span><span class="when">${ovRelTime(x.timestamp)}</span></div><div class="why">${escapeHtml(x.reason)}</div></li>`;
   }).join('');
-  el.innerHTML = `<div class="ov-nums">${ovNum('allowed', t.allowed, 'allowed today')}${ovNum('asked', t.asked, 'asked you today')}${ovNum('denied', t.denied, 'blocked today')}</div>` +
+  el.innerHTML = `<div class="ov-nums">${ovNum('allowed', t.allowed, 'allowed today')}${ovNum('asked', t.asked, 'asked you today')}${ovNum('denied', t.denied, 'blocked today')}${t.flagged ? ovNum('denied', t.flagged, 'changed without approval') : ''}</div>` +
     (items ? `<ul class="ov-list">${items}</ul>` : `<div class="ov-empty">Nothing was held or blocked recently. Every action so far passed the checks.</div>`);
 }
 function renderOverviewContext(c, root) {

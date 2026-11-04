@@ -40,6 +40,46 @@ _EN_STOP = frozenset({
 })
 
 
+# Words that describe the kind of change asked for, not what it is about. A memory that shares only
+# these with a prompt ("fix", "test", "page") is not about the same thing.
+_TASK_WORDS = frozenset({
+    "add", "fix", "make", "change", "update", "remove", "delete", "new", "use", "should", "need", "needs",
+    "want", "please", "again", "still", "wrong", "bug", "issue", "error", "errors", "file", "files", "code",
+    "function", "support", "shouldn", "don", "doesn", "isn", "into", "only", "more", "less", "after", "before",
+    "same", "every", "each", "some", "there", "their", "our", "your", "also", "just", "now", "get", "set",
+    "show", "keep", "stop", "work", "works", "working", "failing", "fails", "fail", "broken", "instead",
+    "too", "very", "way", "like", "via", "using", "used", "into", "out", "over", "under", "about", "should",
+    "task", "outcome", "success", "failure", "touched", "learned", "resolution", "repository", "invariant",
+})
+
+
+def _stem(word: str) -> str:
+    w = word.lower()
+    for suf in ("ing", "ed", "es", "s", "ly"):
+        if len(w) > len(suf) + 3 and w.endswith(suf):
+            w = w[: -len(suf)]
+            break
+    return w[:6]
+
+
+def memory_terms(text: str) -> set[str]:
+    """Content words of a text, lightly stemmed (`refunded` and `refunds` -> `refund`)."""
+    words = re.findall(r"[A-Za-z][A-Za-z0-9]+", text or "")
+    return {
+        _stem(w) for w in words
+        if (len(w) >= 3 or (len(w) == 2 and w.isupper()))
+        and w.lower() not in _EN_STOP and w.lower() not in _TASK_WORDS
+    }
+
+
+_FILE_RE = re.compile(r"[\w-]+\.(?:py|js|jsx|ts|tsx|go|rs|java|kt|rb|php|cs|c|h|cpp|hpp|swift|scala|sql|ya?ml|json|toml|html|css|md|sh)\b")
+
+
+def _file_names(text: str) -> set[str]:
+    """Source file names mentioned in a text (`payments/webhooks.py` -> `webhooks.py`)."""
+    return {m.lower() for m in _FILE_RE.findall(text or "")}
+
+
 def _escape_like(s: str) -> str:
     """Escape LIKE wildcard characters (% and _) so they match literally."""
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -288,6 +328,7 @@ class ChronosMemoryStore:
         recency_weight: float = 0.15,
         decay_rate: float = 0.01,
         current_only: bool = True,
+        min_relevance: Optional[float] = None,
     ) -> List[RecallResult]:
         """Hybrid/lexical search returning ranked memories matching query within namespace."""
         clean_query = query.strip()
@@ -384,7 +425,46 @@ class ChronosMemoryStore:
             )
 
         scored_results.sort(key=lambda r: r.score, reverse=True)
+        if min_relevance is not None and scored_results:
+            scored_results = self._relevant_only(clean_query, scored_results, repo_namespace, min_relevance)
         return scored_results[:limit]
+
+    def _relevant_only(
+        self, query: str, results: List[RecallResult], repo_namespace: str, min_relevance: float
+    ) -> List[RecallResult]:
+        """Keep memories that share at least two distinctive content words with the query, weighted
+        by how rare each word is among this repository's memories (IDF). Full-text search alone
+        matches on any one shared word, which injected memories into almost every prompt."""
+        q = memory_terms(query)
+        if not q:
+            return []
+        rows = self.con.execute(
+            "SELECT content FROM memories WHERE repo_namespace = ? AND archived = 0 LIMIT 5000", (repo_namespace,)
+        ).fetchall()
+        docs = [memory_terms(r[0]) for r in rows]
+        n = max(len(docs), 1)
+        df: Dict[str, int] = {}
+        for d in docs:
+            for t in d & q:
+                df[t] = df.get(t, 0) + 1
+        idf = {t: math.log((n + 1) / (df.get(t, 0) + 0.5)) for t in q}
+        q_files = _file_names(query)
+        kept = []
+        for r in results:
+            matched = q & memory_terms(r.content)
+            same_file = bool(q_files & _file_names(r.content))
+            if same_file or (len(matched) >= 2 and sum(idf[t] for t in matched) >= min_relevance):
+                kept.append(r)
+        # Lessons recorded by the same task as a relevant memory (its root cause, its invariants)
+        # come along: they were learned while working on the same thing.
+        if kept and len(kept) < len(results):
+            ids = [r.id for r in results]
+            marks = ",".join("?" * len(ids))
+            task_of = dict(self.con.execute(f"SELECT id, task_id FROM memories WHERE id IN ({marks})", ids).fetchall())
+            tasks = {task_of.get(r.id) for r in kept} - {None, ""}
+            kept_ids = {r.id for r in kept}
+            kept = [r for r in results if r.id in kept_ids or task_of.get(r.id) in tasks]
+        return kept
 
     def _build_fts_query(self, query: str) -> str:
         """Sanitize raw query into safe, high-precision FTS5 boolean terms."""

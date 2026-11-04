@@ -20,6 +20,11 @@ from chronos.context.indexer import index_repository
 from chronos.context.resolver import DeterministicContextResolver, ResolutionResult
 from chronos.coordination.ledger import acquire_lock
 from chronos.memory.store import ChronosMemoryStore
+
+# Injected memories must share at least two distinctive words with the prompt (IDF-weighted).
+# Without it, 93-100% of prompts unrelated to any memory still got memories injected
+# (benchmarks/memory_eval.py).
+MEMORY_MIN_RELEVANCE = 3.0
 from chronos.security.gates import check_gate_approval
 from chronos.security.permissions import check_action_allowed
 from chronos.verification.rule_store import get_active_blocking_rules
@@ -189,6 +194,7 @@ class ChronosSessionBootstrap:
                 repo_namespace=repo_ns,
                 limit=3,
                 current_only=True,
+                min_relevance=MEMORY_MIN_RELEVANCE,
             )
             # If prompt search returned few results, try resolved symbols
             if len(recalled_memories) < 2 and resolved_symbols:
@@ -198,6 +204,7 @@ class ChronosSessionBootstrap:
                     repo_namespace=repo_ns,
                     limit=2,
                     current_only=True,
+                    min_relevance=MEMORY_MIN_RELEVANCE,
                 )
                 seen_ids = {m.id for m in recalled_memories}
                 for sm in sym_mems:

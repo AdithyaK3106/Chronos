@@ -52,8 +52,8 @@ class GraphStore(ABC):
         """Compute structural edge differences between two timestamps."""
         pass
 
-    def get_nodes_by_name(self, symbol_name: str) -> list[dict[str, Any]]:
-        """Return code nodes matching name or id."""
+    def get_nodes_by_name(self, symbol_name: str, include_members: bool = False) -> list[dict[str, Any]]:
+        """Return code nodes matching name or id (and `Class.<name>` members if include_members)."""
         return []
 
     def query_symbols_lexical(self, query_terms: list[str], limit: int = 10) -> list[dict[str, Any]]:
@@ -199,16 +199,22 @@ class SQLiteGraphStore(GraphStore):
             "unchanged_count": unchanged,
         }
 
-    def get_nodes_by_name(self, symbol_name: str) -> list[dict[str, Any]]:
-        """Return code nodes matching name or id."""
+    def get_nodes_by_name(self, symbol_name: str, include_members: bool = False) -> list[dict[str, Any]]:
+        """Return code nodes matching name or id, exact matches first.
+
+        With include_members, `as_of_impact` also matches methods stored as `Class.as_of_impact`
+        (the resolver uses this; call-edge linking does not, so its resolution is unchanged).
+        """
+        member = "OR (instr(name, '.') > 0 AND substr(name, -length(?) - 1) = '.' || ?)" if include_members else ""
+        params = (symbol_name, symbol_name) + ((symbol_name, symbol_name) if include_members else ()) + (symbol_name,)
         rows = self.con.execute(
-            """
+            f"""
             SELECT id, name, path, kind, language, signature, docstring
             FROM code_nodes
-            WHERE name = ? OR id = ?
-            ORDER BY id ASC
+            WHERE name = ? OR id = ? {member}
+            ORDER BY (name = ?) DESC, id ASC
             """,
-            (symbol_name, symbol_name),
+            params,
         ).fetchall()
         return [dict(r) for r in rows]
 

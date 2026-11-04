@@ -83,6 +83,77 @@ class ResolutionResult:
     provenance_summary: str
 
 
+NAMED_FILE_BONUS = 35.0
+ABSTRACT_PENALTY = 20.0
+
+
+def _is_abstract_body(fn) -> bool:
+    import ast
+
+    for d in fn.decorator_list:
+        name = d.attr if isinstance(d, ast.Attribute) else getattr(d, "id", "")
+        if name == "abstractmethod":
+            return True
+    body = list(fn.body)
+    if body and isinstance(body[0], ast.Expr) and isinstance(getattr(body[0], "value", None), ast.Constant) and isinstance(body[0].value.value, str):
+        body = body[1:]  # docstring
+    if not body:
+        return True
+    if len(body) != 1:
+        return False
+    stmt = body[0]
+    if isinstance(stmt, ast.Pass):
+        return True
+    if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant) and stmt.value.value is Ellipsis:
+        return True
+    if isinstance(stmt, ast.Raise) and stmt.exc is not None:
+        exc = stmt.exc.func if isinstance(stmt.exc, ast.Call) else stmt.exc
+        return getattr(exc, "id", "") == "NotImplementedError"
+    # Placeholder defaults in an interface: `return []`, `return None`, `return (0, 0)`, `return {}`.
+    if isinstance(stmt, ast.Return):
+        v = stmt.value
+        if v is None or (isinstance(v, ast.Constant) and v.value in (None, 0, False, "")):
+            return True
+        if isinstance(v, (ast.List, ast.Tuple, ast.Dict, ast.Set)) and all(isinstance(e, ast.Constant) for e in getattr(v, "elts", []) or getattr(v, "values", [])):
+            return True
+    return False
+
+
+_ABSTRACT_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
+
+
+def _abstract_python_defs(path: Path) -> frozenset[str]:
+    """Qualified names (`Class.method`, `func`) of abstract/placeholder definitions in a Python file."""
+    import ast
+
+    key = str(path)
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return frozenset()
+    hit = _ABSTRACT_CACHE.get(key)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    names: set[str] = set()
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+    except (SyntaxError, ValueError, OSError):
+        tree = None
+    if tree is not None:
+        def walk(node, prefix: str) -> None:
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    q = f"{prefix}{child.name}"
+                    if _is_abstract_body(child):
+                        names.add(q)
+                elif isinstance(child, ast.ClassDef):
+                    walk(child, f"{prefix}{child.name}.")
+        walk(tree, "")
+    result = frozenset(names)
+    _ABSTRACT_CACHE[key] = (mtime, result)
+    return result
+
+
 class DeterministicContextResolver:
     """Zero-path context resolver mapping natural language prompts to repository AST nodes."""
 
@@ -106,6 +177,19 @@ class DeterministicContextResolver:
                 self.slm_resolver = None
         else:
             self.slm_resolver = None
+
+    def _rel(self, path: str) -> str:
+        p = Path(path)
+        if not p.is_absolute():
+            return p.as_posix()
+        try:
+            return p.resolve().relative_to(self.repo_root).as_posix()
+        except ValueError:
+            return p.as_posix()
+
+    def _abs(self, path: str) -> Path:
+        p = Path(path)
+        return p if p.is_absolute() else self.repo_root / p
 
     def harvest_features(self, prompt: str) -> HarvestedFeatures:
         """Extract deterministic features using regex patterns."""
@@ -230,7 +314,10 @@ class DeterministicContextResolver:
         for sym in direct_symbols:
             if len(sym) < 3 or sym.lower() in STOP_WORDS:
                 continue
-            matched_nodes = self.graph_store.get_nodes_by_name(sym)
+            try:
+                matched_nodes = self.graph_store.get_nodes_by_name(sym, include_members=True)
+            except TypeError:  # graph backends without member matching
+                matched_nodes = self.graph_store.get_nodes_by_name(sym)
             for mn in matched_nodes:
                 nid = mn["id"]
                 score = 30.0
@@ -260,8 +347,9 @@ class DeterministicContextResolver:
             reasons = []
             score = 0.0
 
-            # Exact symbol name in prompt
-            if name.lower() in prompt_lower or any(name.lower() == t.lower() for t in search_terms):
+            # Exact symbol name in prompt (methods are stored as `Class.method`)
+            short = name.rsplit(".", 1)[-1].lower()
+            if name.lower() in prompt_lower or short in prompt_lower or any(short == t.lower() for t in search_terms):
                 score += 25.0
                 reasons.append(f"Exact symbol match for '{name}' in task prompt")
 
@@ -298,23 +386,42 @@ class DeterministicContextResolver:
                     reasons=reasons,
                 )
 
+        # 4.5 Symbols that live in a file the prompt names ("fix as_of_impact() in graph.py") beat
+        #     same-named symbols elsewhere (a wrapper in mcp_server.py, say).
+        named = [Path(p).as_posix() for p in features.explicit_paths + features.stack_trace_files]
+        if named:
+            for c in candidates_map.values():
+                if c.kind == "File" or not c.path:
+                    continue
+                rel = self._rel(c.path)
+                if any(rel == n or rel.endswith("/" + n) for n in named):
+                    c.score += NAMED_FILE_BONUS
+                    c.reasons.append("Defined in a file named in the prompt")
+
+        # 4.6 Abstract methods (body is only `...`, `pass` or `raise NotImplementedError`, or
+        #     @abstractmethod) are rarely what a fix changes; prefer the implementation.
+        for c in sorted(candidates_map.values(), key=lambda c: -c.score)[:15]:
+            if c.kind != "File" and c.path and c.path.endswith(".py") and c.name in _abstract_python_defs(self._abs(c.path)):
+                c.score -= ABSTRACT_PENALTY
+                c.reasons.append("Abstract definition (implementation preferred)")
+
         # 5. Filter by minimum relevance threshold and sort
         valid_candidates = [c for c in candidates_map.values() if c.score >= 5.0]
         sorted_candidates = sorted(valid_candidates, key=lambda c: c.score, reverse=True)
         top_candidates = sorted_candidates[:max_seeds]
 
-        target_files_set: Set[str] = set()
-        seed_symbols_set: Set[str] = set()
+        # Keep score order: the context budget truncates from the end of these lists.
+        target_files_order: list[str] = []
+        seed_symbols_order: list[str] = []
 
         for c in top_candidates:
             if c.path:
-                try:
-                    rel_p = Path(c.path).resolve().relative_to(self.repo_root).as_posix()
-                    target_files_set.add(rel_p)
-                except ValueError:
-                    target_files_set.add(c.path)
-            if c.kind != "File":
-                seed_symbols_set.add(c.name)
+                rel_p = self._rel(c.path)
+                if rel_p not in target_files_order:
+                    target_files_order.append(rel_p)
+            if c.kind != "File" and c.name not in seed_symbols_order:
+                seed_symbols_order.append(c.name)
+        target_files_set: Set[str] = set(target_files_order)
 
         # 6. Discover co-located / matching unit test files
         test_files_set: Set[str] = set()
@@ -385,8 +492,8 @@ class DeterministicContextResolver:
             provenance_lines.append(f"- **Associated Tests Found:** {', '.join([f'`{t}`' for t in sorted(test_files_set)[:3]])}")
 
         return ResolutionResult(
-            target_files=sorted(target_files_set),
-            seed_symbols=sorted(seed_symbols_set),
+            target_files=target_files_order,
+            seed_symbols=seed_symbols_order,
             test_files=sorted(test_files_set),
             candidates=top_candidates,
             provenance_summary="\n".join(provenance_lines),

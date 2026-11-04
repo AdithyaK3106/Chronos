@@ -12,9 +12,9 @@ Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
   - [x] Tests (no model calls), GUIDE updated.
 - [ ] **2. Cheap measurements.**
   - [x] A: tokens per solved task (all runs, failures included) in the harness report.
-  - [ ] B: retrieval-only benchmark: recall of the reference-patch files/symbols in what the
+  - [x] B: retrieval-only benchmark: recall of the reference-patch files/symbols in what the
         hook would inject, for all 20 efficacy tasks. No LLM.
-  - [ ] Fix the retrieval problems B shows (e.g. abstract method instead of implementation).
+  - [x] Fix the retrieval problems B shows (e.g. abstract method instead of implementation).
 
 ## P1: proof and daily feel
 - [ ] **3. Hook latency** from ~310 ms toward <100 ms per call (measure first; likely a

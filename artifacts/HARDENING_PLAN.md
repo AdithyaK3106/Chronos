@@ -26,10 +26,10 @@ These are the decisions the user made, with their answers:
   - added test-skip markers → ask
   - extra secret file types (`.tfstate`, `.netrc`, `.p12`, ...)
 - [x] 4. Hook failures: crash → ask, internal deadline before Claude Code's timeout, `onFailure: block` for failures our code can't catch (Python missing, killed, bad output), an error log, and errors shown in the overview.
-- [ ] 5. (deferred) Warn the agent when tool output contains instructions aimed at AI agents (PostToolUse `additionalContext`).
+- [x] 5. Warn the agent when tool output contains instructions aimed at AI agents (PostToolUse `additionalContext`). Done in dda9d6a (Bash/Read/WebFetch/MCP; 0 false positives on 459 real docs).
 - [x] 6. Make the OpenHands firewall apply the same command rules.
-- [~] 7. Memory: audited and recall precision fixed (unrelated injection 93% → 0%). NOT yet measured: whether memory helps an agent finish tasks (needs a sequential-task A/B). Claude Code never writes memories automatically.
-- [ ] 8. Public benchmark corpus: manifest, fetch script, prompts without file names, and gold files and functions for any language.
-- [ ] 9. CodeScout on the GPU or CPU: compare against the deterministic resolver on 20 prompts.
-- [ ] 10. Live Claude Code (Sonnet) attack test across all threat areas.
+- [~] 7. Memory: audited and recall precision fixed (unrelated injection 93% → 0%). NOT yet measured: whether memory helps an agent finish tasks (needs a sequential-task A/B). Claude Code never writes memories automatically. 2026-11-05: memory A/B (`benchmarks/memory_ab.py`) running; see the morning report.
+- [x] 8. Public benchmark corpus (3f98a47, public_v1, 50 tasks): manifest, fetch script, prompts without file names, and gold files and functions for any language.
+- [x] 9. CodeScout on the GPU or CPU: compare against the deterministic resolver on 20 prompts. Result: 0/20 gold files in every configuration vs BM25 8/20 top-3 (`artifacts/codescout_eval_2026-11-04.json`); dropped.
+- [x] 10. Live Claude Code (Sonnet) attack test across all threat areas. Run 1 and run 2 (0977318): baseline harmed 1/7, Chronos 0/7 in run 2.
 - [ ] 11. Report.

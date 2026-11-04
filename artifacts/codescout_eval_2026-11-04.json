@@ -1,0 +1,1624 @@
+{
+  "prompt": "vague",
+  "summary": {
+    "A": {
+      "n": 20,
+      "file_top1": 2,
+      "file_top3": 8,
+      "file_top5": 8,
+      "function": "3/19",
+      "median_s": 0.1,
+      "max_s": 0.6
+    },
+    "B": {
+      "n": 20,
+      "file_top1": 0,
+      "file_top3": 0,
+      "file_top5": 0,
+      "function": "0/19",
+      "median_s": 20.7,
+      "max_s": 30.2
+    },
+    "C": {
+      "n": 20,
+      "file_top1": 0,
+      "file_top3": 0,
+      "file_top5": 0,
+      "function": "1/19",
+      "median_s": 32.2,
+      "max_s": 58.8
+    },
+    "D": {
+      "n": 20,
+      "file_top1": 0,
+      "file_top3": 6,
+      "file_top5": 8,
+      "function": "3/19",
+      "median_s": 32.3,
+      "max_s": 59.0
+    }
+  },
+  "rows": [
+    {
+      "instance_id": "psf__requests-1963",
+      "language": "python",
+      "gold_files": [
+        "requests/sessions.py"
+      ],
+      "gold_symbols": [
+        "SessionRedirectMixin.resolve_redirects"
+      ],
+      "index_s": 0.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "requests/api.py",
+            "requests/sessions.py",
+            "requests/packages/urllib3/packages/ordered_dict.py",
+            "requests/packages/urllib3/request.py"
+          ],
+          "symbols": [
+            "request",
+            "Session.request",
+            "OrderedDict.update",
+            "RequestMethods",
+            "RequestMethods.request"
+          ],
+          "seconds": 0.07
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 11.05
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/api.py"
+          ],
+          "symbols": [
+            "Request.__init__"
+          ],
+          "seconds": 20.4,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "requests/api.py",
+            "requests/sessions.py",
+            "requests/packages/urllib3/packages/ordered_dict.py",
+            "requests/packages/urllib3/request.py"
+          ],
+          "symbols": [
+            "Request.__init__",
+            "request",
+            "Session.request",
+            "OrderedDict.update",
+            "RequestMethods"
+          ],
+          "seconds": 20.5
+        }
+      }
+    },
+    {
+      "instance_id": "psf__requests-2148",
+      "language": "python",
+      "gold_files": [
+        "requests/models.py"
+      ],
+      "gold_symbols": [
+        "Response.iter_content.generate"
+      ],
+      "index_s": 0.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/packages/urllib3/response.py",
+            "requests/packages/urllib3/util/connection.py",
+            "requests/packages/urllib3/connection.py"
+          ],
+          "symbols": [
+            "HTTPResponse.read",
+            "is_connection_dropped",
+            "HTTPResponse",
+            "create_connection",
+            "HTTPConnection"
+          ],
+          "seconds": 0.07
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 11.82
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/__init__.py"
+          ],
+          "symbols": [
+            "Request.__init__"
+          ],
+          "seconds": 20.4,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/__init__.py",
+            "requests/packages/urllib3/response.py",
+            "requests/packages/urllib3/util/connection.py",
+            "requests/packages/urllib3/connection.py"
+          ],
+          "symbols": [
+            "Request.__init__",
+            "HTTPResponse.read",
+            "is_connection_dropped",
+            "HTTPResponse",
+            "create_connection"
+          ],
+          "seconds": 20.5
+        }
+      }
+    },
+    {
+      "instance_id": "pallets__flask-4045",
+      "language": "python",
+      "gold_files": [
+        "src/flask/blueprints.py"
+      ],
+      "gold_symbols": [
+        "Blueprint.__init__",
+        "Blueprint.add_url_rule"
+      ],
+      "index_s": 0.7,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "src/flask/wrappers.py",
+            "src/flask/blueprints.py"
+          ],
+          "symbols": [
+            "Request.blueprint",
+            "Blueprint",
+            "Blueprint.add_url_rule",
+            "Blueprint.app_errorhandler",
+            "Blueprint.before_app_request"
+          ],
+          "seconds": 0.06
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 11.62
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": true,
+          "files": [
+            "flask/blueprint.py"
+          ],
+          "symbols": [
+            "Blueprint.__init__"
+          ],
+          "seconds": 23.7,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "flask/blueprint.py",
+            "src/flask/wrappers.py",
+            "src/flask/blueprints.py"
+          ],
+          "symbols": [
+            "Blueprint.__init__",
+            "Request.blueprint",
+            "Blueprint",
+            "Blueprint.add_url_rule",
+            "Blueprint.app_errorhandler"
+          ],
+          "seconds": 23.7
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-11143",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/assertion/rewrite.py"
+      ],
+      "gold_symbols": [
+        "AssertionRewriter.run"
+      ],
+      "index_s": 3.4,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "testing/python/collect.py",
+            "src/_pytest/mark/expression.py",
+            "src/_pytest/fixtures.py",
+            "src/_pytest/python.py",
+            "testing/example_scripts/fixtures/test_getfixturevalue_dynamic.py"
+          ],
+          "symbols": [
+            "TestModule.test_show_traceback_import_error_unicode",
+            "Expression.evaluate",
+            "FixtureRequest.module",
+            "PyobjMixin.module",
+            "test"
+          ],
+          "seconds": 0.19
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 18.03
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pytest/_pytest/runner.py"
+          ],
+          "symbols": [
+            "TestRunner.collect_test_files"
+          ],
+          "seconds": 21.9,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pytest/_pytest/runner.py",
+            "testing/python/collect.py",
+            "src/_pytest/mark/expression.py",
+            "src/_pytest/fixtures.py",
+            "src/_pytest/python.py"
+          ],
+          "symbols": [
+            "TestRunner.collect_test_files",
+            "TestModule.test_show_traceback_import_error_unicode",
+            "Expression.evaluate",
+            "FixtureRequest.module",
+            "PyobjMixin.module"
+          ],
+          "seconds": 22.1
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5103",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/assertion/rewrite.py"
+      ],
+      "gold_symbols": [
+        "AssertionRewriter",
+        "AssertionRewriter.visit_Call_35"
+      ],
+      "index_s": 2.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/_pytest/outcomes.py",
+            "testing/python/collect.py",
+            "src/_pytest/logging.py",
+            "src/_pytest/recwarn.py",
+            "testing/code/test_excinfo.py"
+          ],
+          "symbols": [
+            "fail",
+            "TestModule.test_show_traceback_import_error_unicode",
+            "LogCaptureFixture.messages",
+            "WarningsRecorder.list",
+            "TestTraceback_f_g_h.fail"
+          ],
+          "seconds": 0.12
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 16.38
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pytest"
+          ],
+          "symbols": [
+            "Test.test_truth_check"
+          ],
+          "seconds": 20.8,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pytest",
+            "src/_pytest/outcomes.py",
+            "testing/python/collect.py",
+            "src/_pytest/logging.py",
+            "src/_pytest/recwarn.py"
+          ],
+          "symbols": [
+            "Test.test_truth_check",
+            "fail",
+            "TestModule.test_show_traceback_import_error_unicode",
+            "LogCaptureFixture.messages",
+            "WarningsRecorder.list"
+          ],
+          "seconds": 20.9
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-5859",
+      "language": "python",
+      "gold_files": [
+        "pylint/checkers/misc.py"
+      ],
+      "gold_symbols": [
+        "EncodingChecker.open"
+      ],
+      "index_s": 3.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pylint/graph.py",
+            "pylint/pyreverse/printer.py",
+            "tests/checkers/unittest_variables.py",
+            "tests/functional/n/no/no_member_imports.py",
+            "pylint/extensions/docparams.py"
+          ],
+          "symbols": [
+            "DotBackend.emit",
+            "Printer.emit",
+            "TestVariablesCheckerWithTearDown.test_ignored_argument_names_no_message",
+            "test_no_member_in_getattr_ignored",
+            "DocstringParameterChecker.check_arguments_in_docstring"
+          ],
+          "seconds": 0.26
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 15.12
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "note"
+          ],
+          "symbols": [
+            "NoteTag.matches"
+          ],
+          "seconds": 26.9,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "note",
+            "pylint/graph.py",
+            "pylint/pyreverse/printer.py",
+            "tests/checkers/unittest_variables.py",
+            "tests/functional/n/no/no_member_imports.py"
+          ],
+          "symbols": [
+            "NoteTag.matches",
+            "DotBackend.emit",
+            "Printer.emit",
+            "TestVariablesCheckerWithTearDown.test_ignored_argument_names_no_message",
+            "test_no_member_in_getattr_ignored"
+          ],
+          "seconds": 27.1
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-6506",
+      "language": "python",
+      "gold_files": [
+        "pylint/config/config_initialization.py"
+      ],
+      "gold_symbols": [
+        "_config_initialization"
+      ],
+      "index_s": 5.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pylint/checkers/similar.py",
+            "pylint/config/arguments_manager.py",
+            "pylint/config/option_manager_mixin.py",
+            "pylint/checkers/format.py",
+            "pylint/lint/utils.py"
+          ],
+          "symbols": [
+            "usage",
+            "_ArgumentsManager.help",
+            "OptionsManagerMixIn.help",
+            "TokenWrapper.line",
+            "prepare_crash_report"
+          ],
+          "seconds": 0.32
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 15.06
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/pylint/cli.py"
+          ],
+          "symbols": [
+            "Pylint.run"
+          ],
+          "seconds": 26.5,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/pylint/cli.py",
+            "pylint/checkers/similar.py",
+            "pylint/config/arguments_manager.py",
+            "pylint/config/option_manager_mixin.py",
+            "pylint/checkers/format.py"
+          ],
+          "symbols": [
+            "Pylint.run",
+            "usage",
+            "_ArgumentsManager.help",
+            "OptionsManagerMixIn.help",
+            "TokenWrapper.line"
+          ],
+          "seconds": 26.8
+        }
+      }
+    },
+    {
+      "instance_id": "mwaskom__seaborn-2848",
+      "language": "python",
+      "gold_files": [
+        "seaborn/_oldcore.py"
+      ],
+      "gold_symbols": [
+        "HueMapping._lookup_single"
+      ],
+      "index_s": 2.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "seaborn/_core/plot.py",
+            "seaborn/axisgrid.py",
+            "seaborn/categorical.py"
+          ],
+          "symbols": [
+            "Plot.facet",
+            "Plot.plot",
+            "JointGrid.plot",
+            "_BarPlotter.plot",
+            "_BoxPlotter.plot"
+          ],
+          "seconds": 0.22
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 14.42
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "seaborn/utils.py"
+          ],
+          "symbols": [
+            "None.plot_order"
+          ],
+          "seconds": 47.8,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "seaborn/utils.py",
+            "seaborn/_core/plot.py",
+            "seaborn/axisgrid.py",
+            "seaborn/categorical.py"
+          ],
+          "symbols": [
+            "None.plot_order",
+            "Plot.facet",
+            "Plot.plot",
+            "JointGrid.plot",
+            "_BarPlotter.plot"
+          ],
+          "seconds": 48.0
+        }
+      }
+    },
+    {
+      "instance_id": "pydata__xarray-3364",
+      "language": "python",
+      "gold_files": [
+        "xarray/core/concat.py"
+      ],
+      "gold_symbols": [
+        "_dataset_concat"
+      ],
+      "index_s": 3.6,
+      "arms": {
+        "A": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "xarray/core/concat.py",
+            "xarray/core/dataset.py",
+            "xarray/core/variable.py"
+          ],
+          "symbols": [
+            "concat",
+            "as_dataset",
+            "Variable.load",
+            "Variable.compute",
+            "Dataset.load"
+          ],
+          "seconds": 0.18
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 22.84
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "xarray/core/variable.py"
+          ],
+          "symbols": [
+            "Variable.concat"
+          ],
+          "seconds": 58.8,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "xarray/core/variable.py",
+            "xarray/core/concat.py",
+            "xarray/core/dataset.py"
+          ],
+          "symbols": [
+            "Variable.concat",
+            "concat",
+            "as_dataset",
+            "Variable.load",
+            "Variable.compute"
+          ],
+          "seconds": 59.0
+        }
+      }
+    },
+    {
+      "instance_id": "django__django-10914",
+      "language": "python",
+      "gold_files": [
+        "django/conf/global_settings.py"
+      ],
+      "gold_symbols": [],
+      "index_s": 19.5,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": null,
+          "files": [
+            "django/contrib/contenttypes/fields.py",
+            "django/core/cache/backends/db.py",
+            "django/core/cache/backends/dummy.py",
+            "django/core/cache/backends/filebased.py",
+            "django/core/cache/backends/locmem.py"
+          ],
+          "symbols": [
+            "GenericRelatedObjectManager.set",
+            "DatabaseCache.set",
+            "DummyCache.set",
+            "FileBasedCache.set",
+            "LocMemCache.set"
+          ],
+          "seconds": 0.64
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": null,
+          "files": [],
+          "symbols": [],
+          "seconds": 30.14
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": null,
+          "files": [
+            "django/core/files/__init__.py"
+          ],
+          "symbols": [
+            "File.__init__"
+          ],
+          "seconds": 36.4,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": null,
+          "files": [
+            "django/core/files/__init__.py",
+            "django/contrib/contenttypes/fields.py",
+            "django/core/cache/backends/db.py",
+            "django/core/cache/backends/dummy.py",
+            "django/core/cache/backends/filebased.py"
+          ],
+          "symbols": [
+            "File.__init__",
+            "GenericRelatedObjectManager.set",
+            "DatabaseCache.set",
+            "DummyCache.set",
+            "FileBasedCache.set"
+          ],
+          "seconds": 37.0
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-2757",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/index.js"
+      ],
+      "gold_symbols": [
+        "diffElementNodes"
+      ],
+      "index_s": 1.6,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "test/fixtures/preact.js",
+            "test/browser/keys.test.js",
+            "demo/logger.js",
+            "src/jsx.d.ts",
+            "test/ts/jsx-namespacce-test.tsx"
+          ],
+          "symbols": [
+            "h",
+            "move",
+            "remove",
+            "Element",
+            "Element"
+          ],
+          "seconds": 0.02
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 29.58
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "preactjs__preact-2757"
+          ],
+          "symbols": [
+            "Progress.render"
+          ],
+          "seconds": 34.5,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "preactjs__preact-2757",
+            "test/fixtures/preact.js",
+            "test/browser/keys.test.js",
+            "demo/logger.js",
+            "src/jsx.d.ts"
+          ],
+          "symbols": [
+            "Progress.render",
+            "h",
+            "move",
+            "remove",
+            "Element"
+          ],
+          "seconds": 34.5
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-3010",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/children.js",
+        "src/index.d.ts"
+      ],
+      "gold_symbols": [
+        "diffChildren"
+      ],
+      "index_s": 1.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "test/browser/render.test.js",
+            "demo/todo.js",
+            "test/browser/lifecycles/componentDidCatch.test.js",
+            "test/browser/lifecycles/componentDidUpdate.test.js",
+            "test/browser/lifecycles/getDerivedStateFromError.test.js"
+          ],
+          "symbols": [
+            "value",
+            "TodoList.render",
+            "ThrowErr.render",
+            "PropsReceiver.render",
+            "ThrowErr.render"
+          ],
+          "seconds": 0.02
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 26.87
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "preact.js"
+          ],
+          "symbols": [
+            "Renderer.render"
+          ],
+          "seconds": 33.4,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "preact.js",
+            "test/browser/render.test.js",
+            "demo/todo.js",
+            "test/browser/lifecycles/componentDidCatch.test.js",
+            "test/browser/lifecycles/componentDidUpdate.test.js"
+          ],
+          "symbols": [
+            "Renderer.render",
+            "value",
+            "TodoList.render",
+            "ThrowErr.render",
+            "PropsReceiver.render"
+          ],
+          "seconds": 33.5
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-4731",
+      "language": "javascript",
+      "gold_files": [
+        "lib/adapters/http.js"
+      ],
+      "gold_symbols": [
+        "httpAdapter.dispatchHttpRequest"
+      ],
+      "index_s": 0.2,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "lib/core/Axios.js",
+            "index.d.ts",
+            "lib/axios.js",
+            "test/typescript/axios.ts"
+          ],
+          "symbols": [
+            "Axios",
+            "Axios",
+            "createInstance",
+            "handleUserResponse",
+            "fn1"
+          ],
+          "seconds": 0.01
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 23.72
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "axios/lib/axios.js"
+          ],
+          "symbols": [
+            "Axios.request"
+          ],
+          "seconds": 31.2,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "axios/lib/axios.js",
+            "lib/core/Axios.js",
+            "index.d.ts",
+            "lib/axios.js",
+            "test/typescript/axios.ts"
+          ],
+          "symbols": [
+            "Axios.request",
+            "Axios",
+            "Axios",
+            "createInstance",
+            "handleUserResponse"
+          ],
+          "seconds": 31.2
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-4738",
+      "language": "javascript",
+      "gold_files": [
+        "lib/adapters/http.js"
+      ],
+      "gold_symbols": [
+        "httpAdapter.dispatchHttpRequest.handleRequestTimeout"
+      ],
+      "index_s": 0.4,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "lib/core/Axios.js",
+            "index.d.ts",
+            "lib/axios.js",
+            "test/typescript/axios.ts"
+          ],
+          "symbols": [
+            "Axios",
+            "Axios",
+            "createInstance",
+            "handleStringResponse",
+            "handleUserResponse"
+          ],
+          "seconds": 0.01
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 26.76
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/axios/index.js"
+          ],
+          "symbols": [
+            "Axios.request"
+          ],
+          "seconds": 34.1,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/axios/index.js",
+            "lib/core/Axios.js",
+            "index.d.ts",
+            "lib/axios.js",
+            "test/typescript/axios.ts"
+          ],
+          "symbols": [
+            "Axios.request",
+            "Axios",
+            "Axios",
+            "createInstance",
+            "handleStringResponse"
+          ],
+          "seconds": 34.1
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11589",
+      "language": "typescript",
+      "gold_files": [
+        "packages/reactivity/src/effect.ts",
+        "packages/runtime-core/src/apiWatch.ts"
+      ],
+      "gold_symbols": [
+        "ReactiveEffect.notify",
+        "endBatch",
+        "doWatch"
+      ],
+      "index_s": 3.1,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "packages/reactivity/src/dep.ts",
+            "packages/reactivity/src/effect.ts",
+            "packages/compiler-core/src/ast.ts",
+            "packages/reactivity/src/reactive.ts"
+          ],
+          "symbols": [
+            "trigger",
+            "ReactiveEffect.trigger",
+            "Property",
+            "shallowReactive",
+            "shallowReadonly"
+          ],
+          "seconds": 0.05
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 30.21
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "vue/src/core/observer/watcher.js"
+          ],
+          "symbols": [
+            "SyncWatcher.register"
+          ],
+          "seconds": 31.7,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "vue/src/core/observer/watcher.js",
+            "packages/reactivity/src/dep.ts",
+            "packages/reactivity/src/effect.ts",
+            "packages/compiler-core/src/ast.ts",
+            "packages/reactivity/src/reactive.ts"
+          ],
+          "symbols": [
+            "SyncWatcher.register",
+            "trigger",
+            "ReactiveEffect.trigger",
+            "Property",
+            "shallowReactive"
+          ],
+          "seconds": 31.8
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-4774",
+      "language": "go",
+      "gold_files": [
+        "caddyconfig/httpcaddyfile/addresses.go",
+        "caddyconfig/httpcaddyfile/options.go"
+      ],
+      "gold_symbols": [
+        "ServerType.mapAddressToServerBlocks",
+        "ServerType.consolidateAddrMappings",
+        "ServerType.listenerAddrsForServerBlockKey",
+        "init"
+      ],
+      "index_s": 1.7,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "listeners.go",
+            "modules/caddyhttp/httpredirectlistener.go",
+            "caddyconfig/httpcaddyfile/addresses.go"
+          ],
+          "symbols": [
+            "fakeCloseQuicListener.Accept",
+            "fakeCloseListener.Accept",
+            "httpRedirectListener.Accept",
+            "ServerType.mapAddressToServerBlocks",
+            "ServerType.consolidateAddrMappings"
+          ],
+          "seconds": 0.04
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 29.6
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "Caddyfile"
+          ],
+          "symbols": [
+            "Caddyfile.default_bind"
+          ],
+          "seconds": 32.8,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "Caddyfile",
+            "listeners.go",
+            "modules/caddyhttp/httpredirectlistener.go",
+            "caddyconfig/httpcaddyfile/addresses.go"
+          ],
+          "symbols": [
+            "Caddyfile.default_bind",
+            "fakeCloseQuicListener.Accept",
+            "fakeCloseListener.Accept",
+            "httpRedirectListener.Accept",
+            "ServerType.mapAddressToServerBlocks"
+          ],
+          "seconds": 32.8
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-5626",
+      "language": "go",
+      "gold_files": [
+        "caddyconfig/caddyfile/dispenser.go",
+        "caddyconfig/caddyfile/lexer.go",
+        "caddyconfig/caddyfile/parse.go"
+      ],
+      "gold_symbols": [
+        "Dispenser.nextOnSameLine",
+        "Dispenser.NextLine",
+        "Dispenser.isNewLine",
+        "Dispenser.isNextOnNewLine",
+        "parser.doImport"
+      ],
+      "index_s": 1.5,
+      "arms": {
+        "A": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "caddyconfig/caddyfile/parse.go",
+            "modules/caddyhttp/templates/tplcontext.go",
+            "caddyconfig/caddyfile/dispenser.go"
+          ],
+          "symbols": [
+            "parser.directive",
+            "TemplateContext.funcImport",
+            "parser.doImport",
+            "Dispenser.NextArg",
+            "Dispenser.NextBlock"
+          ],
+          "seconds": 0.03
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 27.87
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/caddy/parser/parser.go"
+          ],
+          "symbols": [
+            "Parser.parseHandler"
+          ],
+          "seconds": 33.4,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "src/caddy/parser/parser.go",
+            "caddyconfig/caddyfile/parse.go",
+            "modules/caddyhttp/templates/tplcontext.go",
+            "caddyconfig/caddyfile/dispenser.go"
+          ],
+          "symbols": [
+            "Parser.parseHandler",
+            "parser.directive",
+            "TemplateContext.funcImport",
+            "parser.doImport",
+            "Dispenser.NextArg"
+          ],
+          "seconds": 33.5
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-1805",
+      "language": "go",
+      "gold_files": [
+        "routergroup.go"
+      ],
+      "gold_symbols": [
+        "RouterGroup.createStaticHandler"
+      ],
+      "index_s": 0.5,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "ginS/gins.go",
+            "routergroup.go",
+            "context.go",
+            "gin.go"
+          ],
+          "symbols": [
+            "Static",
+            "RouterGroup.Static",
+            "Context.Error",
+            "Engine.Use",
+            "Engine.RunUnix"
+          ],
+          "seconds": 0.01
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 20.86
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "gin-gonic__gin-1805"
+          ],
+          "symbols": [
+            "Gin.ServeStatic"
+          ],
+          "seconds": 34.1,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "gin-gonic__gin-1805",
+            "ginS/gins.go",
+            "routergroup.go",
+            "context.go",
+            "gin.go"
+          ],
+          "symbols": [
+            "Gin.ServeStatic",
+            "Static",
+            "RouterGroup.Static",
+            "Context.Error",
+            "Engine.Use"
+          ],
+          "seconds": 34.1
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-2121",
+      "language": "go",
+      "gold_files": [
+        "render/reader.go"
+      ],
+      "gold_symbols": [
+        "Reader.Render"
+      ],
+      "index_s": 0.5,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "routergroup.go",
+            "context.go",
+            "ginS/gins.go"
+          ],
+          "symbols": [
+            "RouterGroup.handle",
+            "Context.Stream",
+            "Context.Data",
+            "HEAD",
+            "RouterGroup.HEAD"
+          ],
+          "seconds": 0.01
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 20.19
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "gin/gin.go"
+          ],
+          "symbols": [
+            "Handler.Serve"
+          ],
+          "seconds": 36.9,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "gin/gin.go",
+            "routergroup.go",
+            "context.go",
+            "ginS/gins.go"
+          ],
+          "symbols": [
+            "Handler.Serve",
+            "RouterGroup.handle",
+            "Context.Stream",
+            "Context.Data",
+            "HEAD"
+          ],
+          "seconds": 36.9
+        }
+      }
+    },
+    {
+      "instance_id": "prometheus__prometheus-10633",
+      "language": "go",
+      "gold_files": [
+        "discovery/puppetdb/resources.go"
+      ],
+      "gold_symbols": [
+        "Parameters.toLabels"
+      ],
+      "index_s": 7.5,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "discovery/puppetdb/puppetdb.go",
+            "promql/parser/lex.go",
+            "discovery/puppetdb/resources.go"
+          ],
+          "symbols": [
+            "Discovery",
+            "Lexer.ignore",
+            "Parameters",
+            "Resource",
+            "SDConfig"
+          ],
+          "seconds": 0.11
+        },
+        "B": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [],
+          "symbols": [],
+          "seconds": 20.55
+        },
+        "C": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "prometheus/discovery.py"
+          ],
+          "symbols": [
+            "PuppetDBDiscovery.convert_to_label"
+          ],
+          "seconds": 26.2,
+          "turns": 4,
+          "refused": 0,
+          "error": null
+        },
+        "D": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "prometheus/discovery.py",
+            "discovery/puppetdb/puppetdb.go",
+            "promql/parser/lex.go",
+            "discovery/puppetdb/resources.go"
+          ],
+          "symbols": [
+            "PuppetDBDiscovery.convert_to_label",
+            "Discovery",
+            "Lexer.ignore",
+            "Parameters",
+            "Resource"
+          ],
+          "seconds": 26.3
+        }
+      }
+    }
+  ]
+}

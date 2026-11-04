@@ -39,7 +39,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - `tests/test_mcp_config.py` (new, NOT yet run). It includes an installer test that runs install.sh's real step 6 against a fake HOME.
 
 ## A. Finish and act on tonight's experiments
-- [ ] 1. **Memory A/B.**
+- [x] 1. **Memory A/B.**
   - Wait for or finish `benchmarks/memory_ab.py` (30 runs).
   - Re-run every `MODEL_API_ERROR` run: delete those rows from `runs` in `benchmarks/runs/memory_v1/data/benchmark_runs.db`, then re-run `python -m benchmarks.memory_ab --runs 2 --json artifacts/memory_ab_2026-11-04.json`. It skips completed runs.
   - Write the per-variant results (mem / forced / nomem: passed, tokens, tool calls, automatic-capture rate) into the morning report notes.
@@ -114,3 +114,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 16: done in 5287c52 — build procedure committed with 11 items ticked (3 annotated as partial); HARDENING_PLAN items 5/8/9/10 ticked; CodeScout result JSON committed. (HARDENING_PLAN was already tracked.)
 - item 2: done in 530a104 — held-out: issue-loc-embed 17/30 top-3 vs BM25 5/30 (results 4bb0b30); implemented off by default. OPEN DECISION: plan said RRF fusion, but RRF scored lower (13/30, 11/20) than embeddings alone, so default mode is `embeddings` and `rrf` is an option. Also found: tests/test_zero_path_resolver.py::test_eval_ground_truth_suite already failing at b3819bc (MRR 0.67 < 0.70); to fix before push.
 - prep for item 18: e068c83 — fixed the red resolver test (bisected to 7e045ef: new code outranked graph.py); prefix fallback for unmatched identifiers; own-repo no-paths top-1 15->16, nothing worse.
+- item 1: done in 4150f41 — passed mem 1/10, forced 2/10, nomem 1/10 (no clear effect; 4/30 overall). Median tokens 159k/94k/161k, tool calls 6.5/8/8. Auto-capture: rule captured in 7/9 nomem runs; recall injected memory in only 4/10 mem runs. 20 first-pass MODEL_API_ERRORs (agy 180 s timeout) re-run with CHRONOS_AGY_TIMEOUT=420; 7 runs TIMEOUT.

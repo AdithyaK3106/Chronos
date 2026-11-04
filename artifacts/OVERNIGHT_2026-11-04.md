@@ -94,7 +94,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - Roadmap: the self-hosted plan in 5 bullets (team server, signed audit, Codex, spend reports, pilots).
   - Contributing, Security (how to report), License.
   - Move long reference material into GUIDE.md rather than deleting it. Keep README under ~250 lines. Commit.
-- [ ] 16. **Update the plan files.** Tick finished items in `artifacts/chronos-build-procedure.md` and `artifacts/HARDENING_PLAN.md`. These two were untracked; commit them now. Commit.
+- [x] 16. **Update the plan files.** Tick finished items in `artifacts/chronos-build-procedure.md` and `artifacts/HARDENING_PLAN.md`. These two were untracked; commit them now. Commit.
 - [ ] 17. **Morning report.** Write `artifacts/MORNING_REPORT_2026-11-05.md`: what changed (with commit hashes), all numbers, what failed, open decisions for the user. Publish it as an Artifact page (load the artifact-design skill first; keep it short and plain), and put its link at the top of the report file. Commit.
 - [ ] 18. **Push.** Run the full test suite (`.venv/bin/python -m pytest -q`; it must pass), then `git push origin tanish`. Never push master. Log the result.
 
@@ -111,3 +111,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 12: done in 47ddc35 — docs/events-v1.md: today's record (v0) verified against code, v1 additions marked proposed, versioning + v0 mapping. Found: dashboard writes upper-case statuses; no session_id in audit records.
 - item 13: done in dbf45fb — `claude install --managed --out` (hooks, onFailure: block, allowManagedHooksOnly; fields checked against the managed-settings docs); version warnings tested; 313 tests pass.
 - item 14: done in ac263c8 — 18 fixtures (Bash/Edit/Write/Read/WebFetch/MCP; pre/post/prompt) + expected.json; one parametrized test, 19 pass.
+- item 16: done in 5287c52 — build procedure committed with 11 items ticked (3 annotated as partial); HARDENING_PLAN items 5/8/9/10 ticked; CodeScout result JSON committed. (HARDENING_PLAN was already tracked.)

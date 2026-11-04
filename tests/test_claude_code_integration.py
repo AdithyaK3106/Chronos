@@ -95,10 +95,48 @@ def test_normal_edit_is_allowed_and_audited(repo):
     assert ok and count >= 1
 
 
-def test_paths_outside_repo_and_other_tools_are_ignored(repo, tmp_path_factory):
+def test_writes_outside_repo_ask_by_default_and_are_audited(repo, tmp_path_factory):
+    from chronos.server.overview import classify_decision
+
     outside = tmp_path_factory.mktemp("elsewhere") / "notes.py"
-    assert _pre(repo, "Write", file_path=str(outside), content="x")[1] is None
+    d = _pre(repo, "Write", file_path=str(outside), content="x")[1]["hookSpecificOutput"]
+    assert d["permissionDecision"] == "ask"
+    assert "outside the repository" in d["permissionDecisionReason"]
+    last = json.loads(audit_log_path(repo).read_text().strip().splitlines()[-1])
+    assert last["status"] == "ask" and last["metadata"]["category"] == "boundary"
+    assert classify_decision(last, "ask") == "asked"
+    # Reads outside the repo are not Chronos's business; nor are tools without a path.
+    assert _pre(repo, "Read", file_path=str(outside))[1] is None
     assert _run("pre", {"tool_name": "Bash", "tool_input": {"command": "ls"}, "cwd": str(repo)})[1] is None
+
+
+@pytest.mark.parametrize("mode,expected", [("deny", "deny"), ("allow", None)])
+def test_outside_repo_writes_follow_policy(repo, tmp_path_factory, mode, expected):
+    _set_policy(repo, outside_repo_writes=mode)
+    outside = tmp_path_factory.mktemp("elsewhere") / "notes.py"
+    out = _pre(repo, "Edit", file_path=str(outside), old_string="a", new_string="b")[1]
+    assert (out and out["hookSpecificOutput"]["permissionDecision"]) == expected
+
+
+def test_strict_preset_denies_outside_repo_writes(repo, tmp_path_factory):
+    _set_policy(repo, preset="strict")
+    outside = tmp_path_factory.mktemp("elsewhere") / "notes.py"
+    out = _pre(repo, "Write", file_path=str(outside), content="x")[1]
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_env_templates_are_not_secrets(repo):
+    (repo / ".env.example").write_text("TOKEN=\n")
+    (repo / "config.env.sample").write_text("TOKEN=\n")
+    for name in (".env.example", "config.env.sample"):
+        assert _pre(repo, "Read", file_path=str(repo / name))[1] is None
+        assert _pre(repo, "Edit", file_path=str(repo / name), old_string="=", new_string="=x")[1] is None
+    assert _pre(repo, "Grep", pattern="TOKEN", glob=".env.example")[1] is None
+    # The real thing, and a template that is a symlink to it, stay denied.
+    (repo / ".env.local.example").symlink_to(repo / ".env")
+    for name in (".env", ".env.local", ".env.local.example"):
+        out = _pre(repo, "Read", file_path=str(repo / name))[1]
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny", name
 
 
 def test_repo_without_chronos_dir_is_untouched(tmp_path):

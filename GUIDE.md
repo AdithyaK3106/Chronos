@@ -171,7 +171,7 @@ What you get inside an opted-in repo:
 
 | Hook | Effect |
 |---|---|
-| `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials) and edits to code another agent has locked. Files outside the repository are left to Claude Code's own permissions unless `CHRONOS_HOOK_STRICT_BOUNDARY=1`, which denies them. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
+| `PreToolUse` (Read/Edit/Write/MultiEdit/NotebookEdit/Grep) | **Denies** secrets (`.env`, keys, credentials) and edits to code another agent has locked. Templates such as `.env.example`, `.env.sample` and `.env.template` are not secrets and are allowed. **Asks you** before a write outside the repository (`policy.outside_repo_writes`); reads outside it are left to Claude Code's own permissions unless `CHRONOS_HOOK_STRICT_BOUNDARY=1`, which denies every path outside the repo. **Asks you** before an edit to a protected module (auth, policy, security, permissions, ...). Reading protected code is always allowed. Every decision lands in the hash-chained audit log. |
 | `UserPromptSubmit` | Injects the matching symbols, callers/callees, tests and recalled memories, only when the match is strong (threshold `CHRONOS_MIN_INJECT_SCORE`, default 12). It is labelled as untrusted reference data and capped in size, because it quotes repository text. |
 
 Protected modules match whole words in the path: `auth.py`, `authService.ts` and `oauth_client.py`
@@ -183,11 +183,11 @@ Choose how strict to be with a preset:
 chronos config set policy.preset strict     # relaxed | standard (default) | strict
 ```
 
-| Preset | `protected_modules` | `on_hook_error` | `max_context_chars` |
-|---|---|---|---|
-| `relaxed` | `ask` | `allow` (fail open) | `8000` |
-| `standard` | `ask` | `ask` | `6000` |
-| `strict` | `deny` | `deny` (fail closed) | `4000` |
+| Preset | `protected_modules` | `outside_repo_writes` | `on_hook_error` | `max_context_chars` |
+|---|---|---|---|---|
+| `relaxed` | `ask` | `ask` | `allow` (fail open) | `8000` |
+| `standard` | `ask` | `ask` | `ask` | `6000` |
+| `strict` | `deny` | `deny` | `deny` (fail closed) | `4000` |
 
 Secrets are denied under every preset. Settings written explicitly in `.chronos/config.json` override
 the preset, e.g. `{ "policy": { "preset": "strict", "protected_modules": "ask" } }`. The individual
@@ -196,6 +196,7 @@ settings:
 | Setting | Values | Default |
 |---|---|---|
 | `protected_modules` | `ask` (approve in Claude Code's prompt) or `deny` (until `chronos gate grant`) | `ask` |
+| `outside_repo_writes` | `ask`, `deny`, or `allow` (leave writes outside the repo to Claude Code) | `ask` |
 | `on_hook_error` | `ask`, `deny` (strict) or `allow` (silent fail-open) | `ask` |
 | `max_context_chars` | upper bound on injected context | `6000` |
 
@@ -227,7 +228,7 @@ start rather than running the agent unprotected; there, hooks alone apply.
 
 Tunables: `CHRONOS_AGENT_ID`, `CHRONOS_CONTEXT_BUDGET` (tokens, default 1200),
 `CHRONOS_HOOK_FAIL_CLOSED=1` (always deny if the hook itself errors, overriding `on_hook_error`),
-`CHRONOS_HOOK_STRICT_BOUNDARY=1` (also deny paths outside the repo).
+`CHRONOS_HOOK_STRICT_BOUNDARY=1` (deny every path outside the repo, reads included).
 
 `chronos claude status` shows what is installed and runs each installed hook command once, so a
 moved or broken install shows up as `"hook_commands_work": false`.

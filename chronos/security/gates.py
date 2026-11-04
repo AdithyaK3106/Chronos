@@ -48,7 +48,11 @@ def path_words(path: str) -> set[str]:
 
 
 def _is_env_file(path: str) -> bool:
+    from chronos.security.sanitizer import is_env_template
+
     name = Path(path).name.lower()
+    if is_env_template(name):
+        return False
     return name == ".env" or name.startswith(".env.") or name.endswith(".env")
 
 

@@ -23,6 +23,27 @@ DEFAULT_DENIED_PATTERNS = [
     "**/.chronos/chronos.db*",
 ]
 
+# Committed templates of env files (`.env.example`, `config.env.sample`) document variable names and
+# hold no secrets, so the env-file patterns above do not apply to them.
+ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
+
+
+def is_env_template(name: str) -> bool:
+    """True for `.env.example`, `.env.local.sample`, `config.env.template` and the like."""
+    n = Path(name).name.lower()
+    for suffix in ENV_TEMPLATE_SUFFIXES:
+        if n.endswith(suffix):
+            stem = n[: -len(suffix)]
+            return stem == ".env" or stem.startswith(".env.") or stem.endswith(".env")
+    return False
+
+
+def _env_template_exempt(pattern: str, name: str) -> bool:
+    """An env-file pattern does not cover a template, unless the pattern names templates itself."""
+    p = pattern.lower()
+    return ".env" in p and not p.endswith(ENV_TEMPLATE_SUFFIXES) and is_env_template(name)
+
+
 # Regex patterns for credential redacting
 SECRET_PATTERNS = [
     (re.compile(r"chron_[a-zA-Z0-9_\-]{20,}"), "chron_[REDACTED]"),
@@ -75,6 +96,8 @@ def validate_path_access(
 
     # 1. Deny check on nominal path
     for pat in denied:
+        if _env_template_exempt(pat, resolved.name):
+            continue
         if fnmatch.fnmatch(target_posix, pat) or fnmatch.fnmatch(rel_posix, pat) or fnmatch.fnmatch(resolved.name, pat):
             return False, f"Access denied: path matches restricted pattern '{pat}'"
 
@@ -87,6 +110,8 @@ def validate_path_access(
             return False, f"Symlink escape detected: '{target_path_str}' points outside repository root"
 
         for pat in denied:
+            if _env_template_exempt(pat, real_path.name):
+                continue
             if fnmatch.fnmatch(real_rel_posix, pat) or fnmatch.fnmatch(real_path.name, pat):
                 return False, f"Symlink escape: real target matches restricted pattern '{pat}'"
 

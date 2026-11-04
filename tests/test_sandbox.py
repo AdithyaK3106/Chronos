@@ -38,7 +38,8 @@ def _rel(plan, paths):
 
 def test_plan_protects_modules_hides_secrets_and_locks_policy(repo):
     plan = plan_sandbox(repo)
-    assert _rel(plan, plan.read_only) == {"src/app/core/auth.py", ".env.example", ".chronos/config.json"}
+    # .env.example is a committed template: neither hidden nor protected
+    assert _rel(plan, plan.read_only) == {"src/app/core/auth.py", ".chronos/config.json"}
     assert _rel(plan, plan.hidden) == {".env"}
     # every ancestor of a protected file, including the repo root, is anchored
     assert {".", "src", "src/app", "src/app/core", ".chronos"} <= {

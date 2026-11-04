@@ -32,6 +32,7 @@ from typing import Any
 HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main|\.exe)?[\"']?\s+hook\s+claude\s+(?:pre|prompt)\b", re.IGNORECASE)
 PATH_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit", "Grep"}
 PRE_MATCHER = "|".join(sorted(PATH_TOOLS))
+WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 MIN_INJECT_SCORE = float(os.environ.get("CHRONOS_MIN_INJECT_SCORE", "12"))
 MAX_INCREMENTAL_FILES = 25
 MIN_PROMPT_WORDS = 4
@@ -92,10 +93,12 @@ def _grep_targets_secrets(tool_input: dict[str, Any]) -> bool:
     """True if a Grep call explicitly aims at secret files via its glob filter."""
     import fnmatch
 
-    from chronos.security.sanitizer import DEFAULT_DENIED_PATTERNS
+    from chronos.security.sanitizer import DEFAULT_DENIED_PATTERNS, is_env_template
 
     glob = tool_input.get("glob")
     if not isinstance(glob, str) or not glob:
+        return False
+    if is_env_template(glob.split("/")[-1]):
         return False
     probes = {glob, glob.split("/")[-1]}
     return any(fnmatch.fnmatch(p, pat) or fnmatch.fnmatch(pat, p) for p in probes for pat in DEFAULT_DENIED_PATTERNS)
@@ -142,7 +145,11 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
         return None
     target = Path(path) if Path(path).is_absolute() else root / path
     if not _inside(root, target) and os.environ.get("CHRONOS_HOOK_STRICT_BOUNDARY") != "1":
-        return None
+        # CHRONOS_HOOK_STRICT_BOUNDARY=1 instead lets the firewall deny (and audit) every path
+        # outside the repo, reads included.
+        if tool not in WRITE_TOOLS:
+            return None
+        return _outside_repo_write(root, target, payload)
 
     from chronos.core.db import get_connection
     from chronos.governance.firewall import evaluate_tool_security_detailed
@@ -184,6 +191,34 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
             return _ask(f"{reason}. Approve this edit only if you intended to change a protected module.{hint}")
         return _deny(reason + "." + hint)
     return _deny(reason)
+
+
+def _outside_repo_write(root: Path, target: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
+    """A write outside the repository: ask (default), deny or allow per `policy.outside_repo_writes`."""
+    from chronos.audit.logger import append_audit_event
+    from chronos.core.paths import audit_log_path
+
+    mode = _policy(root).outside_repo_writes
+    if mode == "allow":
+        return None
+    reason = f"{target} is outside the repository {root}"
+    try:
+        append_audit_event(
+            log_path=audit_log_path(root),
+            event_type="tool_authorization",
+            agent_id=_agent_id(payload),
+            action="file_editor",
+            target=str(target),
+            status="ask" if mode == "ask" else "deny",
+            reason=reason,
+            metadata={"category": "boundary"},
+        )
+    except Exception:  # noqa: BLE001 - the decision below still reaches the developer
+        pass
+    hint = " To stop asking: chronos config set policy.outside_repo_writes allow"
+    if mode == "deny":
+        return _deny(f"{reason}. Writes outside the repository are denied by policy.")
+    return _ask(f"{reason}. Approve only if you meant the agent to write there.{hint}")
 
 
 def _audit_hook_failure(log_path: Path, agent_id: str, target: str, exc: Exception) -> None:

@@ -442,7 +442,9 @@ class ChronosMemoryStore:
             "SELECT content FROM memories WHERE repo_namespace = ? AND archived = 0 LIMIT 5000", (repo_namespace,)
         ).fetchall()
         docs = [memory_terms(r[0]) for r in rows]
-        n = max(len(docs), 1)
+        # Rarity is judged as if the store held at least 20 memories: in a store of 1-5 memories every
+        # word "appears in most memories", which made relevant ones impossible to inject.
+        n = max(len(docs), 20)
         df: Dict[str, int] = {}
         for d in docs:
             for t in d & q:

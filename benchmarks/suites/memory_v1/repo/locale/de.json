@@ -1,0 +1,5 @@
+{
+  "receipt.title": "Ihre Quittung",
+  "receipt.subtotal": "Zwischensumme: {amount}",
+  "receipt.gift_wrap": "Geschenkverpackung inklusive"
+}

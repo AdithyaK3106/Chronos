@@ -1,0 +1,5 @@
+{
+  "receipt.title": "Your receipt",
+  "receipt.subtotal": "Subtotal: {amount}",
+  "receipt.gift_wrap": "Gift wrap included"
+}

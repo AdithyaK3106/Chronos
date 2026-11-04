@@ -461,6 +461,17 @@ class PairedRunner:
                         finally:
                             con.close()
 
+                    # Memory experiments (metadata.seed_memories): every run starts from exactly the
+                    # listed memories, so memories distilled by earlier runs cannot leak into it.
+                    md = task.metadata or {}
+                    if "seed_memories" in md:
+                        from chronos.memory.store import ChronosMemoryStore
+
+                        con.execute("DELETE FROM memories WHERE repo_namespace = ?", (repo.id,))
+                        con.commit()
+                        for text in md["seed_memories"]:
+                            ChronosMemoryStore(con=con).remember(content=text, repo_namespace=repo.id, tier="procedural", source="bench_seed")
+
                     # Context assembly & automatic knowledge injection
                     bootstrap_res = runtime.bootstrap.bootstrap_session(
                         task_prompt=task.prompt,
@@ -473,6 +484,11 @@ class PairedRunner:
                     )
                     treatment_prompt = bootstrap_res["augmented_prompt"]
                     memories_recalled_count = bootstrap_res.get("memories_count", 0)
+                    if md.get("force_memories") and md.get("seed_memories") and not memories_recalled_count:
+                        # Upper bound: inject the seeded memories even when recall would not select them.
+                        block = "\n".join(f"- [Procedural]: {m}" for m in md["seed_memories"])
+                        treatment_prompt += f"\n\n#### 🧠 Chronos Repository Memory & Past Postmortems (Advisory Only):\n{block}\n"
+                        memories_recalled_count = len(md["seed_memories"])
 
                     condenser = ChronosContextCondenser(max_events=15, keep_first=2)
                     treatment_sys_prompt = (
@@ -642,6 +658,11 @@ class PairedRunner:
                             audit_log_path=audit_file,
                         )
                         memories_stored_count = len(saved_ids)
+                        # Keep what was distilled, to check whether automatic capture records the lesson.
+                        if saved_ids and "seed_memories" in md:
+                            marks = ",".join("?" * len(saved_ids))
+                            rows = con.execute(f"SELECT tier, content FROM memories WHERE id IN ({marks})", saved_ids).fetchall()
+                            (self.store.diffs_dir / f"{run_id}.memories.json").write_text(json.dumps([{"tier": r[0], "content": r[1]} for r in rows], indent=1))
                     except Exception:
                         memories_stored_count = 0
                     finally:

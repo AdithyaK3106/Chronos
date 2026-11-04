@@ -1,0 +1,8 @@
+repositories:
+  - id: "shopkit"
+    name: "shopkit (memory benchmark repo)"
+    # Built by `python -m benchmarks.memory_ab --setup` from benchmarks/suites/memory_v1/repo with
+    # fixed commit dates, so the commit below is reproducible.
+    path: "${MEMORY_SHOPKIT_PATH:-/tmp/chronos-memory-shopkit}"
+    baseline_commit: "HEAD"
+    default_test_command: "pytest tests -q"

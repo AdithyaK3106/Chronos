@@ -1,0 +1,11 @@
+# Orders API. shopkit/api_client.py is generated from this file: python tools/gen_client.py
+base_url: https://api.shop.example
+endpoints:
+  get_order:
+    method: GET
+    path: /orders/{order_id}
+    params: [order_id]
+  list_orders:
+    method: GET
+    path: /orders
+    params: []

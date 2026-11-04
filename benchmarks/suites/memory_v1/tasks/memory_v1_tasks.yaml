@@ -1,0 +1,316 @@
+# Memory A/B (4 Nov 2026). Each task exists three times with the same prompt: `_mem` starts with one
+# relevant repository memory (as a teammate or an earlier session would have saved it with
+# chronos_remember), `_forced` injects that memory even when recall would not pick it,
+# `_nomem` starts with an empty memory store. Only the Chronos (treatment) arm is run.
+# Every house rule is used correctly somewhere in the existing code, so it can be discovered
+# without memory; the hidden acceptance test only passes if the rule is followed.
+tasks:
+- id: memory_gen_mem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Add an optional timeout (in seconds, default 10) to the API client's get_order call.
+  target_files: &id001
+  - spec/api.yaml
+  - shopkit/api_client.py
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_gen.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories:
+    - 'shopkit/api_client.py is generated from spec/api.yaml by `python tools/gen_client.py`. Never edit api_client.py by hand: change the spec (keyword arguments go under `options:`) and regenerate.'
+    pair: gen
+    variant: mem
+- acceptance_tests:
+  - acceptance/shopkit/test_mem_gen.py
+  category: feature
+  id: memory_gen_forced
+  metadata:
+    pair: gen
+    seed_memories:
+    - 'shopkit/api_client.py is generated from spec/api.yaml by `python tools/gen_client.py`. Never edit api_client.py by hand: change the spec (keyword arguments go under `options:`) and regenerate.'
+    tools:
+    - terminal
+    variant: forced
+    force_memories: true
+  prompt: Add an optional timeout (in seconds, default 10) to the API client's get_order call.
+  regression_commands: []
+  repository_id: shopkit
+  suite: efficacy
+  target_files:
+  - spec/api.yaml
+  - shopkit/api_client.py
+  timeout_seconds: 240
+  verification_commands:
+  - pytest tests -q
+- id: memory_gen_nomem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Add an optional timeout (in seconds, default 10) to the API client's get_order call.
+  target_files: *id001
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_gen.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories: []
+    pair: gen
+    variant: nomem
+- id: memory_money_mem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Receipts should show 8% sales tax on the subtotal, and the grand total.
+  target_files: &id002
+  - shopkit/receipt.py
+  - locale/en.json
+  - locale/de.json
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_money.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories:
+    - 'Receipts: all amounts are integer cents; compute percentages with shopkit.money.percent_of (rounds half up) and format with format_money. Every receipt line is an i18n key that must be added to both
+      locale/en.json and locale/de.json.'
+    pair: money
+    variant: mem
+- acceptance_tests:
+  - acceptance/shopkit/test_mem_money.py
+  category: feature
+  id: memory_money_forced
+  metadata:
+    pair: money
+    seed_memories:
+    - 'Receipts: all amounts are integer cents; compute percentages with shopkit.money.percent_of (rounds half up) and format with format_money. Every receipt line is an i18n key that must be added to both
+      locale/en.json and locale/de.json.'
+    tools:
+    - terminal
+    variant: forced
+    force_memories: true
+  prompt: Receipts should show 8% sales tax on the subtotal, and the grand total.
+  regression_commands: []
+  repository_id: shopkit
+  suite: efficacy
+  target_files:
+  - shopkit/receipt.py
+  - locale/en.json
+  - locale/de.json
+  timeout_seconds: 240
+  verification_commands:
+  - pytest tests -q
+- id: memory_money_nomem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Receipts should show 8% sales tax on the subtotal, and the grand total.
+  target_files: *id002
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_money.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories: []
+    pair: money
+    variant: nomem
+- id: memory_clock_mem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Coupons should stop working after their expiry date.
+  target_files: &id003
+  - shopkit/coupons.py
+  - shopkit/error_codes.py
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_clock.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories:
+    - Coupons and anything time-based must use shopkit.clock.now(); tests freeze time with clock.set_now(), so datetime.now() breaks them. Failures are raised as ShopError with a code registered in shopkit/error_codes.py.
+    pair: clock
+    variant: mem
+- acceptance_tests:
+  - acceptance/shopkit/test_mem_clock.py
+  category: feature
+  id: memory_clock_forced
+  metadata:
+    pair: clock
+    seed_memories:
+    - Coupons and anything time-based must use shopkit.clock.now(); tests freeze time with clock.set_now(), so datetime.now() breaks them. Failures are raised as ShopError with a code registered in shopkit/error_codes.py.
+    tools:
+    - terminal
+    variant: forced
+    force_memories: true
+  prompt: Coupons should stop working after their expiry date.
+  regression_commands: []
+  repository_id: shopkit
+  suite: efficacy
+  target_files:
+  - shopkit/coupons.py
+  - shopkit/error_codes.py
+  timeout_seconds: 240
+  verification_commands:
+  - pytest tests -q
+- id: memory_clock_nomem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Coupons should stop working after their expiry date.
+  target_files: *id003
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_clock.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories: []
+    pair: clock
+    variant: nomem
+- id: memory_flags_mem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: The new one-click checkout should only be available to beta users. Add one_click_available(user) to the checkout module.
+  target_files: &id004
+  - shopkit/checkout.py
+  - flags.yaml
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_flags.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories:
+    - 'Feature rollout (beta, staff) is done with feature flags: declare the flag in flags.yaml as `name: [groups]` and check it with shopkit.flags.is_enabled(name, user). Never check user.groups directly.'
+    pair: flags
+    variant: mem
+- acceptance_tests:
+  - acceptance/shopkit/test_mem_flags.py
+  category: feature
+  id: memory_flags_forced
+  metadata:
+    pair: flags
+    seed_memories:
+    - 'Feature rollout (beta, staff) is done with feature flags: declare the flag in flags.yaml as `name: [groups]` and check it with shopkit.flags.is_enabled(name, user). Never check user.groups directly.'
+    tools:
+    - terminal
+    variant: forced
+    force_memories: true
+  prompt: The new one-click checkout should only be available to beta users. Add one_click_available(user) to the checkout module.
+  regression_commands: []
+  repository_id: shopkit
+  suite: efficacy
+  target_files:
+  - shopkit/checkout.py
+  - flags.yaml
+  timeout_seconds: 240
+  verification_commands:
+  - pytest tests -q
+- id: memory_flags_nomem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: The new one-click checkout should only be available to beta users. Add one_click_available(user) to the checkout module.
+  target_files: *id004
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_flags.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories: []
+    pair: flags
+    variant: nomem
+- id: memory_errors_mem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Placing an order with an empty cart should fail with a clear error instead of creating an empty order.
+  target_files: &id005
+  - shopkit/checkout.py
+  - shopkit/error_codes.py
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_errors.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories:
+    - 'Checkout errors: shopkit only raises ShopError(code); every new code must first be added to CODES in shopkit/error_codes.py with a customer-facing message.'
+    pair: errors
+    variant: mem
+- acceptance_tests:
+  - acceptance/shopkit/test_mem_errors.py
+  category: feature
+  id: memory_errors_forced
+  metadata:
+    pair: errors
+    seed_memories:
+    - 'Checkout errors: shopkit only raises ShopError(code); every new code must first be added to CODES in shopkit/error_codes.py with a customer-facing message.'
+    tools:
+    - terminal
+    variant: forced
+    force_memories: true
+  prompt: Placing an order with an empty cart should fail with a clear error instead of creating an empty order.
+  regression_commands: []
+  repository_id: shopkit
+  suite: efficacy
+  target_files:
+  - shopkit/checkout.py
+  - shopkit/error_codes.py
+  timeout_seconds: 240
+  verification_commands:
+  - pytest tests -q
+- id: memory_errors_nomem
+  repository_id: shopkit
+  suite: efficacy
+  category: feature
+  prompt: Placing an order with an empty cart should fail with a clear error instead of creating an empty order.
+  target_files: *id005
+  verification_commands:
+  - pytest tests -q
+  regression_commands: []
+  acceptance_tests:
+  - acceptance/shopkit/test_mem_errors.py
+  timeout_seconds: 240
+  metadata:
+    tools:
+    - terminal
+    seed_memories: []
+    pair: errors
+    variant: nomem

@@ -11,8 +11,8 @@ These are the decisions the user made, with their answers:
 
 ## Work items
 
-- [ ] 1. Shell analysis: catch hidden execution (piping into a shell, decode-then-run, inline `-c` code, `find -exec`/`-delete`, `$'..'` escapes, globs matching secret files, recursive reads over secret files). All of these → ask.
-- [ ] 2. Threat rule packs for commands (`chronos/security/command_rules.py`), each rule with an id, category and decision, and overridable from policy:
+- [x] 1. Shell analysis: catch hidden execution (piping into a shell, decode-then-run, inline `-c` code, `find -exec`/`-delete`, `$'..'` escapes, globs matching secret files, recursive reads over secret files). All of these → ask.
+- [x] 2. Threat rule packs for commands (`chronos/security/command_rules.py`), each rule with an id, category and decision, and overridable from policy:
   - destructive commands
   - git damage
   - sending data out
@@ -20,15 +20,15 @@ These are the decisions the user made, with their answers:
   - production, infrastructure and databases
   - dependencies
   - changes to the developer's machine
-- [ ] 3. Rules on file paths and content for Edit/Write:
+- [x] 3. Rules on file paths and content for Edit/Write:
   - `.chronos/**` → deny
   - agent settings, CI, git hooks, lockfiles → ask
   - added test-skip markers → ask
   - extra secret file types (`.tfstate`, `.netrc`, `.p12`, ...)
-- [ ] 4. Hook failures: a fail-safe entry point (crash → ask), an internal deadline before Claude Code's timeout, a shell-level fallback if Python can't start, an error log, and errors shown in the overview.
-- [ ] 5. Warn the agent when tool output contains instructions aimed at AI agents (PostToolUse `additionalContext`).
-- [ ] 6. Make the OpenHands firewall apply the same command rules.
-- [ ] 7. Memory: audit what it does, test it end to end, and measure whether it helps.
+- [x] 4. Hook failures: crash → ask, internal deadline before Claude Code's timeout, `onFailure: block` for failures our code can't catch (Python missing, killed, bad output), an error log, and errors shown in the overview.
+- [ ] 5. (deferred) Warn the agent when tool output contains instructions aimed at AI agents (PostToolUse `additionalContext`).
+- [x] 6. Make the OpenHands firewall apply the same command rules.
+- [~] 7. Memory: audited and recall precision fixed (unrelated injection 93% → 0%). NOT yet measured: whether memory helps an agent finish tasks (needs a sequential-task A/B). Claude Code never writes memories automatically.
 - [ ] 8. Public benchmark corpus: manifest, fetch script, prompts without file names, and gold files and functions for any language.
 - [ ] 9. CodeScout on the GPU or CPU: compare against the deterministic resolver on 20 prompts.
 - [ ] 10. Live Claude Code (Sonnet) attack test across all threat areas.

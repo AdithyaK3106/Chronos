@@ -1046,19 +1046,12 @@ def _strip_chronos(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return kept
 
 
-def install(scope: str = "user", repo: Path | None = None, with_mcp: bool = True) -> list[str]:
-    repo = (repo or Path.cwd()).resolve()
-    path = settings_path(scope, repo)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    if path.exists() and not path.with_suffix(".json.chronos-bak").exists():
-        shutil.copy2(path, path.with_suffix(".json.chronos-bak"))
-
+def _merge_chronos_hooks(data: dict[str, Any], fail_closed: bool) -> None:
+    """Replace Chronos's entries in `data["hooks"]`, keeping every other hook."""
     hooks = data.setdefault("hooks", {})
     for name in ("PreToolUse", "PostToolUse", "UserPromptSubmit"):
         hooks[name] = _strip_chronos(hooks.get(name, []))
     pre_hook: dict[str, Any] = {"type": "command", "command": _hook_command("pre"), "timeout": HOOK_TIMEOUT_S["pre"]}
-    fail_closed = supports_on_failure()
     if fail_closed:
         # If the check itself can't run (Python missing, killed at the timeout, bad output), block
         # the tool call instead of letting it through. Chronos's own errors still return `ask`.
@@ -1070,6 +1063,66 @@ def install(scope: str = "user", repo: Path | None = None, with_mcp: bool = True
     hooks["UserPromptSubmit"].append(
         {"hooks": [{"type": "command", "command": _hook_command("prompt"), "timeout": HOOK_TIMEOUT_S["prompt"]}]}
     )
+
+
+MANAGED_SETTINGS_PATHS = {
+    "linux": "/etc/claude-code/managed-settings.json",
+    "darwin": "/Library/Application Support/ClaudeCode/managed-settings.json",
+    "win32": r"C:\Program Files\ClaudeCode\managed-settings.json",
+}
+
+
+def install_managed(out: Path) -> list[str]:
+    """Write (or merge into) a managed-settings.json with the Chronos hooks for an organisation.
+
+    Managed settings sit above user, project and local settings, and `allowManagedHooksOnly: true`
+    stops those lower levels from adding hooks, so a developer or an agent can't switch Chronos off
+    by editing ~/.claude/settings.json. PreToolUse always gets `onFailure: block` here: the file is
+    meant for fleets, where a check that can't run must not let the action through.
+    Other keys and non-Chronos hooks in an existing file are kept. Chronos writes to `out` only; an
+    administrator copies it to the system path (MANAGED_SETTINGS_PATHS) with their own tooling.
+    """
+    out = Path(out).expanduser()
+    data: dict[str, Any] = {}
+    if out.exists() and out.read_text(encoding="utf-8").strip():
+        try:
+            data = json.loads(out.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            raise ValueError(f"{out} is not valid JSON ({exc}); not changed") from exc
+        if not isinstance(data, dict):
+            raise ValueError(f"{out} is not a JSON object; not changed")
+    _merge_chronos_hooks(data, fail_closed=True)
+    data["allowManagedHooksOnly"] = True
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    target = MANAGED_SETTINGS_PATHS.get(sys.platform, MANAGED_SETTINGS_PATHS["linux"])
+    log = [
+        f"managed settings written to {out}",
+        f"deploy it as {target} (or through MDM / server-managed settings); Claude Code reads it at startup",
+        "hook commands use this machine's chronos path: " + _hook_command("pre").rsplit(" hook ", 1)[0]
+        + ". Install chronos at the same path on every machine, or edit the commands before deploying",
+    ]
+    version = claude_version()
+    if version is None or version < ON_FAILURE_MIN_VERSION:
+        log.append(
+            "warning: Claude Code on this machine is %s; `onFailure: block` needs %s or later, and older "
+            "versions let the action through when a check crashes or times out. Deploy with Claude Code %s+."
+            % (".".join(map(str, version)) if version else "not found", ".".join(map(str, ON_FAILURE_MIN_VERSION)),
+               ".".join(map(str, ON_FAILURE_MIN_VERSION)))
+        )
+    return log
+
+
+def install(scope: str = "user", repo: Path | None = None, with_mcp: bool = True) -> list[str]:
+    repo = (repo or Path.cwd()).resolve()
+    path = settings_path(scope, repo)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if path.exists() and not path.with_suffix(".json.chronos-bak").exists():
+        shutil.copy2(path, path.with_suffix(".json.chronos-bak"))
+
+    fail_closed = supports_on_failure()
+    _merge_chronos_hooks(data, fail_closed)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     log = [f"hooks written to {path}"]
     if not fail_closed:

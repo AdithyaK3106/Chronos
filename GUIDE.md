@@ -167,6 +167,25 @@ chronos claude uninstall --scope user    # remove cleanly
 cd your-repo && chronos init && chronos sync   # opt a repo in (repos without .chronos/ are never touched)
 ```
 
+`chronos claude install` warns when Claude Code is older than 2.1.295: earlier versions don't support
+`onFailure: block`, so a check that crashes or times out lets the action through.
+
+**For an organisation**, generate managed settings, which sit above every user, project and local
+settings file:
+
+```bash
+chronos claude install --managed --out managed-settings.json
+# then deploy it as /etc/claude-code/managed-settings.json (Linux/WSL),
+# /Library/Application Support/ClaudeCode/managed-settings.json (macOS),
+# C:\Program Files\ClaudeCode\managed-settings.json (Windows), or through MDM
+```
+
+The file contains the Chronos hooks with `onFailure: block` on PreToolUse, and
+`allowManagedHooksOnly: true`, so hooks in a developer's own settings (or ones an agent writes) don't
+run and Chronos can't be switched off from `~/.claude/settings.json`. If the file exists, other keys and
+hooks are kept. The hook commands use the chronos path of the machine that generated the file; install
+chronos at the same path everywhere or edit the commands before deploying.
+
 What you get inside an opted-in repo:
 
 | Hook | Effect |

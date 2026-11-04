@@ -224,6 +224,9 @@ def main():
     p_cl.add_argument("--scope", choices=["user", "project"], default="user")
     p_cl.add_argument("--repo", default=".", help="Repository (used for --scope project)")
     p_cl.add_argument("--no-mcp", action="store_true", help="Install hooks only")
+    p_cl.add_argument("--managed", action="store_true",
+                      help="install: write an organisation-wide managed-settings.json (hooks, onFailure: block, allowManagedHooksOnly) to --out")
+    p_cl.add_argument("--out", default=None, help="--managed: file to write (default: ./managed-settings.json)")
 
     # mcp-config (used by install.sh: merge, never overwrite, an editor's MCP config)
     p_mc = subparsers.add_parser("mcp-config", help="Add/remove the Chronos MCP server in an editor's JSON config (keeps other servers)")
@@ -306,6 +309,14 @@ def main():
     if args.command == "claude":
         from chronos.integrations import claude_code as cc
         repo = Path(args.repo).resolve()
+        if args.action == "install" and args.managed:
+            try:
+                for line in cc.install_managed(Path(args.out or "managed-settings.json")):
+                    print(line)
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                sys.exit(1)
+            sys.exit(0)
         if args.action == "install":
             for line in cc.install(args.scope, repo, with_mcp=not args.no_mcp):
                 print(line)

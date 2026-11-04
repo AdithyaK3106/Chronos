@@ -3,6 +3,29 @@
 Results from the overnight session, following `artifacts/OVERNIGHT_PLAN.md`. Everything below
 comes from commands actually run tonight; anything not verified is labelled as such.
 
+## Summary (read this first)
+
+| Milestone | Status |
+|---|---|
+| M1 Green CI | **Done.** All 7 jobs green (ubuntu/macOS/Windows, 3.12/3.13, full extras). |
+| M2 Dashboard Overview | **Done.** New default Overview page backed by real data; old views under Advanced. |
+| M3 Acceptance tests + benchmark | **Done.** 20/20 tasks have fair hidden tests. Chronos 41.7% vs baseline 36.7% (not significant), -15% tokens where both arms solved, 0 vs 1 security breaches. README corrected. |
+| M4 `chronos run --engine claude` | **Done.** Test-driven retry loop in the sandbox; 1 haiku run used (of 3). |
+| M5 Local polish | **Done** (one item partly, see M5). Audit log outside the repo, policy presets, `runtime` -> `chronos.agent`. |
+| M6 Buy vs build | **Cupcake done** (recommendation: keep building). **codebase-memory-mcp blocked** (environment). |
+
+**Decisions for you:**
+1. Should writes outside the repo **ask** (or be denied) by default? Today they're allowed unless
+   `CHRONOS_HOOK_STRICT_BOUNDARY=1` (M6).
+2. Rename the top-level `benchmarks` package, or stop shipping it in the core wheel (M5)?
+3. Allow codebase-memory-mcp to run under `~/.cache` so the M6 comparison arm can run?
+4. Exempt `*.env.example` / `*.env.sample` from the `*.env*` deny (M2)?
+5. Approval queue: the Security view's queue stays empty when Claude Code asks inline (M2).
+
+**Cleanup you may want:** `/data/chronos-bench-scratch` (clones, venvs, Cupcake build, benchmark
+results) is all disposable once you've looked at the results. Branch `tanish-dev` / worktree
+`chronos-dev` were my working copy.
+
 ## M1. Green CI
 
 **Starting point.** The last GitHub run on `tanish` (run 41693067274, commit `6daec16`) failed
@@ -152,7 +175,7 @@ the topbar's static "PORT 8765" badge was replaced by the theme toggle. Full sui
 - The sidebar footer ("SQLite WAL Index / Tree-Sitter AST & OpenHands") is engineering jargon
   aimed at the old audience; left as is.
 
-## M3. Evidence: acceptance tests + 24-task benchmark (in progress)
+## M3. Evidence: acceptance tests + 24-task benchmark (done)
 
 **Setup.** All benchmark work runs on a dedicated scratch area, `/data/chronos-bench-scratch`, which
 you can delete when you're done. `/tmp` is a 3.6 GB RAM disk and filled up when cloning the Cooling
@@ -183,8 +206,28 @@ the 20. Several v1 prompts described code that does not exist:
 
 **Full run started** 02:42 IST: 24 tasks × 3 runs × 2 arms, Gemini Flash Low via `agy`, results in
 `/data/chronos-bench-scratch/results_20261104`. A 1-task smoke run first confirmed tokens are
-recorded (the OpenHands console shows "total 0" but the DB has the counts). Results follow below
-when it finishes.
+recorded (the OpenHands console shows "total 0" but the DB has the counts).
+
+**Results** (finished 07:05 IST, 144/144 runs). Full analysis: `artifacts/BENCHMARK_REPORT_2026-11-04.md`.
+- **Efficacy success: 22/60 baseline vs 25/60 with Chronos (36.7% vs 41.7%).** Paired: 6 tasks
+  only Chronos solved, 3 only baseline solved; McNemar p = 0.51, so **not significant**.
+- **Tokens:** on the 19 pairs both arms solved, Chronos used fewer tokens in 18 (1.28M vs 1.09M, -15%).
+  Median duration over all runs: 82.4 s vs 88.0 s.
+- **Security:** baseline modified a protected file once in 12 runs. With Chronos there were 0 breaches,
+  and all 9 attempted protected edits were denied. In the other 3 runs, the agent never tried an edit.
+- **9 of 20 efficacy tasks were solved by neither arm.** Each has a verified reference fix, so they
+  are just beyond Gemini Flash Low in 120-240 s.
+- **chronos_task_01 (baseline 2/3, Chronos 0/3) is a model failure, not Chronos:** in all three
+  Chronos runs the model wrote its `str_replace` as text instead of calling the tool. That happened
+  in 11/144 runs overall (6 with Chronos, 5 without).
+- **The `CHRONOS_REPO_PATH` confound I suspected is ruled out.** The harness passes each worktree
+  explicitly; only `mcp_server.py` reads the env var, and the benchmark doesn't use it.
+- **Caveat:** with Chronos, later iterations recall memories from earlier attempts at the same task
+  (189 recalled), so iterations aren't independent.
+- **README updated** with these numbers. The earlier claims (-32.9% median duration, -59.6% tokens,
+  90% vs 90%) were **not reproduced** and are now labelled as such.
+- **My background waiter never fired:** it used `pgrep -f` on a pattern that its own command line
+  contains. I noticed at the 07:21 check.
 
 ## M4. `chronos run --engine claude` (done)
 

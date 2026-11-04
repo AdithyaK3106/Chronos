@@ -57,9 +57,9 @@ a toggle; all current engineering views kept under **Advanced**.
 - [x] Test venvs for chronos, Cooling project, MediAssist (scratch dirs, like `cng_venv`).
 - [x] Hidden acceptance tests for the remaining efficacy tasks (fail on baseline, pass on a
       reference fix; fix or rewrite unfair prompts and record why).
-- [ ] Full suite run: all repos, **3 runs per task**, Flash Low, in the background.
-- [ ] Write `artifacts/BENCHMARK_REPORT_2026-11-04.md`: per-task table, totals, variance, caveats.
-- [ ] Update README numbers or add a clear caveat.
+- [x] Full suite run: all repos, **3 runs per task**, Flash Low, in the background.
+- [x] Write `artifacts/BENCHMARK_REPORT_2026-11-04.md`: per-task table, totals, variance, caveats.
+- [x] Update README numbers or add a clear caveat.
 
 ### M4. Orchestrator: `chronos run --engine claude` (Phase 4b)
 - [x] Engine adapter interface; `claude` engine (headless `-p`, session resume); fake engine for tests.
@@ -77,6 +77,7 @@ a toggle; all current engineering views kept under **Advanced**.
 - [x] Cupcake: install in scratch, replay recorded hook events, compare decisions and latency.
       (see `artifacts/BUY_VS_BUILD_2026-11-04.md`)
 - [ ] codebase-memory-mcp: install in scratch, add a benchmark arm.
+      **BLOCKED** (needs a non-group-writable settings dir; only possible under the real home, see morning report).
 
 ## Morning report
 Written continuously to `artifacts/MORNING_REPORT_2026-11-04.md`: what was done (commit hashes),

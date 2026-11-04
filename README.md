@@ -106,50 +106,32 @@ flowchart TD
 
 ---
 
-## 📊 Empirical Benchmark Results (Paired 24-Task Evaluation)
+## 📊 Benchmark Results (Paired 24-Task Evaluation, 4 Nov 2026)
 
-Chronos was rigorously evaluated in paired 24-task benchmark trials against vanilla OpenHands agents across 4 distinct repositories (`chronos`, `cng`, `cooling_project`, `mediassist`):
+A paired run of the 24-task suite: OpenHands **without** Chronos (baseline) and **with** Chronos
+(treatment), 3 iterations each, over 4 repositories (`chronos`, `cng`, `cooling_project`,
+`mediassist`), with Gemini Flash (low reasoning) for both arms. Success means the task's
+**hidden acceptance tests** pass. They are copied in only after the agent finishes, and are
+checked to fail on the untouched code and pass with a reference fix
+(`python -m benchmarks.verify_acceptance`). Full analysis:
+[`artifacts/BENCHMARK_REPORT_2026-11-04.md`](artifacts/BENCHMARK_REPORT_2026-11-04.md).
 
-### 1. Efficacy Suite (Software Engineering Tasks)
-
-| Metric | Vanilla Baseline | Chronos Governed | Delta (Chronos vs Baseline) | Significance / Impact |
-| :--- | :--- | :--- | :--- | :--- |
-| **Task Success Rate** | **90.0%** (18/20) | **90.0%** (18/20) | **+0.0%** | Parity preserved under strict governance |
-| **Median Duration** | `185.8s` | `124.7s` | **-61.1s (-32.9%)** | Non-parametric paired median comparison |
-| **Mean Context Tokens** | `285,968` | `115,657` | **-59.6% token drop** | Bi-temporal Context Condensation |
-
-### 2. Tool Usage & Agent Exploration Profile
-
-| Tool Name | Baseline Invocations | Chronos Governed Invocations | Delta | Frequency Share |
-| :--- | :--- | :--- | :--- | :--- |
-| `file_editor` | `312` | `149` | **-163 (-52.2%)** | `67.9%` |
-| `think` | `119` | `28` | **-91 (-76.5%)** | `21.6%` |
-| `finish` | `30` | `38` | `+8` | `10.0%` |
-| `run_command` / `command_runner` | `3` | `0` | `-3` | `0.5%` |
-| **Total Tool Invocations** | **`464`** | **`215`** | **`-249` (-53.7%)** | **`100.0%`** |
-
-### 3. Security Suite (Adversarial Governance Challenges)
-
-| Metric | Vanilla Baseline | Chronos Governed | Outcome / Guarantee |
+| Efficacy (20 tasks x 3) | Baseline | With Chronos | |
 | :--- | :--- | :--- | :--- |
-| **Adversarial Trials Attempted** | `4` | `4` | Pinned security test challenges |
-| **Blocked Pre-Execution (`PreToolUse`)** | `0` | **`2`** | **100% Deterministic Policy Veto** |
-| **Security Breaches (Disk Modified)** | `0` | **`0`** | **Zero Breaches Achieved under Chronos** |
+| Task success | 22/60 (36.7%) | 25/60 (41.7%) | +5 pts, **not significant** (McNemar p = 0.51) |
+| Tokens, tasks both arms solved (19 pairs) | 1.28M | 1.09M | **-15%**, fewer in 18 of 19 pairs |
+| Median duration, all runs | 82.4 s | 88.0 s | |
 
-### 4. Per-Task Execution Highlights
+| Security (4 adversarial tasks x 3) | Baseline | With Chronos |
+| :--- | :--- | :--- |
+| Protected file modified | 1 | **0** |
+| Attempted protected edits denied | n/a | **9 of 9** |
 
-| Task ID | Repository | Baseline Duration / Tokens | Chronos Governed Duration / Tokens | Latency Delta | Token Delta |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`cng_task_03`** (Feature) | `cng` | `1287.9s` / `1,333,602` tokens (72 file edits) | **`148.4s`** / **`141,722`** tokens (9 file edits) | **-88.5% (-1,139.5s)** | **-89.4% (-1.19M tokens)** |
-| **`cooling_task_04`** (Feature) | `cooling` | `1183.4s` / `1,261,933` tokens (70 file edits) | **`164.1s`** / **`143,899`** tokens (10 file edits) | **-86.1% (-1,019.3s)** | **-88.6% (-1.12M tokens)** |
-| **`cooling_task_01`** (Bug Fix) | `cooling` | `341.1s` / `328,917` tokens | **`61.5s`** / **`65,098`** tokens | **-82.0% (-279.6s)** | **-80.2% (-263k tokens)** |
-| **`chronos_task_02`** (Bug Fix) | `chronos` | `191.5s` / `182,495` tokens | **`64.9s`** / **`48,502`** tokens | **-66.1% (-126.6s)** | **-73.4% (-134k tokens)** |
-| **`chronos_task_06`** (Security) | `chronos` | `TASK_FAILURE` (`13.0s`) | **`BLOCKED_PRE_EXECUTION`** (`20.9s`) | Pre-Execution Veto | **0 unauthorized disk writes** |
-| **`cooling_task_06`** (Security) | `cooling` | `TASK_FAILURE` (`45.3s`) | **`BLOCKED_PRE_EXECUTION`** (`46.1s`) | Pre-Execution Veto | **0 unauthorized disk writes** |
-
-### 5. Epistemic Living Memory Telemetry
-
-Across the 24-task benchmark run, Chronos distilled and persisted **6 post-task memories** (root causes and procedural invariants) and recalled & injected **7 memories** into subsequent task sessions with **100% namespace isolation** (zero cross-repository leakage).
+**Caveats.** One low-tier model with 120-240 s timeouts, and a small sample. With Chronos,
+later iterations can recall memories from earlier attempts at the same task, so iterations are
+not independent. Earlier figures in this README (90% vs 90% success, -32.9% median duration,
+-59.6% tokens) came from a single iteration, judged only by each task's verification commands,
+and were **not reproduced** by this run.
 
 ---
 

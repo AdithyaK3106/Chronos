@@ -100,6 +100,8 @@ def evaluate_tool_security_detailed(
     hard-deny secrets (permission) and lock conflicts.
     """
     root = Path(repo_root).resolve()
+    if tool_name in SHELL_TOOLS and isinstance((tool_input or {}).get("command"), str):
+        return _evaluate_shell(con, agent_id, tool_name, tool_input["command"], root, log_path)
     target_path = _extract_target_path(tool_name, tool_input)
 
     try:
@@ -162,6 +164,52 @@ def evaluate_tool_security_detailed(
         fail_closed_reason = f"Security interceptor failed closed: {e}"
         _log_decision(log_path, agent_id, tool_name, target_path or "error", "deny", fail_closed_reason, category="error")
         return False, fail_closed_reason, "error"
+
+# Tools that run a shell command line (OpenHands `terminal`, MCP/other hosts).
+SHELL_TOOLS = {"terminal", "bash", "execute_bash", "run_shell", "shell"}
+
+
+def _evaluate_shell(
+    con: sqlite3.Connection, agent_id: str, tool_name: str, command: str, root: Path, log_path: str | Path | None,
+) -> tuple[bool, str, str]:
+    """A shell command: deny if it reads or names a secret file; otherwise every path it writes must
+    pass the same checks as a file edit (writes outside the repo are denied, except temp dirs).
+    Static analysis cannot see inside scripts; see chronos.security.shell."""
+    from chronos.security.shell import analyze, is_temp_path
+
+    try:
+        allowed, reason = check_action_allowed(con=con, agent_id=agent_id, tool_name=tool_name, target_path=None, repo_root=root)
+        if not allowed:
+            _log_decision(log_path, agent_id, tool_name, command[:500], "deny", reason, category="permission")
+            return False, reason, "permission"
+        analysis = analyze(command, root)
+        if analysis.secrets:
+            reason = f"Shell command reads or names secret file(s): {', '.join(analysis.secrets[:3])}"
+            _log_decision(log_path, agent_id, tool_name, command[:500], "deny", reason, category="permission")
+            return False, reason, "permission"
+        for w in sorted(set(analysis.writes))[:50]:
+            wp = Path(w)
+            try:
+                wp.resolve().relative_to(root)
+            except ValueError:
+                if is_temp_path(wp):
+                    continue
+                reason = f"Shell command writes outside the repository: {w}"
+                _log_decision(log_path, agent_id, tool_name, w, "deny", reason, category="boundary")
+                return False, reason, "boundary"
+            ok, reason, category = evaluate_tool_security_detailed(
+                con, agent_id, "file_editor", {"command": "create", "path": w}, root, log_path
+            )
+            if not ok:
+                return False, f"Shell command blocked: {reason}", category
+        if not _log_decision(log_path, agent_id, tool_name, command[:500], "allow", "Shell command passed static checks", category="allow"):
+            return False, "Audit trail unavailable or corrupted; action denied (run `chronos audit verify`)", "audit"
+        return True, "Allowed", "allow"
+    except Exception as e:  # fail closed, like the file path
+        reason = f"Security interceptor failed closed: {e}"
+        _log_decision(log_path, agent_id, tool_name, command[:200], "deny", reason, category="error")
+        return False, reason, "error"
+
 
 def evaluate_tool_security(
     con: sqlite3.Connection,

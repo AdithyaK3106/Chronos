@@ -269,3 +269,24 @@ def run_calc():
     callees = store.as_of_callees("run_calc")
     assert any(c["name"] == "multiply" for c in callees)
     assert not any(c["name"] == "add" for c in callees)
+
+
+def test_firewall_checks_shell_commands(tmp_path):
+    """OpenHands' `terminal` tool goes through the same rules as file edits."""
+    from chronos.core.db import get_connection
+    from chronos.governance.firewall import evaluate_tool_security_detailed
+
+    (tmp_path / "auth.py").write_text("x = 1\n")
+    (tmp_path / "app.py").write_text("x = 1\n")
+    (tmp_path / ".env").write_text("K=1\n")
+    con = get_connection(tmp_path / "c.db")
+    try:
+        def run(cmd):
+            return evaluate_tool_security_detailed(con, "a", "terminal", {"command": cmd}, tmp_path, None)
+        assert run("cat .env")[0] is False and run("cat .env")[2] == "permission"
+        assert run("sed -i 's/1/2/' auth.py")[2] == "gate"
+        assert run("echo x > /etc/chronos-test")[2] == "boundary"
+        assert run("sed -i 's/1/2/' app.py && pytest -q > /tmp/o.txt")[0] is True
+        assert run("ls -la")[0] is True
+    finally:
+        con.close()

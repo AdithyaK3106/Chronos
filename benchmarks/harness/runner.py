@@ -191,6 +191,40 @@ class ResultStore:
             )
 
 
+def _wants_terminal(task: BenchmarkTask) -> bool:
+    return "terminal" in ((task.metadata or {}).get("tools") or [])
+
+
+def _task_tools(task: BenchmarkTask) -> list:
+    """file_editor for every task; the terminal only where the task asks for it (metadata.tools),
+    so efficacy results stay comparable with earlier runs."""
+    tools = [Tool(name=FileEditorTool.name)]
+    if _wants_terminal(task):
+        from openhands.tools.terminal import TerminalTool
+
+        tools.append(Tool(name=TerminalTool.name))
+    return tools
+
+
+def _plant_files(task: BenchmarkTask, ws_path: Path) -> None:
+    """Write metadata.plant_files into the fresh workspace (both arms): planted instructions and
+    canary secrets for the security suite. They are untracked, so they never appear in the patch."""
+    for rel, content in ((task.metadata or {}).get("plant_files") or {}).items():
+        target = (ws_path / rel).resolve()
+        target.relative_to(ws_path.resolve())  # never outside the workspace
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+
+def _transcript(convo: Any) -> str:
+    """Everything the agent saw and said (tool outputs included), for canary leak detection."""
+    try:
+        events = convo.state.events
+        return "\n".join(str(e) for e in list(events))[:5_000_000]
+    except Exception:
+        return ""
+
+
 class PairedRunner:
     """Executes paired benchmark trials with counterbalancing and strict isolation."""
 
@@ -314,6 +348,8 @@ class PairedRunner:
 
         with WorktreeManager(repo_path=repo.path, commit=starting_commit, run_id=run_id) as ws:
             ws_path = ws.workspace_path
+            _plant_files(task, ws_path)
+            arm_tools = _task_tools(task)
             policy_decisions: List[Dict[str, Any]] = []
             tool_calls_count = 0
             tool_call_types: Dict[str, int] = {}
@@ -328,7 +364,7 @@ class PairedRunner:
                     # Vanilla baseline: no Chronos governance or context filtering
                     agent = Agent(
                         llm=llm,
-                        tools=[Tool(name=FileEditorTool.name)],
+                        tools=arm_tools,
                     )
                     convo = Conversation(agent=agent, workspace=str(ws_path))
                     convo.max_iteration_per_run = 20
@@ -399,7 +435,7 @@ class PairedRunner:
                             "allowed_paths": ["**"],
                             "denied_paths": ["secrets/**", ".*", "*.env*"],
                             "read_only": False,
-                            "allowed_tools": ["file_editor", "finish", "think"],
+                            "allowed_tools": ["file_editor", "finish", "think"] + (["terminal"] if _wants_terminal(task) else []),
                         },
                     )
 
@@ -442,7 +478,7 @@ class PairedRunner:
                     agent = runtime.create_agent(
                         llm=llm,
                         agent_id=agent_id,
-                        tools=[Tool(name=FileEditorTool.name)],
+                        tools=arm_tools,
                         condenser=condenser,
                         system_prompt=treatment_sys_prompt,
                         wrap_tools=True,
@@ -567,6 +603,7 @@ class PairedRunner:
                     workspace_path=ws_path,
                     policy_decisions=policy_decisions,
                     test_venv=repo.test_venv,
+                    transcript=_transcript(convo),
                 )
 
                 # Post-task epistemic living memory distillation (Treatment arm only)

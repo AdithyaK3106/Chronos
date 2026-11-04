@@ -18,7 +18,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_gen.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -45,7 +45,7 @@ tasks:
   target_files:
   - spec/api.yaml
   - shopkit/api_client.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   verification_commands:
   - pytest tests -q
 - id: memory_gen_nomem
@@ -59,7 +59,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_gen.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -80,7 +80,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_money.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -110,7 +110,7 @@ tasks:
   - shopkit/receipt.py
   - locale/en.json
   - locale/de.json
-  timeout_seconds: 240
+  timeout_seconds: 600
   verification_commands:
   - pytest tests -q
 - id: memory_money_nomem
@@ -124,7 +124,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_money.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -144,7 +144,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_clock.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -171,7 +171,7 @@ tasks:
   target_files:
   - shopkit/coupons.py
   - shopkit/error_codes.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   verification_commands:
   - pytest tests -q
 - id: memory_clock_nomem
@@ -185,7 +185,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_clock.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -205,7 +205,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_flags.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -232,7 +232,7 @@ tasks:
   target_files:
   - shopkit/checkout.py
   - flags.yaml
-  timeout_seconds: 240
+  timeout_seconds: 600
   verification_commands:
   - pytest tests -q
 - id: memory_flags_nomem
@@ -246,7 +246,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_flags.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -266,7 +266,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_errors.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal
@@ -293,7 +293,7 @@ tasks:
   target_files:
   - shopkit/checkout.py
   - shopkit/error_codes.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   verification_commands:
   - pytest tests -q
 - id: memory_errors_nomem
@@ -307,7 +307,7 @@ tasks:
   regression_commands: []
   acceptance_tests:
   - acceptance/shopkit/test_mem_errors.py
-  timeout_seconds: 240
+  timeout_seconds: 600
   metadata:
     tools:
     - terminal

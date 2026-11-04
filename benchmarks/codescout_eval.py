@@ -93,11 +93,11 @@ def score(files: list[str], syms: list[str], gold_files: list[str], gold_syms: l
     }
 
 
-def run(arms: list[str], prompt_key: str, endpoint: str, model: str, limit: int | None = None) -> list[dict]:
+def run(arms: list[str], prompt_key: str, endpoint: str, model: str, limit: int | None = None, tasks: str = "eval20") -> list[dict]:
     from chronos.context.codescout_agent import scout
 
     rows = []
-    for t in load_tasks(eval20=True)[:limit]:
+    for t in load_tasks(eval20={"eval20": True, "heldout": False, "all": None}[tasks])[:limit]:
         prompt = t[f"prompt_{prompt_key}"]
         if not prompt:
             continue
@@ -148,9 +148,10 @@ def main() -> int:
     ap.add_argument("--endpoint", default="http://127.0.0.1:11434")
     ap.add_argument("--model", default="codescout-1.7b")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--tasks", default="eval20", choices=["eval20", "heldout", "all"])
     ap.add_argument("--json")
     args = ap.parse_args()
-    rows = run(args.arms.split(","), args.prompt, args.endpoint, args.model, args.limit)
+    rows = run(args.arms.split(","), args.prompt, args.endpoint, args.model, args.limit, args.tasks)
     summ = summarize(rows)
     for a, s in summ.items():
         print(a, s)

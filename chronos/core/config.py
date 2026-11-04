@@ -46,6 +46,11 @@ class PolicyConfig(BaseModel):
     max_context_chars: int = Field(
         default=6000, description="Upper bound on injected context, to limit prompt injection surface."
     )
+    rules: dict[str, Literal["deny", "ask", "log", "off"]] = Field(
+        default_factory=dict,
+        description="Threat-rule overrides keyed by rule id (git.push_force), category (production) or '*'. "
+        "See chronos.security.command_rules.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -54,7 +59,8 @@ class PolicyConfig(BaseModel):
             preset = POLICY_PRESETS.get(data["preset"])
             if preset is None:
                 raise ValueError(f"Unknown policy preset {data['preset']!r}; choose from {', '.join(POLICY_PRESETS)}")
-            data = {**preset, **data}
+            rules = {**preset.get("rules", {}), **(data.get("rules") or {})}
+            data = {**preset, **data, "rules": rules}
         return data
 
 

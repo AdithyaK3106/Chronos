@@ -11,14 +11,18 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-# Named policy presets. A preset only fills in fields the config does not set explicitly.
+# Named policy presets. A preset only fills in fields the config does not set explicitly; `rules`
+# (threat-rule overrides, see chronos.security.command_rules) are merged key by key.
+RULE_DECISIONS = {"deny", "ask", "log", "off"}
 POLICY_PRESETS: dict[str, dict[str, object]] = {
     # Fewer interruptions: protected edits still ask, but a broken hook fails open.
-    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 8000},
+    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 8000,
+                "rules": {"dependencies": "log", "release": "log", "machine": "log", "integrity.agent_config": "log"}},
     # The defaults: ask for protected edits, ask when the hook itself fails.
-    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 6000},
+    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 6000, "rules": {}},
     # Fail closed: protected edits need `chronos gate grant`, hook failures deny, smaller context.
-    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "outside_repo_writes": "deny", "bash_backstop": True, "max_context_chars": 4000},
+    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "outside_repo_writes": "deny", "bash_backstop": True, "max_context_chars": 4000,
+               "rules": {"hidden": "deny", "exfiltration": "deny", "secrets": "deny", "integrity.security_weakened": "ask", "integrity.check_config": "ask"}},
 }
 
 POLICY_DEFAULTS: dict[str, object] = {"preset": None, **POLICY_PRESETS["standard"]}
@@ -48,7 +52,13 @@ def load_policy_fast(root: str | Path | None) -> SimpleNamespace | None:
     preset = raw.get("preset")
     if preset is not None and preset not in POLICY_PRESETS:
         return None
-    merged = {**POLICY_DEFAULTS, **(POLICY_PRESETS.get(preset, {}) if preset else {}), **raw}
+    base = {**POLICY_DEFAULTS, **(POLICY_PRESETS.get(preset, {}) if preset else {})}
+    merged = {**base, **raw}
+    if not isinstance(merged.get("rules"), dict):
+        return None
+    merged["rules"] = {**base["rules"], **merged["rules"]}
+    if any(not isinstance(k, str) or v not in RULE_DECISIONS for k, v in merged["rules"].items()):
+        return None
     for key, allowed in _CHOICES.items():
         if merged[key] not in allowed:
             return None

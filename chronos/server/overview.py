@@ -35,7 +35,7 @@ def classify_decision(record: dict[str, Any], protected_mode: str) -> str:
         return "error"
     if status == "ask":
         return "asked"
-    if status == "violation":
+    if status in ("violation", "log"):
         return "flagged"
     category = (record.get("metadata") or {}).get("category", "")
     if category == "error":

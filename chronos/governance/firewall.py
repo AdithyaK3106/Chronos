@@ -187,6 +187,22 @@ def _evaluate_shell(
             reason = f"Shell command reads or names secret file(s): {', '.join(analysis.secrets[:3])}"
             _log_decision(log_path, agent_id, tool_name, command[:500], "deny", reason, category="permission")
             return False, reason, "permission"
+        # Threat rules (chronos.security.command_rules). An unattended OpenHands agent has nobody to
+        # answer "ask", so ask is enforced as deny here; `log` hits are only recorded.
+        from chronos.security.command_rules import apply_overrides, evaluate as evaluate_rules
+        from chronos.core.policy import load_policy_fast
+
+        pol = load_policy_fast(root)
+        hits = apply_overrides(evaluate_rules(analysis, command, root), getattr(pol, "rules", None) or {})
+        for h in hits:
+            if h.decision == "log":
+                _log_decision(log_path, agent_id, tool_name, command[:500], "log", h.reason, category=h.category)
+        blocking = [h for h in hits if h.decision in ("deny", "ask")]
+        if blocking:
+            h = sorted(blocking, key=lambda x: x.decision != "deny")[0]
+            reason = f"{h.reason[0].upper()}{h.reason[1:]} [rule {h.rule}]" + ("" if h.decision == "deny" else " (needs a human's approval)")
+            _log_decision(log_path, agent_id, tool_name, command[:500], "deny", reason, category=h.category)
+            return False, reason, h.category
         for w in sorted(set(analysis.writes))[:50]:
             wp = Path(w)
             try:

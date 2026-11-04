@@ -31,7 +31,8 @@ from typing import Any
 # interpreter form (`python -m chronos.cli.main hook claude pre`), and Windows' `chronos.exe`.
 HOOK_PATTERN = re.compile(r"chronos(?:\.cli\.main|\.exe)?[\"']?\s+hook\s+claude\s+(?:pre|prompt|post)\b", re.IGNORECASE)
 PATH_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit", "Grep"}
-PRE_MATCHER = "|".join(sorted(PATH_TOOLS | {"Bash"}))
+# MCP tools are named mcp__<server>__<tool>; WebFetch is checked for paste/webhook exfiltration.
+PRE_MATCHER = "|".join(sorted(PATH_TOOLS | {"Bash", "WebFetch"})) + "|mcp__.*"
 POST_MATCHER = "Bash"
 WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 MIN_INJECT_SCORE = float(os.environ.get("CHRONOS_MIN_INJECT_SCORE", "12"))
@@ -137,13 +138,16 @@ def _to_policy_input(tool: str, tool_input: dict[str, Any]) -> tuple[str | None,
 # ----------------------------------------------------------------------------- PreToolUse
 def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
     tool = payload.get("tool_name", "")
-    if tool not in PATH_TOOLS and tool != "Bash":
+    is_mcp = tool.startswith("mcp__")
+    if tool not in PATH_TOOLS and tool not in ("Bash", "WebFetch") and not is_mcp:
         return None
     root = _find_repo(payload.get("cwd"))
     if root is None:
         return None
     if tool == "Bash":
         return _handle_bash(root, payload)
+    if is_mcp or tool == "WebFetch":
+        return _handle_external_tool(root, payload)
 
     tool_input = payload.get("tool_input") or {}
     if tool == "Grep" and _grep_targets_secrets(tool_input):
@@ -161,9 +165,73 @@ def handle_pre_tool_use(payload: dict[str, Any]) -> dict[str, Any] | None:
 
     con = _open_db(root, payload, str(target))
     try:
-        return _firewall_decision(root, payload, path, policy_input, con)
+        firewall = _firewall_decision(root, payload, path, policy_input, con)
     finally:
         con.close()
+    if tool not in WRITE_TOOLS or (firewall and firewall["hookSpecificOutput"]["permissionDecision"] == "deny"):
+        return firewall
+    from chronos.security.file_rules import evaluate_edit
+
+    old, new = _edit_texts(tool, tool_input, target)
+    rel = target.resolve().relative_to(root).as_posix() if _inside(root, target) else str(target)
+    rules = _rule_decision(root, payload, evaluate_edit(rel, old, new), action=tool.lower(), target=rel)
+    return _strongest([d for d in (firewall, rules) if d])
+
+
+def _edit_texts(tool: str, tool_input: dict[str, Any], target: Path) -> tuple[str | None, str | None]:
+    """(text being replaced, replacement) for an edit tool call."""
+    if tool == "Edit":
+        return str(tool_input.get("old_string", "")), str(tool_input.get("new_string", ""))
+    if tool == "MultiEdit":
+        edits = [e for e in tool_input.get("edits") or [] if isinstance(e, dict)]
+        return "\n".join(str(e.get("old_string", "")) for e in edits), "\n".join(str(e.get("new_string", "")) for e in edits)
+    if tool == "Write":
+        old = None
+        try:
+            if target.is_file() and target.stat().st_size < 1_000_000:
+                old = target.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
+        return old, str(tool_input.get("content", ""))
+    return None, None
+
+
+def _rule_decision(root: Path, payload: dict[str, Any], hits: list, action: str, target: str) -> dict[str, Any] | None:
+    """Apply policy overrides to threat-rule hits, audit every hit, and merge them into one decision."""
+    if not hits:
+        return None
+    from chronos.audit.logger import append_audit_event
+    from chronos.core.paths import audit_log_path
+    from chronos.security.command_rules import apply_overrides
+
+    hits = apply_overrides(hits, getattr(_policy(root), "rules", None) or {})
+    decisions = []
+    for h in hits:
+        try:
+            append_audit_event(
+                log_path=audit_log_path(root), event_type="tool_authorization", agent_id=_agent_id(payload),
+                action=action, target=target[:500], status=h.decision, reason=h.reason,
+                metadata={"category": h.category, "rule": h.rule},
+            )
+        except Exception:  # noqa: BLE001 - the decision still reaches the developer
+            pass
+        if h.decision in ("ask", "deny"):
+            hint = f" [rule {h.rule}; change it with policy.rules in .chronos/config.json]" if h.decision == "ask" else f" [rule {h.rule}]"
+            decisions.append(_decision(h.decision, h.reason[0].upper() + h.reason[1:] + hint))
+    return _strongest(decisions)
+
+
+def _handle_external_tool(root: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
+    """MCP tools and WebFetch: the action happens outside the repository."""
+    from chronos.security.command_rules import EXFIL_HOSTS_RE, Hit, evaluate_mcp
+
+    tool = payload.get("tool_name", "")
+    tool_input = payload.get("tool_input") or {}
+    if tool == "WebFetch":
+        url = str(tool_input.get("url", ""))
+        hits = [Hit("exfiltration.paste_host", "exfiltration", "deny", f"WebFetch to {url[:80]}, a paste, webhook or tunnel service commonly used to leak data")] if EXFIL_HOSTS_RE.search(url) else []
+        return _rule_decision(root, payload, hits, action="webfetch", target=url)
+    return _rule_decision(root, payload, evaluate_mcp(tool, tool_input), action="mcp", target=tool)
 
 
 def _open_db(root: Path, payload: dict[str, Any], target: str):
@@ -257,8 +325,19 @@ def _handle_bash(root: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
             pass
         return _deny(reason + ". Secret files are never readable by the agent.")
 
+    from chronos.security.command_rules import evaluate as evaluate_rules
+    from chronos.security.file_rules import evaluate_path
+
     strict = os.environ.get("CHRONOS_HOOK_STRICT_BOUNDARY") == "1"
     decisions: list[dict[str, Any]] = []
+    hits = evaluate_rules(analysis, command, root)
+    for w in sorted({w for w in analysis.writes if _inside(root, Path(w))})[:50]:
+        hits.extend(evaluate_path(Path(w).resolve().relative_to(root).as_posix()))
+    rules = _rule_decision(root, payload, hits, action="bash", target=command)
+    if rules is not None:
+        decisions.append(rules)
+        if rules["hookSpecificOutput"]["permissionDecision"] == "deny":
+            return rules
     inside = sorted({w for w in analysis.writes if _inside(root, Path(w))})[:50]
     outside = sorted({w for w in analysis.writes if not _inside(root, Path(w)) and not is_temp_path(w)})[:20]
     if inside or (strict and outside):

@@ -126,20 +126,27 @@ def _hook_status(root: Path, probe: bool) -> dict[str, Any]:
                 "settings": st["settings"],
                 "hooks_installed": st["hooks_installed"],
                 "hook_commands_work": st["hook_commands_work"],
+                "fails_closed": st.get("fails_closed", False),
             }
         except Exception as exc:  # noqa: BLE001 - unreadable settings must not break the page
             scopes[scope] = {"error": f"{type(exc).__name__}: {exc}"}
     installed = sorted({h for s in scopes.values() for h in s.get("hooks_installed", [])})
     works = [s.get("hook_commands_work") for s in scopes.values() if s.get("hooks_installed")]
+    fails_closed = any(s.get("fails_closed") for s in scopes.values() if "PreToolUse" in s.get("hooks_installed", []))
+    errors = cc.recent_hook_errors()
     result = {
         "installed": installed,
         "complete": {"PreToolUse", "PostToolUse", "UserPromptSubmit"} <= set(installed),
+        "fails_closed": fails_closed,
+        "recent_errors": len(errors),
+        "last_error": errors[-1] if errors else None,
         "commands_work": (all(works) if works and None not in works else None),
         "scopes": scopes,
         "fix": (
             "Run `chronos claude install` (all your projects) or `chronos claude install --scope project` (this one)."
             if not installed else
-            "Re-run `chronos claude install` to add the Bash checks (PostToolUse)." if "PostToolUse" not in installed else None
+            "Re-run `chronos claude install` to add the Bash checks (PostToolUse)." if "PostToolUse" not in installed else
+            "Re-run `chronos claude install` (Claude Code 2.1.295+) so a crashed or timed-out check blocks the action." if not fails_closed else None
         ),
     }
     _hook_status_cache[key] = (time.monotonic(), result)
@@ -156,7 +163,8 @@ def _status_without_probe(cc: Any, scope: str, root: Path) -> dict[str, Any]:
     if path.exists():
         hooks = json.loads(path.read_text(encoding="utf-8")).get("hooks", {})
         installed = [n for n, es in hooks.items() if any(cc.is_chronos_hook(h.get("command", "")) for e in es for h in e.get("hooks", []))]
-    return {"settings": str(path), "hooks_installed": installed, "hook_commands_work": None}
+    return {"settings": str(path), "hooks_installed": installed, "hook_commands_work": None,
+            "fails_closed": cc.pre_hook_fails_closed(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else False}
 
 
 def _sandbox_status() -> dict[str, Any]:

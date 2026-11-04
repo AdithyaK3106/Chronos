@@ -791,24 +791,140 @@ def frame_untrusted_context(text: str, max_chars: int) -> str:
 
 
 # ----------------------------------------------------------------------------- dispatcher
+# Claude Code kills a hook at its `timeout` (10 s for tool hooks, 30 s for prompts) and, unless the
+# hook has `onFailure: block`, lets the action through. Chronos answers before that: when its own
+# work runs past the deadline it returns the on_hook_error decision (ask by default) instead.
+HOOK_DEADLINE_S = {"pre": 8.0, "post": 8.0, "prompt": 25.0}
+HOOK_TIMEOUT_S = {"pre": 10, "post": 10, "prompt": 30}
+ON_FAILURE_MIN_VERSION = (2, 1, 295)
+
+
+def _deadline(event: str) -> float:
+    try:
+        return float(os.environ.get("CHRONOS_HOOK_DEADLINE_S") or HOOK_DEADLINE_S[event])
+    except ValueError:
+        return HOOK_DEADLINE_S[event]
+
+
 def run_hook(event: str, stdin_text: str) -> tuple[int, str, str]:
-    """Entry point used by ``chronos hook claude <pre|prompt>``. Returns (exit, stdout, stderr)."""
+    """Entry point used by ``chronos hook claude <pre|prompt|post>``. Returns (exit, stdout, stderr).
+
+    The handler runs in a daemon thread so a slow index, a locked database or a hung git call can
+    never outlast Claude Code's timeout: past the deadline Chronos decides itself.
+    """
+    import threading
+
+    import chronos.core.policy  # noqa: F401 - imported before the worker starts, so the fallback never waits on an import lock
+    import chronos.core.repo  # noqa: F401
+
+    result: dict[str, tuple[int, str, str]] = {}
+
+    def work() -> None:
+        result["v"] = _run_hook_now(event, stdin_text)
+
+    t = threading.Thread(target=work, name=f"chronos-hook-{event}", daemon=True)
+    t.start()
+    limit = _deadline(event)
+    t.join(limit)
+    if "v" in result:
+        return result["v"]
+    record_hook_error(event, f"timed out after {limit:g}s", stdin_text)
+    if event != "pre":
+        return 0, "", f"chronos hook ({event}) took longer than {limit:g}s and was skipped\n"
+    return _fail_decision(stdin_text, f"Chronos took longer than {limit:g}s to check this action")
+
+
+def _run_hook_now(event: str, stdin_text: str) -> tuple[int, str, str]:
     handlers = {"pre": handle_pre_tool_use, "prompt": handle_user_prompt_submit, "post": handle_post_tool_use}
     try:
         payload = json.loads(stdin_text) if stdin_text.strip() else {}
         out = handlers[event](payload)
         return 0, (json.dumps(out) if out else ""), ""
     except Exception as exc:  # noqa: BLE001 - hooks must never crash the host
-        if event != "pre":  # prompt context and the post-run backstop fail open
-            # Context is a convenience: fail open, but say so on stderr.
+        record_hook_error(event, f"{type(exc).__name__}: {exc}", stdin_text)
+        if event != "pre":  # prompt context and the post-run backstop fail open, visibly (exit 1 is shown, never blocks)
             return 1, "", f"chronos hook error ({event}): {exc}\n"
-        mode = _error_mode(stdin_text)
-        msg = f"Chronos could not check this action ({type(exc).__name__}: {exc}). Run `chronos doctor`."
-        if mode == "deny":
-            return 0, json.dumps(_deny(msg)), ""
-        if mode == "ask":
-            return 0, json.dumps(_ask(msg + " Approve only if you trust this action.")), ""
-        return 1, "", f"chronos hook error ({event}): {exc}\n"
+        return _fail_decision(stdin_text, f"Chronos could not check this action ({type(exc).__name__}: {exc})")
+
+
+def _fail_decision(stdin_text: str, what: str) -> tuple[int, str, str]:
+    """The on_hook_error decision. Always exit 0: with `onFailure: block` installed, a non-zero
+    exit would block even when the policy says allow."""
+    mode = _error_mode(stdin_text)
+    msg = f"{what}. Run `chronos doctor`."
+    if mode == "deny":
+        return 0, json.dumps(_deny(msg)), ""
+    if mode == "ask":
+        return 0, json.dumps(_ask(msg + " Approve only if you trust this action.")), ""
+    return 0, "", f"chronos: {what}; allowed by policy (on_hook_error=allow)\n"
+
+
+def hook_error_log() -> Path:
+    from chronos.core.paths import data_dir
+
+    return data_dir() / "logs" / "hook-errors.jsonl"
+
+
+def record_hook_error(event: str, error: str, stdin_text: str = "") -> None:
+    """Best-effort record of a hook that failed or timed out (shown by `chronos doctor` and the UI)."""
+    try:
+        payload = json.loads(stdin_text) if stdin_text.strip() else {}
+    except ValueError:
+        payload = {}
+    rec = {
+        "ts": time.time(), "event": event, "error": error[:500],
+        "tool": payload.get("tool_name"), "cwd": payload.get("cwd"),
+    }
+    try:
+        p = hook_error_log()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if p.exists() and p.stat().st_size > 2_000_000:
+            p.replace(p.with_suffix(".jsonl.1"))
+        with p.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def recent_hook_errors(window_s: float = 7 * 86400, limit: int = 20) -> list[dict[str, Any]]:
+    try:
+        lines = hook_error_log().read_text(encoding="utf-8").splitlines()[-2000:]
+    except OSError:
+        return []
+    now, out = time.time(), []
+    for line in lines:
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if now - float(rec.get("ts", 0)) <= window_s:
+            out.append(rec)
+    return out[-limit:]
+
+
+def claude_version() -> tuple[int, ...] | None:
+    claude = shutil.which("claude")
+    if not claude:
+        return None
+    try:
+        r = subprocess.run([claude, "--version"], capture_output=True, text=True, timeout=15)
+        m = re.search(r"(\d+)\.(\d+)\.(\d+)", r.stdout)
+        return tuple(int(x) for x in m.groups()) if m else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def supports_on_failure(version: tuple[int, ...] | None = None) -> bool:
+    if os.environ.get("CHRONOS_HOOK_ON_FAILURE") in ("block", "1"):
+        return True
+    version = version if version is not None else claude_version()
+    return version is not None and version >= ON_FAILURE_MIN_VERSION
+
+
+def pre_hook_fails_closed(settings: dict[str, Any]) -> bool:
+    """True if every installed Chronos PreToolUse hook has `onFailure: block`."""
+    hooks = [h for e in (settings.get("hooks", {}).get("PreToolUse") or []) for h in e.get("hooks", []) if is_chronos_hook(h.get("command", ""))]
+    return bool(hooks) and all(h.get("onFailure") == "block" for h in hooks)
 
 
 def _error_mode(stdin_text: str) -> str:
@@ -881,17 +997,26 @@ def install(scope: str = "user", repo: Path | None = None, with_mcp: bool = True
     hooks = data.setdefault("hooks", {})
     for name in ("PreToolUse", "PostToolUse", "UserPromptSubmit"):
         hooks[name] = _strip_chronos(hooks.get(name, []))
-    hooks["PreToolUse"].append(
-        {"matcher": PRE_MATCHER, "hooks": [{"type": "command", "command": _hook_command("pre"), "timeout": 10}]}
-    )
+    pre_hook: dict[str, Any] = {"type": "command", "command": _hook_command("pre"), "timeout": HOOK_TIMEOUT_S["pre"]}
+    fail_closed = supports_on_failure()
+    if fail_closed:
+        # If the check itself can't run (Python missing, killed at the timeout, bad output), block
+        # the tool call instead of letting it through. Chronos's own errors still return `ask`.
+        pre_hook["onFailure"] = "block"
+    hooks["PreToolUse"].append({"matcher": PRE_MATCHER, "hooks": [pre_hook]})
     hooks["PostToolUse"].append(
-        {"matcher": POST_MATCHER, "hooks": [{"type": "command", "command": _hook_command("post"), "timeout": 10}]}
+        {"matcher": POST_MATCHER, "hooks": [{"type": "command", "command": _hook_command("post"), "timeout": HOOK_TIMEOUT_S["post"]}]}
     )
     hooks["UserPromptSubmit"].append(
-        {"hooks": [{"type": "command", "command": _hook_command("prompt"), "timeout": 30}]}
+        {"hooks": [{"type": "command", "command": _hook_command("prompt"), "timeout": HOOK_TIMEOUT_S["prompt"]}]}
     )
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     log = [f"hooks written to {path}"]
+    if not fail_closed:
+        log.append(
+            "warning: Claude Code %s not found or older than 2.1.295, so a crashed or timed-out check lets the "
+            "action through. Upgrade Claude Code and re-run `chronos claude install`." % ".".join(map(str, ON_FAILURE_MIN_VERSION))
+        )
 
     if with_mcp:
         log.append(_register_mcp(scope, repo))
@@ -938,8 +1063,11 @@ def status(scope: str = "user", repo: Path | None = None) -> dict[str, Any]:
     path = settings_path(scope, repo)
     installed: list[str] = []
     commands: list[str] = []
+    fails_closed = False
     if path.exists():
-        hooks = json.loads(path.read_text(encoding="utf-8")).get("hooks", {})
+        settings = json.loads(path.read_text(encoding="utf-8"))
+        fails_closed = pre_hook_fails_closed(settings)
+        hooks = settings.get("hooks", {})
         for name, entries in hooks.items():
             cmds = [h.get("command", "") for e in entries for h in e.get("hooks", []) if is_chronos_hook(h.get("command", ""))]
             if cmds:
@@ -950,6 +1078,7 @@ def status(scope: str = "user", repo: Path | None = None) -> dict[str, Any]:
         "hooks_installed": installed,
         "repo_enabled": _find_repo(str(repo)) is not None,
         "hook_commands_work": all(_probe(c) for c in commands) if commands else None,
+        "fails_closed": fails_closed,
         "recommended_command": _hook_command("pre"),
     }
 

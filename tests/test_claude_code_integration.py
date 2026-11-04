@@ -208,7 +208,8 @@ def test_hook_failure_modes_follow_policy(repo, monkeypatch):
 
     _set_policy(repo, on_hook_error="allow")
     code, out, err = cc.run_hook("pre", event)
-    assert code == 1 and out == "" and "db locked" in err
+    # exit 0 even when allowing: with `onFailure: block` installed a non-zero exit would block
+    assert code == 0 and out == "" and "db locked" in err
 
     _set_policy(repo, on_hook_error="deny")
     assert json.loads(cc.run_hook("pre", event)[1])["hookSpecificOutput"]["permissionDecision"] == "deny"
@@ -361,3 +362,45 @@ def test_stale_index_lock_is_ignored(repo):
     lock.write_text("0")
     os.utime(lock, (time.time() - 7200, time.time() - 7200))
     assert not cc.background_index_running(repo)
+
+
+def test_slow_check_answers_before_claude_code_timeout(repo, monkeypatch):
+    import time as _t
+
+    monkeypatch.setenv("CHRONOS_HOOK_DEADLINE_S", "0.3")
+    monkeypatch.setattr(cc, "handle_pre_tool_use", lambda p: _t.sleep(3))
+    started = _t.monotonic()
+    code, out, _ = cc.run_hook("pre", json.dumps({"tool_name": "Edit", "tool_input": {}, "cwd": str(repo)}))
+    assert _t.monotonic() - started < 2
+    d = json.loads(out)["hookSpecificOutput"]
+    assert code == 0 and d["permissionDecision"] == "ask" and "longer than" in d["permissionDecisionReason"]
+    assert any("timed out" in e["error"] for e in cc.recent_hook_errors())
+
+
+def test_slow_prompt_hook_is_skipped_not_killed(repo, monkeypatch):
+    import time as _t
+
+    monkeypatch.setenv("CHRONOS_HOOK_DEADLINE_S", "0.3")
+    monkeypatch.setattr(cc, "handle_user_prompt_submit", lambda p: _t.sleep(3))
+    code, out, err = cc.run_hook("prompt", json.dumps({"prompt": "x", "cwd": str(repo)}))
+    assert code == 0 and out == "" and "skipped" in err
+
+
+def test_hook_errors_are_logged(repo, monkeypatch):
+    monkeypatch.setattr(cc, "handle_pre_tool_use", lambda p: 1 / 0)
+    cc.run_hook("pre", json.dumps({"tool_name": "Edit", "tool_input": {}, "cwd": str(repo)}))
+    last = cc.recent_hook_errors()[-1]
+    assert last["event"] == "pre" and "ZeroDivisionError" in last["error"] and last["tool"] == "Edit"
+
+
+@pytest.mark.parametrize("version,expected", [((2, 1, 318), True), ((2, 1, 295), True), ((2, 1, 294), False), (None, False)])
+def test_install_sets_on_failure_block_when_supported(tmp_path, monkeypatch, version, expected):
+    monkeypatch.delenv("CHRONOS_HOOK_ON_FAILURE", raising=False)
+    monkeypatch.setattr(cc, "claude_version", lambda: version)
+    log = cc.install(scope="project", repo=tmp_path, with_mcp=False)
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    pre = settings["hooks"]["PreToolUse"][0]["hooks"][0]
+    assert (pre.get("onFailure") == "block") is expected
+    assert cc.pre_hook_fails_closed(settings) is expected
+    assert all("onFailure" not in h for e in settings["hooks"]["UserPromptSubmit"] for h in e["hooks"])
+    assert any("warning" in line for line in log) is (not expected)

@@ -4222,9 +4222,13 @@ function ovNum(cls, n, label) {
 }
 function renderOverviewHealth(h) {
   const hooks = h.hooks || {}, sb = h.sandbox || {}, ix = h.index || {}, au = h.audit || {};
-  const hookState = hooks.complete ? (hooks.commands_work === false ? 'bad' : 'ok') : (hooks.installed?.length ? 'warn' : 'bad');
+  let hookState = hooks.complete ? (hooks.commands_work === false ? 'bad' : 'ok') : (hooks.installed?.length ? 'warn' : 'bad');
+  if (hookState === 'ok' && (!hooks.fails_closed || hooks.recent_errors)) hookState = 'warn';
   const hookVal = hooks.complete ? (hooks.commands_work === false ? 'Installed, not running' : 'Active') : (hooks.installed?.length ? 'Partly installed' : 'Not installed');
   const scopes = Object.entries(hooks.scopes || {}).filter(([, v]) => v.hooks_installed?.length).map(([k]) => k);
+  const hookNotes = [];
+  if (hooks.installed?.length) hookNotes.push(hooks.fails_closed ? 'A failed check blocks the action' : 'A failed check lets the action through');
+  if (hooks.recent_errors) hookNotes.push(`${hooks.recent_errors} check error(s) this week, last: ${(hooks.last_error?.error || '').slice(0, 80)}`);
   const hookFix = hooks.commands_work === false ? 'The installed hook command fails to run. Reinstall with `chronos claude install`.' : hooks.fix;
   let ixVal, ixState, ixDetail;
   if (!ix.indexed) { ixVal = 'Not indexed'; ixState = 'warn'; ixDetail = ''; }
@@ -4238,7 +4242,7 @@ function renderOverviewHealth(h) {
   const auState = au.valid === null || au.valid === undefined ? '' : (au.valid ? 'ok' : 'bad');
   const auVal = au.valid === null || au.valid === undefined ? 'No records yet' : (au.valid ? 'Intact' : 'Chain broken');
   document.getElementById('ovHealth').innerHTML =
-    ovTile('Claude Code hooks', hookState, hookVal, scopes.length ? `Installed in ${scopes.join(' and ')} settings` : '', hookFix) +
+    ovTile('Claude Code hooks', hookState, hookVal, [scopes.length ? `Installed in ${scopes.join(' and ')} settings` : '', ...hookNotes].filter(Boolean).join(' · '), hookFix) +
     ovTile('Sandbox (chronos exec)', sb.available ? 'ok' : 'warn', sb.available ? `Available · ${sb.backend}` : 'Unavailable', '', sb.available ? null : sb.fix) +
     ovTile('Code index', ixState, ixVal, ixDetail, ix.fix) +
     ovTile('Audit trail', auState, auVal, au.records ? `${Number(au.records).toLocaleString()} records verified` : '', au.fix);

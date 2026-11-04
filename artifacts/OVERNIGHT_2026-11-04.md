@@ -43,7 +43,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - Wait for or finish `benchmarks/memory_ab.py` (30 runs).
   - Re-run every `MODEL_API_ERROR` run: delete those rows from `runs` in `benchmarks/runs/memory_v1/data/benchmark_runs.db`, then re-run `python -m benchmarks.memory_ab --runs 2 --json artifacts/memory_ab_2026-11-04.json`. It skips completed runs.
   - Write the per-variant results (mem / forced / nomem: passed, tokens, tool calls, automatic-capture rate) into the morning report notes.
-- [ ] 2. **Embedding retriever.**
+- [x] 2. **Embedding retriever.**
   - Read `artifacts/embed_eval_2026-11-04.json`.
   - If issue-loc-embed or CodeRankEmbed (alone or with +bm25) beats `bm25 (Chronos today)` on file_top3, run `--tasks heldout` for that model, which embeds 30 more repos and takes a while.
   - Only if it also wins on held-out, implement `chronos/context/embeddings.py`:
@@ -112,3 +112,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 13: done in dbf45fb — `claude install --managed --out` (hooks, onFailure: block, allowManagedHooksOnly; fields checked against the managed-settings docs); version warnings tested; 313 tests pass.
 - item 14: done in ac263c8 — 18 fixtures (Bash/Edit/Write/Read/WebFetch/MCP; pre/post/prompt) + expected.json; one parametrized test, 19 pass.
 - item 16: done in 5287c52 — build procedure committed with 11 items ticked (3 annotated as partial); HARDENING_PLAN items 5/8/9/10 ticked; CodeScout result JSON committed. (HARDENING_PLAN was already tracked.)
+- item 2: done in 530a104 — held-out: issue-loc-embed 17/30 top-3 vs BM25 5/30 (results 4bb0b30); implemented off by default. OPEN DECISION: plan said RRF fusion, but RRF scored lower (13/30, 11/20) than embeddings alone, so default mode is `embeddings` and `rrf` is an option. Also found: tests/test_zero_path_resolver.py::test_eval_ground_truth_suite already failing at b3819bc (MRR 0.67 < 0.70); to fix before push.

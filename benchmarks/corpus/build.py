@@ -83,8 +83,10 @@ def changed_old_lines(patch: str) -> dict[str, set[int]]:
 # ----------------------------------------------------------------------------- gold symbols (any language)
 _DEF_TYPES = {
     "python": {"function_definition": "name", "class_definition": "name"},
-    "javascript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "generator_function_declaration": "name"},
-    "typescript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "interface_declaration": "name", "abstract_class_declaration": "name"},
+    "javascript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "generator_function_declaration": "name",
+                   "function_expression": "name", "function": "name", "class": "name"},
+    "typescript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "interface_declaration": "name", "abstract_class_declaration": "name",
+                   "function_expression": "name", "function": "name"},
     "go": {"function_declaration": "name", "method_declaration": "name", "type_spec": "name"},
 }
 
@@ -179,7 +181,10 @@ def leaks(prompt: str, gold_files: list[str], gold_syms: list[str]) -> list[str]
     bad = []
     for f in gold_files:
         stem = Path(f).stem.lower()
-        if Path(f).name.lower() in low or (len(stem) >= 5 and re.search(rf"\b{re.escape(stem)}\b", low)):
+        # A stem that is a plain word ("blueprints", "reader") is part of the problem's vocabulary;
+        # one that looks like an identifier ("http_adapter", "routerGroup") is a reference.
+        identifier_like = bool(re.search(r"[_\d]|[a-z][A-Z]", Path(f).stem))
+        if Path(f).name.lower() in low or (identifier_like and len(stem) >= 5 and re.search(rf"\b{re.escape(stem)}\b", low)):
             bad.append(Path(f).name)
     for s in gold_syms:
         short = s.split(".")[-1]
@@ -240,7 +245,18 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--only", help="comma-separated repos (debug)")
+    ap.add_argument("--recompute-gold", action="store_true", help="only recompute gold_symbols of existing tasks")
     args = ap.parse_args()
+    if args.recompute_gold:
+        tasks = [json.loads(line) for line in TASKS_FILE.read_text().splitlines() if line.strip()]
+        for t in tasks:
+            changed = {f: ls for f, ls in changed_old_lines(t["patch"]).items() if f in t["gold_files"]}
+            new = gold_symbols(checkout(t), changed)
+            if new != t["gold_symbols"]:
+                print(t["instance_id"], t["gold_symbols"], "->", new)
+            t["gold_symbols"] = new
+        TASKS_FILE.write_text("".join(json.dumps(t) + "\n" for t in tasks))
+        return 0
     data = {k: download(ds, args.data_dir / f"{k}.json") for k, ds in DATASETS.items()}
     existing = {}
     if TASKS_FILE.exists():

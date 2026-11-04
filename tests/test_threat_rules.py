@@ -264,9 +264,15 @@ def test_path_rules(rel, rule, decision):
     assert {h.rule: h.decision for h in evaluate_path(rel)}.get(rule) == decision
 
 
-@pytest.mark.parametrize("rel", ["src/app.py", "README.md", "chronos/x.py", "docs/claude.md", "package.json", "requirements.txt"])
+@pytest.mark.parametrize("rel", ["src/app.py", "README.md", "chronos/x.py", "docs/claude.md"])
 def test_ordinary_paths_have_no_rules(rel):
     assert evaluate_path(rel) == []
+
+
+@pytest.mark.parametrize("rel", ["package.json", "requirements.txt"])
+def test_manifest_paths_only_carry_the_manifest_rule(rel):
+    """Shell writes to manifests ask (7c4e817); Edit/Write narrow it to added dependencies."""
+    assert [(h.rule, h.decision) for h in evaluate_path(rel)] == [("dependencies.manifest", "ask")]
 
 
 @pytest.mark.parametrize("rel,old,new,rule", [

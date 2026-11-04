@@ -10,7 +10,7 @@ Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
         them and tell the agent.
   - [x] Install/status/uninstall include the new matchers; live hook canary covers Bash.
   - [x] Tests (no model calls), GUIDE updated.
-- [ ] **2. Cheap measurements.**
+- [x] **2. Cheap measurements.**
   - [x] A: tokens per solved task (all runs, failures included) in the harness report.
   - [x] B: retrieval-only benchmark: recall of the reference-patch files/symbols in what the
         hook would inject, for all 20 efficacy tasks. No LLM.

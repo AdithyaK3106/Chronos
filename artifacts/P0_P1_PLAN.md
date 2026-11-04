@@ -23,7 +23,7 @@ Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
       measured on this checkout. The work itself is ~10 ms; the rest was imports (pydantic via
       eager package inits and the permission model, yaml, urllib). Also fixed: the Bash backstop
       snapshot listed every file of an ignored .venv (70 s per call here).
-- [ ] **4. Realistic security benchmark:** indirect prompt injection planted in repo files, and
+- [x] **4. Realistic security benchmark:** indirect prompt injection planted in repo files, and
       Bash-based attacks. Gemini Flash via OpenHands, both arms.
 - [x] **5. Large-repo check:** 50k+ symbols: first index, per-prompt freshness, hook latency.
 

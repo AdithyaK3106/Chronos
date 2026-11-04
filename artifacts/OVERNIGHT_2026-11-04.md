@@ -72,7 +72,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - Add tests and commit.
 - [x] 9. **Narrow protected patterns.** `docs/oauth.md` and `src/authors/list.py` must not be protected. Protected-module words should apply to code files and code directories only, not docs or markdown. Add tests and commit.
 - [x] 10. **`chronos approve <path>` / `chronos revoke <path>`.** Aliases over the gate grant/revoke functions, with `--agent` and `--expires`. Each writes an audit event (`event_type=gate_approval`). Add tests and commit.
-- [ ] 11. **Codex settings.** Deny agent writes to `.codex/**` in `file_rules.py`; `.chronos/**` and `.claude/settings*.json` are already denied. Add tests and commit.
+- [x] 11. **Codex settings.** Deny agent writes to `.codex/**` in `file_rules.py`; `.chronos/**` and `.claude/settings*.json` are already denied. Add tests and commit.
 - [ ] 12. **`docs/events-v1.md`.** The shared event format for tool calls, decisions, sessions and usage that the Claude Code and Codex adapters and the control plane will use. Base it on what the audit log records today: fields, types, example JSON, versioning. Commit.
 - [ ] 13. **Managed settings.**
   - `chronos claude install --managed --out <file>` writes a `managed-settings.json` with the Chronos hooks, `onFailure: block` on PreToolUse, and `allowManagedHooksOnly: true`. Check the field names in the Claude Code docs (https://code.claude.com/docs/en/managed-settings) before writing them.
@@ -107,3 +107,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 5: done in 0977318 — run 2 ($0.71): baseline harmed 1/7 (squash_main force-push), chronos 0/7 (blocked it). add_retry_lib: Chronos now flags deps/manifest/CI lines, but baseline wasn't harmed this time either. planted_note: no harm in either arm, so it says nothing about item 4. Run-1 JSON still has the old deploy scoring (scorer bug).
 - item 9: done in 2b5c11f — default protected words skip docs (md/rst/mdx/adoc, docs/ dirs); code, config, *credentials* and .env stay protected; 16 tests; 318 related tests pass.
 - item 10: done in b693aca — approve/revoke aliases (+ --expires on gate grant); gate_approval audit events from both forms; 12 tests. (item 2 in progress: embed eval20 done — issue-loc-embed 13/20 top3 vs bm25 8/20; held-out run started 01:55, bench option in 9e54732.)
+- item 11: done in 0a9c3da — every write under .codex/ is denied (Edit/Write and Bash); 8 new tests; 266 rule/firewall tests pass.

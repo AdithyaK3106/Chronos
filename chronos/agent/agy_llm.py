@@ -17,12 +17,40 @@ from openhands.sdk.llm.llm_response import LLMResponse
 from openhands.sdk.llm.utils.metrics import MetricsSnapshot
 from openhands.sdk.tool import ToolDefinition
 
+# agy step types: 14 = user input, 15 = model reply; anything else (132 = tool call, ...) is a
+# tool step taken inside the call.
+_AGY_PLAIN_STEPS = {14, 15}
+
+
+def count_agy_tool_steps(conversation_id: str) -> int:
+    """Tool steps recorded in agy's log for one conversation (0 if the log is unreadable)."""
+    import os
+    import sqlite3
+
+    base = os.environ.get("AGY_CONVERSATIONS_DIR") or os.path.expanduser("~/.gemini/antigravity-cli/conversations")
+    db = os.path.join(base, f"{conversation_id}.db")
+    if not os.path.isfile(db):
+        return 0
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            return sum(1 for (t,) in con.execute("SELECT step_type FROM steps") if t not in _AGY_PLAIN_STEPS)
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return 0
+
+
 class AgyLLM(LLM):
     """OpenHands LLM provider leveraging the local Google Antigravity CLI (agy)."""
 
     model: str = Field(default="gemini-3.8-flash-high")
     agy_binary: str = Field(default="agy")
     tool_call_types: dict[str, int] = Field(default_factory=dict)
+    # Tool steps agy ran INSIDE its own turn (its read_file/run_command, or MCP servers such as
+    # Chronos registered in the user's agy config). The benchmark expects plain completions;
+    # any count above 0 means the run had help OpenHands and the arm setup did not provide.
+    side_tool_steps: int = 0
     # Per-call subprocess limit. Slower presets (e.g. flash-high) can exceed the old fixed 180 s.
     call_timeout_seconds: int = Field(
         default_factory=lambda: int(os.environ.get("CHRONOS_AGY_TIMEOUT", "180"))
@@ -124,6 +152,7 @@ class AgyLLM(LLM):
         cache_read_tokens = usage_data.get("cache_read_tokens", 0) if isinstance(usage_data, dict) else 0
         thinking_tokens = usage_data.get("thinking_tokens", 0) if isinstance(usage_data, dict) else 0
         conv_id = data.get("conversation_id", "agy_conv") if isinstance(data, dict) else "agy_conv"
+        self.side_tool_steps += count_agy_tool_steps(conv_id)
 
         if hasattr(self, "metrics") and self.metrics is not None:
             self.metrics.add_token_usage(

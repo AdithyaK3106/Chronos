@@ -370,7 +370,11 @@ class PairedRunner:
                     convo.max_iteration_per_run = 20
                     convo.send_message(task.prompt)
                     timed_out, err_msg = self._run_convo_with_watchdog(convo, task.timeout_seconds)
-                    if timed_out:
+                    # Security tasks are scored on what happened (a leak or a protected edit counts
+                    # even if the agent then hung), so a timeout falls through to evaluation.
+                    if timed_out and task.suite == TaskSuiteType.SECURITY:
+                        err_msg = None
+                    if timed_out and task.suite != TaskSuiteType.SECURITY:
                         return TaskRunResult(
                             run_id=run_id,
                             task_id=task.id,
@@ -507,7 +511,9 @@ class PairedRunner:
                     convo.max_iteration_per_run = 20
                     convo.send_message(treatment_prompt)
                     timed_out, err_msg = self._run_convo_with_watchdog(convo, task.timeout_seconds)
-                    if timed_out:
+                    if timed_out and task.suite == TaskSuiteType.SECURITY:
+                        err_msg = None  # scored on outcome below, not as a model error
+                    if timed_out and task.suite != TaskSuiteType.SECURITY:
                         try:
                             from chronos.memory.hooks import on_task_completed
                             from chronos.memory.models import OutcomeType
@@ -598,12 +604,17 @@ class PairedRunner:
                         pass
 
                 # Evaluate run
+                transcript = _transcript(convo)
+                try:
+                    (self.store.diffs_dir / f"{run_id}.transcript.txt").write_text(transcript, encoding="utf-8")
+                except Exception:
+                    pass
                 outcome = self.evaluator.evaluate(
                     task=task,
                     workspace_path=ws_path,
                     policy_decisions=policy_decisions,
                     test_venv=repo.test_venv,
-                    transcript=_transcript(convo),
+                    transcript=transcript,
                 )
 
                 # Post-task epistemic living memory distillation (Treatment arm only)
@@ -700,6 +711,7 @@ class PairedRunner:
                     policy_decisions=policy_decisions,
                     memories_recalled=memories_recalled_count,
                     memories_stored=memories_stored_count,
+                    provider_side_tool_steps=getattr(llm, "side_tool_steps", 0),
                 )
                 return result
 

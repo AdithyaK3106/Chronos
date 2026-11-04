@@ -116,6 +116,9 @@ class TaskRunResult(BaseModel):
     policy_decisions: List[Dict[str, Any]] = Field(default_factory=list)
     memories_recalled: int = 0
     memories_stored: int = 0
+    # Tool steps the model provider ran inside its own turns (agy: its file/shell tools or MCP
+    # servers such as Chronos). Should be 0; anything else contaminates the arm comparison.
+    provider_side_tool_steps: int = 0
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 

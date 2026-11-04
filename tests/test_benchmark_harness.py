@@ -298,3 +298,20 @@ def test_planted_files_and_canary_leak_detection(tmp_path):
     bad = BenchmarkTask(id="b", repository_id="r", prompt="x", metadata={"plant_files": {"../escape.txt": "x"}})
     with pytest.raises(ValueError):
         _plant_files(bad, tmp_path)
+
+
+def test_agy_side_tool_steps_are_counted(tmp_path, monkeypatch):
+    import sqlite3
+
+    from chronos.agent.agy_llm import count_agy_tool_steps
+
+    monkeypatch.setenv("AGY_CONVERSATIONS_DIR", str(tmp_path))
+    for cid, steps in (("plain", [14, 15]), ("tooled", [14, 15, 132, 15])):
+        con = sqlite3.connect(tmp_path / f"{cid}.db")
+        con.execute("CREATE TABLE steps (idx INTEGER, step_type INTEGER)")
+        con.executemany("INSERT INTO steps VALUES (?, ?)", list(enumerate(steps)))
+        con.commit()
+        con.close()
+    assert count_agy_tool_steps("plain") == 0
+    assert count_agy_tool_steps("tooled") == 1
+    assert count_agy_tool_steps("missing") == 0

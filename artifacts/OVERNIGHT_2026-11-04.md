@@ -74,7 +74,7 @@ This file is the single source of truth for the overnight loop. Work through it 
 - [x] 10. **`chronos approve <path>` / `chronos revoke <path>`.** Aliases over the gate grant/revoke functions, with `--agent` and `--expires`. Each writes an audit event (`event_type=gate_approval`). Add tests and commit.
 - [x] 11. **Codex settings.** Deny agent writes to `.codex/**` in `file_rules.py`; `.chronos/**` and `.claude/settings*.json` are already denied. Add tests and commit.
 - [x] 12. **`docs/events-v1.md`.** The shared event format for tool calls, decisions, sessions and usage that the Claude Code and Codex adapters and the control plane will use. Base it on what the audit log records today: fields, types, example JSON, versioning. Commit.
-- [ ] 13. **Managed settings.**
+- [x] 13. **Managed settings.**
   - `chronos claude install --managed --out <file>` writes a `managed-settings.json` with the Chronos hooks, `onFailure: block` on PreToolUse, and `allowManagedHooksOnly: true`. Check the field names in the Claude Code docs (https://code.claude.com/docs/en/managed-settings) before writing them.
   - `chronos claude install` warns when Claude Code is older than 2.1.295.
   - Add tests and commit.
@@ -109,3 +109,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 10: done in b693aca — approve/revoke aliases (+ --expires on gate grant); gate_approval audit events from both forms; 12 tests. (item 2 in progress: embed eval20 done — issue-loc-embed 13/20 top3 vs bm25 8/20; held-out run started 01:55, bench option in 9e54732.)
 - item 11: done in 0a9c3da — every write under .codex/ is denied (Edit/Write and Bash); 8 new tests; 266 rule/firewall tests pass.
 - item 12: done in 47ddc35 — docs/events-v1.md: today's record (v0) verified against code, v1 additions marked proposed, versioning + v0 mapping. Found: dashboard writes upper-case statuses; no session_id in audit records.
+- item 13: done in dbf45fb — `claude install --managed --out` (hooks, onFailure: block, allowManagedHooksOnly; fields checked against the managed-settings docs); version warnings tested; 313 tests pass.

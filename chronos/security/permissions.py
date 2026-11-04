@@ -1,13 +1,18 @@
 """Least-privilege permission scoping and tool enforcement (F2)."""
 
+from __future__ import annotations
+
 import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
-from chronos.core.models import PermissionManifest
 from chronos.security.sanitizer import validate_path_access
+
+if TYPE_CHECKING:
+    from chronos.core.models import PermissionManifest
 
 WRITE_TOOLS = {
     "file_editor",
@@ -27,6 +32,8 @@ def set_permissions(
     manifest: PermissionManifest | dict[str, Any],
 ) -> None:
     """Set or update permission manifest for an agent."""
+    from chronos.core.models import PermissionManifest
+
     if isinstance(manifest, dict):
         manifest_obj = PermissionManifest(**manifest)
     else:
@@ -62,6 +69,8 @@ def set_permissions(
 
 def get_permissions(con: sqlite3.Connection, agent_id: str) -> PermissionManifest:
     """Get permission manifest for agent, or default permissive manifest if none set."""
+    from chronos.core.models import PermissionManifest
+
     row = con.execute("SELECT * FROM agent_permissions WHERE agent_id = ?", (agent_id,)).fetchone()
     if not row:
         return PermissionManifest()
@@ -75,6 +84,26 @@ def get_permissions(con: sqlite3.Connection, agent_id: str) -> PermissionManifes
         allow_emergency_locks=bool(row["allow_emergency_locks"]),
     )
 
+def _manifest_values(con: sqlite3.Connection, agent_id: str) -> SimpleNamespace:
+    """The fields check_action_allowed needs, without building the pydantic model.
+
+    This runs on every hook call; importing pydantic for it cost ~150 ms per call. Defaults match
+    PermissionManifest (checked by a test).
+    """
+    row = con.execute(
+        "SELECT allowed_paths, denied_paths, read_only, allowed_tools FROM agent_permissions WHERE agent_id = ?",
+        (agent_id,),
+    ).fetchone()
+    if not row:
+        return SimpleNamespace(allowed_paths=["**"], denied_paths=[], read_only=False, allowed_tools=[])
+    return SimpleNamespace(
+        allowed_paths=json.loads(row[0]),
+        denied_paths=json.loads(row[1]),
+        read_only=bool(row[2]),
+        allowed_tools=json.loads(row[3]),
+    )
+
+
 def check_action_allowed(
     con: sqlite3.Connection,
     agent_id: str,
@@ -84,7 +113,7 @@ def check_action_allowed(
 ) -> tuple[bool, str]:
     """Check if agent is permitted to perform this tool action on target_path. Fails closed."""
     try:
-        manifest = get_permissions(con, agent_id)
+        manifest = _manifest_values(con, agent_id)
 
         # 1. Tool authorization check
         if manifest.allowed_tools and tool_name not in manifest.allowed_tools:

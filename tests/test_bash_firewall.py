@@ -185,3 +185,20 @@ def test_analyzer_known_limits_are_opaque_not_silent(tmp_path):
     a = analyze("python fix.py && git reset --hard && make", tmp_path)
     assert {"python", "git reset", "make"} <= set(a.opaque)
     assert a.writes == []
+
+
+def test_backstop_snapshot_ignores_big_ignored_dirs_but_sees_env(repo):
+    """`--untracked-files=all` listed every file of an ignored .venv (53k here: 70 s per Bash call)."""
+    import time
+
+    venv = repo / ".venv" / "lib"
+    venv.mkdir(parents=True)
+    for i in range(3000):
+        (venv / f"auth_mod_{i}.py").write_text("x = 1\n")  # protected-looking names, all ignored
+    with open(repo / ".gitignore", "a") as fh:
+        fh.write(".venv/\n")
+    started = time.perf_counter()
+    state = cc.sensitive_state(repo)
+    assert time.perf_counter() - started < 2.0
+    assert ".env" in state
+    assert not any(k.startswith(".venv") for k in state)

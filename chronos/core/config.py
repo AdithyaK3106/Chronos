@@ -9,15 +9,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 
-# Named policy presets. A preset only fills in fields the config does not set explicitly.
-POLICY_PRESETS: dict[str, dict[str, object]] = {
-    # Fewer interruptions: protected edits still ask, but a broken hook fails open.
-    "relaxed": {"protected_modules": "ask", "on_hook_error": "allow", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 8000},
-    # The defaults: ask for protected edits, ask when the hook itself fails.
-    "standard": {"protected_modules": "ask", "on_hook_error": "ask", "outside_repo_writes": "ask", "bash_backstop": True, "max_context_chars": 6000},
-    # Fail closed: protected edits need `chronos gate grant`, hook failures deny, smaller context.
-    "strict": {"protected_modules": "deny", "on_hook_error": "deny", "outside_repo_writes": "deny", "bash_backstop": True, "max_context_chars": 4000},
-}
+from chronos.core.policy import POLICY_PRESETS  # noqa: E402 - re-exported
 
 
 class PolicyConfig(BaseModel):

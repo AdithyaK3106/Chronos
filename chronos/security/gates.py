@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 import sqlite3
 from typing import Any
-import yaml
 
 DEFAULT_PROTECTED_PATTERNS = [
     "*policy*",
@@ -179,6 +178,8 @@ def load_protected_modules(repo_root: str | Path) -> list[dict[str, Any]]:
         return default_modules
 
     try:
+        import yaml  # only when the repo has a protected.yml (saves ~20 ms per hook call)
+
         data = yaml.safe_load(cfg_file.read_text(encoding="utf-8")) or {}
         custom_modules = data.get("protected_modules", [])
         exempt_patterns = set(data.get("exempt_patterns", []))

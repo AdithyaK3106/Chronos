@@ -80,6 +80,11 @@ def _ask(reason: str) -> dict[str, Any]:
 
 
 def _policy(root: Path | None):
+    from chronos.core.policy import load_policy_fast
+
+    fast = load_policy_fast(root)
+    if fast is not None:
+        return fast
     from chronos.core.config import ChronosConfig, PolicyConfig
 
     if root is None:
@@ -296,18 +301,22 @@ def sensitive_state(root: Path) -> dict[str, list[int] | None] | None:
     """(mtime_ns, size) of protected and secret files that git reports as changed, untracked or
     ignored. None if git is unavailable. Clean tracked files are not listed: if a command changes
     one, it shows up as new in the after-state."""
-    from chronos.security.gates import find_protected_module
+    from chronos.security.gates import _module_matches, load_protected_modules
     from chronos.security.shell import find_secret_names
 
+    # `--untracked-files=normal --ignored=matching`: ignored files that match a pattern (.env) are
+    # listed, ignored directories (.venv/) are not descended. `=all`/`traditional` listed 53k
+    # files of .venv and took 3 s on a FUSE mount; this takes ~50 ms.
     try:
         r = subprocess.run(
-            ["git", "-C", str(root), "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=traditional"],
+            ["git", "-C", str(root), "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignored=matching"],
             capture_output=True, text=True, timeout=5,
         )
     except Exception:
         return None
     if r.returncode != 0:
         return None
+    modules = load_protected_modules(root)  # once, not per entry (it reads protected.yml)
     state: dict[str, list[int] | None] = {}
     entries = r.stdout.split("\0")
     i = 0
@@ -321,7 +330,7 @@ def sensitive_state(root: Path) -> dict[str, list[int] | None] | None:
             i += 1
         if rel.endswith("/"):
             continue
-        if not (find_secret_names(rel) or find_protected_module(rel, root)):
+        if not (find_secret_names(rel) or any(_module_matches(m, rel) for m in modules)):
             continue
         try:
             st = (root / rel).stat()

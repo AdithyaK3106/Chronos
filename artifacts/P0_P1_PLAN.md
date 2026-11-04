@@ -17,8 +17,12 @@ Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
   - [x] Fix the retrieval problems B shows (e.g. abstract method instead of implementation).
 
 ## P1: proof and daily feel
-- [ ] **3. Hook latency** from ~310 ms toward <100 ms per call (measure first; likely a
+- [x] **3. Hook latency** from ~310 ms toward <100 ms per call (measure first; likely a
       persistent helper process or a slimmer import path).
+      Done: ~300 ms -> 90-110 ms on every path (Edit, protected edit, secret read, Bash pre/post),
+      measured on this checkout. The work itself is ~10 ms; the rest was imports (pydantic via
+      eager package inits and the permission model, yaml, urllib). Also fixed: the Bash backstop
+      snapshot listed every file of an ignored .venv (70 s per call here).
 - [ ] **4. Realistic security benchmark:** indirect prompt injection planted in repo files, and
       Bash-based attacks. Gemini Flash via OpenHands, both arms.
 - [ ] **5. Large-repo check:** 50k+ symbols: first index, per-prompt freshness, hook latency.

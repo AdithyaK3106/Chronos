@@ -9,7 +9,6 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-import urllib.request
 from typing import Any
 
 # Heavy modules (dashboard server, indexer, graph) are imported inside main(), after the
@@ -350,6 +349,8 @@ def main():
                 probe_url = f"{probe_url}/models"
             try:
                 t0 = time.time()
+                import urllib.request
+
                 req = urllib.request.Request(probe_url, headers={"User-Agent": "Chronos-Doctor/1.0"})
                 with urllib.request.urlopen(req, timeout=2) as resp:
                     latency_ms = (time.time() - t0) * 1000

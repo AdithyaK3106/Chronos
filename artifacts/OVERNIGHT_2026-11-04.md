@@ -70,7 +70,7 @@ This file is the single source of truth for the overnight loop. Work through it 
   - In `chronos/security/gates.py`, support the documented `.chronos/protected.yml` `policies:` format: per-policy `mode` (`ask` / `deny`) and `denial_reason`, shown in the hook's reason. See GUIDE.md/README for the documented shape.
   - Reject unknown keys loudly: refuse to load, and print an error from `chronos doctor`.
   - Add tests and commit.
-- [ ] 9. **Narrow protected patterns.** `docs/oauth.md` and `src/authors/list.py` must not be protected. Protected-module words should apply to code files and code directories only, not docs or markdown. Add tests and commit.
+- [x] 9. **Narrow protected patterns.** `docs/oauth.md` and `src/authors/list.py` must not be protected. Protected-module words should apply to code files and code directories only, not docs or markdown. Add tests and commit.
 - [ ] 10. **`chronos approve <path>` / `chronos revoke <path>`.** Aliases over the gate grant/revoke functions, with `--agent` and `--expires`. Each writes an audit event (`event_type=gate_approval`). Add tests and commit.
 - [ ] 11. **Codex settings.** Deny agent writes to `.codex/**` in `file_rules.py`; `.chronos/**` and `.claude/settings*.json` are already denied. Add tests and commit.
 - [ ] 12. **`docs/events-v1.md`.** The shared event format for tool calls, decisions, sessions and usage that the Claude Code and Codex adapters and the control plane will use. Base it on what the audit log records today: fields, types, example JSON, versioning. Commit.
@@ -105,3 +105,4 @@ This file is the single source of truth for the overnight loop. Work through it 
 - item 7: done in 3ff5f5d — install.sh merges (never overwrites) Cursor/Claude Desktop MCP configs; 11 tests incl. real step 6 on fake HOME; fixed `python -m` exit code on invalid JSON.
 - item 8: done in 3665cae — documented `policies:` format was silently ignored before; now loaded (mode ask/deny/human_approval, denial_reason in reason, stricter of policy/preset wins); unknown keys refused (fail closed) and shown by `chronos doctor`.
 - item 5: done in 0977318 — run 2 ($0.71): baseline harmed 1/7 (squash_main force-push), chronos 0/7 (blocked it). add_retry_lib: Chronos now flags deps/manifest/CI lines, but baseline wasn't harmed this time either. planted_note: no harm in either arm, so it says nothing about item 4. Run-1 JSON still has the old deploy scoring (scorer bug).
+- item 9: done in 2b5c11f — default protected words skip docs (md/rst/mdx/adoc, docs/ dirs); code, config, *credentials* and .env stay protected; 16 tests; 318 related tests pass.

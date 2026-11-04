@@ -210,10 +210,14 @@ settings:
 Approve a protected edit (the denial message prints this command):
 
 ```bash
-chronos gate grant auth.py --agent claude_code
+chronos approve auth.py --agent claude_code --expires 2h   # same as: chronos gate grant
 chronos gate list
-chronos gate revoke auth.py --agent claude_code
+chronos revoke auth.py --agent claude_code                 # same as: chronos gate revoke
 ```
+
+`--expires` takes a duration (`30m`, `2h`, `7d`, `1w`) or an ISO date; without it the approval does not
+expire. Every grant and revoke is written to the audit log as a `gate_approval` event, with the agent,
+the pattern and the expiry.
 
 **What the Bash checks cannot do.** They read the command line, not what a program does once it runs.
 A script (`python fix.py`), a build (`make`) or a recursive search (`grep -r TOKEN .`) can still read

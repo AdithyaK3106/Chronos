@@ -248,6 +248,17 @@ def main():
     p_gate.add_argument("pattern", nargs="?", default=None, help="Path pattern, e.g. 'auth.py' or 'src/auth/*'")
     p_gate.add_argument("--agent", default="claude_code", help="Agent identity the approval applies to")
     p_gate.add_argument("--repo", default=".", help="Repository root path")
+    p_gate.add_argument("--expires", default=None, help="grant only: expiry, e.g. 2h, 7d or 2026-12-01 (default: never)")
+
+    # approve / revoke: short aliases for `gate grant` / `gate revoke`
+    for _name, _help in (("approve", "Allow an agent to edit a protected path (alias of `gate grant`)"),
+                         ("revoke", "Remove an approval (alias of `gate revoke`)")):
+        _p = subparsers.add_parser(_name, help=_help)
+        _p.add_argument("pattern", help="Path or pattern, e.g. 'src/auth/login.py' or 'src/auth/*'")
+        _p.add_argument("--agent", default="claude_code", help="Agent identity the approval applies to")
+        if _name == "approve":
+            _p.add_argument("--expires", default=None, help="Expiry, e.g. 2h, 7d or 2026-12-01 (default: never)")
+        _p.add_argument("--repo", default=".", help="Repository root path")
 
     args = parser.parse_args()
 
@@ -760,8 +771,20 @@ def main():
             print(f"[chronos] {exc}\nNot starting the agent without the sandbox.", file=sys.stderr)
             sys.exit(3)
 
+    elif args.command in ("approve", "revoke"):
+        from chronos.security.gates import change_gate_approval
+        con = get_connection(db_file)
+        try:
+            print(change_gate_approval(con, repo_root, args.command, args.pattern, args.agent, getattr(args, "expires", None)))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        finally:
+            con.close()
+        sys.exit(0)
+
     elif args.command == "gate":
-        from chronos.security.gates import grant_gate_approval, revoke_gate_approval
+        from chronos.security.gates import change_gate_approval
         con = get_connection(db_file)
         if args.action == "list":
             rows = con.execute("SELECT agent_id, path_pattern, approved_by, created_at, expires_at FROM gate_approvals ORDER BY created_at").fetchall()
@@ -771,12 +794,13 @@ def main():
         elif not args.pattern:
             print("Usage: chronos gate grant|revoke <pattern> [--agent ID]", file=sys.stderr)
             sys.exit(1)
-        elif args.action == "grant":
-            grant_gate_approval(con, args.agent, args.pattern, approved_by="cli_user")
-            print(f"Granted '{args.pattern}' to agent '{args.agent}'")
         else:
-            revoke_gate_approval(con, args.agent, args.pattern)
-            print(f"Revoked '{args.pattern}' from agent '{args.agent}'")
+            try:
+                print(change_gate_approval(con, repo_root, args.action, args.pattern, args.agent, args.expires))
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                con.close()
+                sys.exit(2)
         con.close()
         sys.exit(0)
 

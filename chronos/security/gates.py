@@ -324,3 +324,66 @@ def check_gate_approval(
         return False, msg
 
     return True, "Approved"
+
+
+def parse_expires(value: str | None, now: datetime | None = None) -> str | None:
+    """`--expires` value -> ISO-8601 UTC timestamp. Accepts a duration (`30m`, `2h`, `7d`, `1w`) or an
+    ISO date/datetime (`2026-12-01`, `2026-12-01T18:00:00+05:30`; naive times are UTC). None = never."""
+    from datetime import timedelta
+
+    if value is None or not str(value).strip():
+        return None
+    v = str(value).strip()
+    m = re.fullmatch(r"(\d+)\s*([mhdw])", v.lower())
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        if n <= 0:
+            raise ValueError(f"--expires must be positive: {value!r}")
+        delta = {"m": timedelta(minutes=n), "h": timedelta(hours=n), "d": timedelta(days=n), "w": timedelta(weeks=n)}[unit]
+        return ((now or datetime.now(timezone.utc)) + delta).isoformat()
+    try:
+        dt = datetime.fromisoformat(v)
+    except ValueError:
+        raise ValueError(f"--expires: use a duration like 30m, 2h, 7d or an ISO date, not {value!r}") from None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt = dt.astimezone(timezone.utc)
+    if dt <= (now or datetime.now(timezone.utc)):
+        raise ValueError(f"--expires {value!r} is in the past")
+    return dt.isoformat()
+
+
+def change_gate_approval(
+    con: sqlite3.Connection,
+    repo_root: str | Path,
+    action: str,
+    path_pattern: str,
+    agent_id: str = "claude_code",
+    expires: str | None = None,
+    approved_by: str = "cli_user",
+) -> str:
+    """Grant (`approve`) or revoke a gate approval and record it in the audit log
+    (`event_type=gate_approval`). Returns a one-line summary."""
+    from chronos.audit.logger import append_audit_event
+    from chronos.core.paths import audit_log_path
+
+    if action in ("approve", "grant"):
+        expires_at = parse_expires(expires)
+        grant_gate_approval(con, agent_id, path_pattern, approved_by=approved_by, expires_at=expires_at)
+        status, msg = "granted", f"Approved '{path_pattern}' for agent '{agent_id}'" + (f" until {expires_at}" if expires_at else " (no expiry)")
+        meta: dict[str, Any] = {"expires_at": expires_at, "approved_by": approved_by}
+    elif action == "revoke":
+        existed = con.execute(
+            "SELECT 1 FROM gate_approvals WHERE agent_id = ? AND path_pattern = ?", (agent_id, path_pattern)
+        ).fetchone() is not None
+        revoke_gate_approval(con, agent_id, path_pattern)
+        status = "revoked" if existed else "not_found"
+        msg = f"Revoked '{path_pattern}' from agent '{agent_id}'" if existed else f"No approval for '{path_pattern}' / agent '{agent_id}' to revoke"
+        meta = {"revoked_by": approved_by}
+    else:
+        raise ValueError(f"unknown gate action {action!r}")
+    append_audit_event(
+        log_path=audit_log_path(Path(repo_root).resolve()), event_type="gate_approval", agent_id=agent_id,
+        action=action, target=path_pattern, status=status, reason=msg, metadata=meta,
+    )
+    return msg

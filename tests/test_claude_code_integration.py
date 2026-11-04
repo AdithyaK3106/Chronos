@@ -333,3 +333,31 @@ def test_silent_prompt_records_nothing(repo):
         assert con.execute("SELECT count(*) FROM context_envelopes").fetchone()[0] == 0
     finally:
         con.close()
+
+
+def test_large_first_index_runs_in_the_background(repo, monkeypatch):
+    """A full index of a big repo took 120 s; Claude Code kills the prompt hook at 30 s."""
+    import subprocess as sp
+
+    monkeypatch.setattr(cc, "MAX_INLINE_FULL_INDEX_FILES", 1)
+    started = []
+    monkeypatch.setattr(cc.subprocess, "Popen", lambda args, **kw: started.append(args) or None)
+    assert _run("prompt", {"prompt": "Fix the charge_card function for negative amounts", "cwd": str(repo)})[1] is None
+    assert started and started[0][-2:] == ["--index", str(repo)]
+    assert cc.background_index_running(repo)
+    # while it runs: no second indexer, no context, and pre-tool checks still work
+    assert _run("prompt", {"prompt": "Fix the charge_card function for negative amounts", "cwd": str(repo)})[1] is None
+    assert len(started) == 1
+    assert _pre(repo, "Read", file_path=str(repo / ".env"))[1]["hookSpecificOutput"]["permissionDecision"] == "deny"
+    # the indexer itself indexes, marks the index fresh and releases the lock
+    cc.run_background_index(repo)
+    assert not cc.background_index_running(repo) and (repo / ".chronos" / "last_index").exists()
+    out = _run("prompt", {"prompt": "Fix the charge_card function so it rejects negative amounts", "cwd": str(repo)})[1]
+    assert out and "charge_card" in out["hookSpecificOutput"]["additionalContext"]
+
+
+def test_stale_index_lock_is_ignored(repo):
+    lock = repo / ".chronos" / "indexing.lock"
+    lock.write_text("0")
+    os.utime(lock, (time.time() - 7200, time.time() - 7200))
+    assert not cc.background_index_running(repo)

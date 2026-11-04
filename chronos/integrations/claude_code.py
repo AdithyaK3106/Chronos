@@ -491,6 +491,79 @@ def _audit_hook_failure(log_path: Path, agent_id: str, target: str, exc: Excepti
 
 
 # ----------------------------------------------------------------------------- index freshness
+MAX_INLINE_FULL_INDEX_FILES = int(os.environ.get("CHRONOS_INLINE_INDEX_MAX_FILES", "400"))
+BACKGROUND_LOCK_MAX_AGE = 3600.0
+
+
+def _index_lock(root: Path) -> Path:
+    return root / ".chronos" / "indexing.lock"
+
+
+def background_index_running(root: Path) -> bool:
+    """True while a background index holds the lock (a stale lock older than an hour is ignored)."""
+    lock = _index_lock(root)
+    try:
+        return time.time() - lock.stat().st_mtime < BACKGROUND_LOCK_MAX_AGE
+    except OSError:
+        return False
+
+
+def spawn_background_index(root: Path) -> bool:
+    """Start `python -m chronos.integrations.claude_code --index <root>` detached. Returns whether it started."""
+    lock = _index_lock(root)
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)  # exactly one indexer
+    except FileExistsError:
+        if background_index_running(root):
+            return False
+        lock.unlink(missing_ok=True)
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            return False
+    os.write(fd, str(time.time()).encode())
+    os.close(fd)
+    from chronos.core.paths import data_dir
+
+    log_dir = data_dir() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    kwargs: dict[str, Any] = {"stdin": subprocess.DEVNULL, "cwd": str(root)}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        with open(log_dir / "background-index.log", "a", encoding="utf-8") as log:
+            kwargs.update(stdout=log, stderr=log)
+            subprocess.Popen([sys.executable, "-m", "chronos.integrations.claude_code", "--index", str(root)], **kwargs)
+        return True
+    except Exception:
+        lock.unlink(missing_ok=True)
+        return False
+
+
+def run_background_index(root: Path) -> None:
+    """Full index (the detached process). Always releases the lock."""
+    from chronos.context.graph import SQLiteGraphStore
+    from chronos.context.indexer import index_repository
+    from chronos.core.db import get_connection
+
+    started = time.time()
+    try:
+        nodes, edges = index_repository(root)
+        con = get_connection(root / ".chronos" / "chronos.db")
+        try:
+            SQLiteGraphStore(con).sync_repository(nodes, edges)
+        finally:
+            con.close()
+        marker = root / ".chronos" / "last_index"
+        marker.touch()
+        os.utime(marker, (started, started))
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} indexed {root}: {len(nodes)} symbols in {time.time() - started:.0f}s", flush=True)
+    finally:
+        _index_lock(root).unlink(missing_ok=True)
+
+
 def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
     """Bring the graph up to date cheaply. Returns what was done (for logging/tests)."""
     from chronos.context.graph import SQLiteGraphStore
@@ -500,6 +573,8 @@ def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
         prune_ignored_dirs,
     )
 
+    if background_index_running(root):
+        return {"action": "background", "changed": 0, "started": False}
     marker = root / ".chronos" / "last_index"
     started = time.time()
     store = SQLiteGraphStore(con)
@@ -507,10 +582,12 @@ def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
     last = marker.stat().st_mtime if marker.exists() else 0.0
 
     changed: list[str] = []
+    total = 0
     for dirpath, dirnames, filenames in os.walk(root):
         prune_ignored_dirs(dirpath, dirnames)
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
+                total += 1
                 fp = os.path.join(dirpath, fname)
                 try:
                     if os.stat(fp).st_mtime > last:
@@ -518,20 +595,21 @@ def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:
                 except OSError:
                     pass
 
-    if node_count == 0 or last == 0.0:
+    if node_count == 0 or last == 0.0 or len(changed) > MAX_INCREMENTAL_FILES:
+        if total > MAX_INLINE_FULL_INDEX_FILES:
+            # A full index of a large repo takes minutes; Claude Code kills the prompt hook after
+            # 30 s, so done inline it never finished and restarted on every prompt. Index in a
+            # detached process instead; context starts once it is done.
+            return {"action": "background", "changed": len(changed), "started": spawn_background_index(root)}
         nodes, edges = index_repository(root)
         store.sync_repository(nodes, edges)
         action = "full"
     elif not changed:
         return {"action": "none", "changed": 0}
-    elif len(changed) <= MAX_INCREMENTAL_FILES:
+    else:
         for fp in changed:
             store.update_file(fp)
         action = "incremental"
-    else:
-        nodes, edges = index_repository(root)
-        store.sync_repository(nodes, edges)
-        action = "full"
 
     marker.touch()
     os.utime(marker, (started, started))  # files edited mid-index are picked up next time
@@ -552,7 +630,9 @@ def handle_user_prompt_submit(payload: dict[str, Any]) -> dict[str, Any] | None:
 
     con = get_connection(root / ".chronos" / "chronos.db")
     try:
-        ensure_index_fresh(root, con)
+        fresh = ensure_index_fresh(root, con)
+        if fresh["action"] == "background":
+            return None  # indexing in the background: no (stale or empty) context yet
         boot = ChronosSessionBootstrap(repo_path=root, con=con)
         res = boot.bootstrap_session(
             task_prompt=prompt,
@@ -846,3 +926,8 @@ def live_check(command: str | None = None) -> dict[str, Any]:
     results["ok"] = all(c.get("ok") for c in results["checks"].values())
     return results
 
+
+
+if __name__ == "__main__":  # the detached background indexer
+    if len(sys.argv) == 3 and sys.argv[1] == "--index":
+        run_background_index(Path(sys.argv[2]).resolve())

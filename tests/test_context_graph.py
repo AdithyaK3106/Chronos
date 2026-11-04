@@ -97,3 +97,27 @@ def test_context_budgeting(memory_db):
     assert "auth_service" in ctx["text"]
     assert ctx["token_count"] <= 500
     assert not ctx["truncated"]
+
+
+def test_impact_follows_bare_name_edges_once_per_caller_without_self(tmp_path):
+    """Edges store callees as bare names; impact used to join on node ids and found nothing,
+    and recursion repeated callers at every depth (chronos_task_01 in the benchmark)."""
+    from chronos.context.graph import SQLiteGraphStore
+    from chronos.context.indexer import index_repository
+    from chronos.core.db import get_connection
+
+    (tmp_path / "parity.py").write_text(
+        "def is_even(n):\n    return True if n == 0 else is_odd(n - 1)\n\n"
+        "def is_odd(n):\n    return False if n == 0 else is_even(n - 1)\n\n"
+        "def report(n):\n    return is_odd(n)\n\n"
+        "def main():\n    return report(3)\n"
+    )
+    con = get_connection(tmp_path / "c.db")
+    try:
+        store = SQLiteGraphStore(con)
+        store.sync_repository(*index_repository(tmp_path))
+        impact = {r["name"]: r["depth"] for r in store.as_of_impact("is_odd", max_depth=3)}
+        assert impact == {"is_even": 1, "report": 1, "main": 2}
+        assert {r["name"] for r in store.as_of_callers("is_odd")} == {"is_even", "report"}
+    finally:
+        con.close()

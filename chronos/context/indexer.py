@@ -248,9 +248,11 @@ def python_body_terms(fn: ast.AST) -> str | None:
             if len(w) >= 3 and w not in seen:
                 seen[w] = None
 
-    stack = list(ast.iter_child_nodes(fn))
+    from collections import deque
+
+    stack = deque(ast.iter_child_nodes(fn))  # breadth-first; list.pop(0) was O(n^2)
     while stack and len(seen) < MAX_BODY_TERMS:
-        node = stack.pop(0)
+        node = stack.popleft()
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             continue
         if isinstance(node, ast.Name):

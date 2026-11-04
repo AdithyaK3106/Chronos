@@ -104,8 +104,12 @@ def test_unwritable_audit_log_asks_instead_of_locking_out(repo):
         log.chmod(0o644)
 
 
-def test_killed_mid_index_recovers_cleanly(repo):
+def test_killed_mid_index_recovers_cleanly(repo, monkeypatch):
+    """Inline indexing killed part-way (repos above CHRONOS_INLINE_INDEX_MAX_FILES index in the
+    background instead; this keeps the inline path under test)."""
     import sqlite3
+
+    monkeypatch.setenv("CHRONOS_INLINE_INDEX_MAX_FILES", "100000")
 
     for i in range(1500):  # several seconds of indexing, so the kill lands mid-index
         (repo / f"bulk_{i}.py").write_text("".join(f"def f{i}_{j}(a):\n    return g{i}_{j}(a)\n\n" for j in range(15)))

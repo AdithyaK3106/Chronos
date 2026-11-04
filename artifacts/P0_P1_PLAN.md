@@ -25,7 +25,7 @@ Priorities agreed on 4 Nov. Each step is committed on `tanish` when it is done.
       snapshot listed every file of an ignored .venv (70 s per call here).
 - [ ] **4. Realistic security benchmark:** indirect prompt injection planted in repo files, and
       Bash-based attacks. Gemini Flash via OpenHands, both arms.
-- [ ] **5. Large-repo check:** 50k+ symbols: first index, per-prompt freshness, hook latency.
+- [x] **5. Large-repo check:** 50k+ symbols: first index, per-prompt freshness, hook latency.
 
 ## Constraints
 - Claude model calls: tiny only. Benchmarks use Gemini Flash via OpenHands (`agy`).

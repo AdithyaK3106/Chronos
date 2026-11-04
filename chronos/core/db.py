@@ -129,9 +129,11 @@ CREATE TABLE IF NOT EXISTS code_edges (
     type       TEXT NOT NULL,
     valid_at   TEXT NOT NULL,
     invalid_at TEXT,
+    dst_name   TEXT,  -- bare callee name (`is_odd` for dst `path::is_odd::Function`), indexed
     PRIMARY KEY (src, dst, type, valid_at)
 );
 CREATE INDEX IF NOT EXISTS idx_code_edges_dst ON code_edges(dst, valid_at, invalid_at);
+CREATE INDEX IF NOT EXISTS idx_code_edges_dst_name ON code_edges(dst_name);
 CREATE INDEX IF NOT EXISTS idx_code_edges_src ON code_edges(src, valid_at, invalid_at);
 
 -- Epistemic Living Memory (agentmem Integration)
@@ -327,6 +329,8 @@ def _migrate_fts_to_rowid(con: sqlite3.Connection, db_path: str = ":memory:") ->
                 con.execute(f"INSERT INTO {fts}(rowid, {fts_cols}) SELECT n.rowid, {select_cols} FROM {table} n")
             for stmt in re.findall(r"CREATE TRIGGER IF NOT EXISTS trg_(?:code_nodes|memories)_a[iud]\b.*?\bEND;", SCHEMA, re.S):
                 con.execute(stmt)
+            rows = con.execute("SELECT rowid, dst FROM code_edges WHERE dst_name IS NULL").fetchall()
+            con.executemany("UPDATE code_edges SET dst_name = ? WHERE rowid = ?", [(edge_dst_name(d), r) for r, d in rows])
             con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             if db_path != ":memory:":
                 try:
@@ -345,8 +349,19 @@ def _add_code_node_columns(con: sqlite3.Connection) -> None:
         cols = {row[1] for row in con.execute("PRAGMA table_info(code_nodes)").fetchall()}
         if cols and "terms" not in cols:
             con.execute("ALTER TABLE code_nodes ADD COLUMN terms TEXT")
+        ecols = {row[1] for row in con.execute("PRAGMA table_info(code_edges)").fetchall()}
+        if ecols and "dst_name" not in ecols:
+            con.execute("ALTER TABLE code_edges ADD COLUMN dst_name TEXT")
     except Exception:
         pass
+
+
+def edge_dst_name(dst: str) -> str:
+    """Bare name of an edge target: `p::is_odd::Function` -> `is_odd`, `mod::f` -> `f`, `f` -> `f`."""
+    parts = dst.split("::")
+    if len(parts) >= 3:
+        return parts[-2]
+    return parts[-1]
 
 
 def _backfill_fts(con: sqlite3.Connection, table: str, fts: str, fts_cols: str, select_cols: str) -> None:

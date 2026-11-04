@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from chronos.core.db import edge_dst_name
 from chronos.core.models import ASTEdge, ASTNode, utc_now_iso
 
 def _normalize_iso(dt_or_str: str | datetime | None) -> str:
@@ -83,28 +84,25 @@ class SQLiteGraphStore(GraphStore):
     def ingest(self, nodes: list[ASTNode], edges: list[ASTEdge]) -> None:
         self.con.execute("BEGIN IMMEDIATE")
         try:
-            for n in nodes:
-                self.con.execute(
-                    """
-                    INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring, terms)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        name=excluded.name, path=excluded.path, kind=excluded.kind,
-                        signature=excluded.signature, docstring=excluded.docstring, terms=excluded.terms
-                    """,
-                    (n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring, n.terms),
-                )
-
-            for e in edges:
-                self.con.execute(
-                    """
-                    INSERT INTO code_edges (src, dst, type, valid_at, invalid_at)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(src, dst, type, valid_at) DO UPDATE SET
-                        invalid_at=excluded.invalid_at
-                    """,
-                    (e.src, e.dst, e.type, e.valid_at, e.invalid_at),
-                )
+            self.con.executemany(
+                """
+                INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring, terms)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name=excluded.name, path=excluded.path, kind=excluded.kind,
+                    signature=excluded.signature, docstring=excluded.docstring, terms=excluded.terms
+                """,
+                [(n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring, n.terms) for n in nodes],
+            )
+            self.con.executemany(
+                """
+                INSERT INTO code_edges (src, dst, type, valid_at, invalid_at, dst_name)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(src, dst, type, valid_at) DO UPDATE SET
+                    invalid_at=excluded.invalid_at
+                """,
+                [(e.src, e.dst, e.type, e.valid_at, e.invalid_at, edge_dst_name(e.dst)) for e in edges],
+            )
             self.con.execute("COMMIT")
         except Exception:
             try:
@@ -121,12 +119,12 @@ class SQLiteGraphStore(GraphStore):
             SELECT n.id, n.name, n.path, n.kind, e.type, e.valid_at
             FROM code_edges e
             JOIN code_nodes n ON e.src = n.id
-            WHERE (e.dst = ? OR e.dst LIKE '%::' || ? || '::%' OR e.dst LIKE '%::' || ?)
+            WHERE (e.dst = ? OR e.dst_name = ?)
               AND e.valid_at <= ?
               AND (e.invalid_at IS NULL OR e.invalid_at > ?)
             ORDER BY n.name ASC
             """,
-            (symbol_name, symbol_name, symbol_name, t, t),
+            (symbol_name, symbol_name, t, t),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -153,25 +151,33 @@ class SQLiteGraphStore(GraphStore):
 
     def as_of_impact(self, symbol_name: str, as_of: str | None = None, max_depth: int = 3) -> list[dict[str, Any]]:
         t = _normalize_iso(as_of)
+        # Edges store the callee by node id or as a bare name (dst_name), so each step matches
+        # either. Each transitive caller is reported once, at its shortest depth, and never the
+        # queried symbol itself (recursion and cycles used to repeat callers at every depth).
         rows = self.con.execute(
             """
-            WITH RECURSIVE impact_tree(node_id, depth) AS (
-                SELECT id, 0 FROM code_nodes WHERE name = ? OR id = ?
+            WITH RECURSIVE impact_tree(node_id, name, depth) AS (
+                SELECT id, name, 0 FROM code_nodes WHERE name = ? OR id = ?
                 UNION
-                SELECT e.src, it.depth + 1
-                FROM code_edges e
-                JOIN impact_tree it ON (e.dst = it.node_id OR e.dst LIKE '%::' || it.node_id || '::%')
+                SELECT n.id, n.name, it.depth + 1
+                FROM impact_tree it
+                JOIN code_edges e
+                  ON (e.dst = it.node_id OR e.dst_name = it.name
+                      OR (instr(it.name, '.') > 0 AND e.dst_name = substr(it.name, instr(it.name, '.') + 1)))
+                JOIN code_nodes n ON n.id = e.src
                 WHERE it.depth < ?
                   AND e.valid_at <= ?
                   AND (e.invalid_at IS NULL OR e.invalid_at > ?)
             )
-            SELECT DISTINCT n.id, n.name, n.path, n.kind, it.depth
+            SELECT n.id, n.name, n.path, n.kind, MIN(it.depth) AS depth
             FROM impact_tree it
             JOIN code_nodes n ON it.node_id = n.id
             WHERE it.depth > 0
-            ORDER BY it.depth ASC, n.name ASC
+              AND n.id NOT IN (SELECT id FROM code_nodes WHERE name = ? OR id = ?)
+            GROUP BY n.id
+            ORDER BY depth ASC, n.name ASC
             """,
-            (symbol_name, symbol_name, max_depth, t, t),
+            (symbol_name, symbol_name, max_depth, t, t, symbol_name, symbol_name),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -271,21 +277,10 @@ class SQLiteGraphStore(GraphStore):
         p = Path(file_path).resolve()
         norm_path = p.as_posix()
 
-        # 1. Invalidate active outgoing edges from previous version of this file
-        pattern = f"{norm_path}::%"
-        self.con.execute(
-            """
-            UPDATE code_edges
-            SET invalid_at = ?
-            WHERE (src LIKE ? OR src = ?) AND invalid_at IS NULL
-            """,
-            (t, pattern, norm_path),
-        )
-
-        # 2. Extract new nodes, edges, and imports from disk
+        # 1. Extract new nodes, edges, and imports from disk
         nodes, edges, imports = extract_file_ast(p, valid_at=t)
 
-        # 3. Disambiguate cross-file edges against the graph store
+        # 2. Disambiguate cross-file edges against the graph store
         curr = p.parent
         repo_root = curr
         while curr != curr.parent:
@@ -297,17 +292,67 @@ class SQLiteGraphStore(GraphStore):
         linker = CrossFileLinker(repo_root)
         linked_nodes, linked_edges = linker.link_file(p, nodes, edges, imports, graph_store=self, valid_at=t)
 
-        # 4. Drop nodes for symbols that no longer exist in this file
-        keep_ids = [n.id for n in linked_nodes if n.path == norm_path]
-        placeholders = ",".join("?" for _ in keep_ids)
-        stale_sql = "DELETE FROM code_nodes WHERE path = ?"
-        if keep_ids:
-            stale_sql += f" AND id NOT IN ({placeholders})"
-        self.con.execute(stale_sql, (norm_path, *keep_ids))
+        # 3. Apply only the difference. Re-writing every node and edge of the file on each edit
+        #    rewrote ~4,000 rows for a one-line change in a large file (8 s on a slow disk) and
+        #    grew the edge history by the file's whole edge count every time.
+        lo, hi = f"{norm_path}::", f"{norm_path}:;"  # src range for this file (';' follows ':')
+        old_edges = {
+            (r[0], r[1], r[2])
+            for r in self.con.execute(
+                "SELECT src, dst, type FROM code_edges WHERE ((src >= ? AND src < ?) OR src = ?) AND invalid_at IS NULL",
+                (lo, hi, norm_path),
+            )
+        }
+        new_edges = {(e.src, e.dst, e.type) for e in linked_edges}
+        old_nodes = {
+            r[0]: tuple(r[1:])
+            for r in self.con.execute(
+                "SELECT id, name, kind, language, signature, docstring, terms FROM code_nodes WHERE path = ?", (norm_path,)
+            )
+        }
+        file_nodes = [n for n in linked_nodes if n.path == norm_path]
+        changed_nodes = [
+            n for n in linked_nodes
+            if n.path != norm_path or old_nodes.get(n.id) != (n.name, n.kind, n.language, n.signature, n.docstring, n.terms)
+        ]
+        keep_ids = {n.id for n in file_nodes}
+        stale_ids = [nid for nid in old_nodes if nid not in keep_ids]
+        added = [e for e in linked_edges if (e.src, e.dst, e.type) not in old_edges]
+        removed = old_edges - new_edges
 
-        # 5. Upsert nodes and insert new edges with valid_at = t
-        if linked_nodes or linked_edges:
-            self.ingest(linked_nodes, linked_edges)
+        self.con.execute("BEGIN IMMEDIATE")
+        try:
+            if removed:
+                self.con.executemany(
+                    "UPDATE code_edges SET invalid_at = ? WHERE src = ? AND dst = ? AND type = ? AND invalid_at IS NULL",
+                    [(t, *k) for k in removed],
+                )
+            if stale_ids:
+                self.con.executemany("DELETE FROM code_nodes WHERE id = ?", [(nid,) for nid in stale_ids])
+            if changed_nodes:
+                self.con.executemany(
+                    """
+                    INSERT INTO code_nodes (id, name, path, kind, language, signature, docstring, terms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name=excluded.name, path=excluded.path, kind=excluded.kind,
+                        signature=excluded.signature, docstring=excluded.docstring, terms=excluded.terms
+                    """,
+                    [(n.id, n.name, n.path, n.kind, n.language, n.signature, n.docstring, n.terms) for n in changed_nodes],
+                )
+            if added:
+                self.con.executemany(
+                    """
+                    INSERT INTO code_edges (src, dst, type, valid_at, invalid_at, dst_name)
+                    VALUES (?, ?, ?, ?, NULL, ?)
+                    ON CONFLICT(src, dst, type, valid_at) DO UPDATE SET invalid_at = NULL
+                    """,
+                    [(e.src, e.dst, e.type, t, edge_dst_name(e.dst)) for e in added],
+                )
+            self.con.execute("COMMIT")
+        except Exception:
+            self.con.execute("ROLLBACK")
+            raise
 
         return len(linked_nodes), len(linked_edges)
 
@@ -384,8 +429,8 @@ class SQLiteGraphStore(GraphStore):
             ]
             if to_insert:
                 self.con.executemany(
-                    "INSERT OR IGNORE INTO code_edges (src, dst, type, valid_at, invalid_at) VALUES (?, ?, ?, ?, NULL)",
-                    to_insert,
+                    "INSERT OR IGNORE INTO code_edges (src, dst, type, valid_at, invalid_at, dst_name) VALUES (?, ?, ?, ?, NULL, ?)",
+                    [(*row, edge_dst_name(row[1])) for row in to_insert],
                 )
             stats["edges_added"] = len(to_insert)
 

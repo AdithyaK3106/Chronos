@@ -104,6 +104,10 @@ CREATE TRIGGER trg_code_nodes_ai AFTER INSERT ON code_nodes BEGIN
     VALUES (new.rowid, new.id, new.name, new.path, COALESCE(new.signature, ''), COALESCE(new.docstring, ''));
 END;
 INSERT INTO code_nodes (id, name, path, kind) VALUES ('a.py::check_expiry::Function', 'check_expiry', 'a.py', 'Function');
+CREATE TABLE code_edges (src TEXT NOT NULL, dst TEXT NOT NULL, type TEXT NOT NULL, valid_at TEXT NOT NULL,
+    invalid_at TEXT, PRIMARY KEY (src, dst, type, valid_at));
+INSERT INTO code_edges VALUES ('b.py::caller::Function', 'a.py::check_expiry::Function', 'CALLS', '2026-01-01T00:00:00+00:00', NULL);
+INSERT INTO code_edges VALUES ('b.py::caller2::Function', 'check_expiry', 'CALLS', '2026-01-01T00:00:00+00:00', NULL);
 PRAGMA user_version = 2;
 """
 
@@ -126,6 +130,8 @@ def test_v2_database_gains_body_terms_and_stemming(tmp_path):
         assert "porter" in con.execute("SELECT sql FROM sqlite_master WHERE name='code_nodes_fts'").fetchone()[0]
         assert _fts_hits(con, "check_expiry")  # existing rows were carried over
         assert not marker.exists()  # the hook will re-index and fill in terms
+        assert {r[0] for r in con.execute("SELECT dst_name FROM code_edges")} == {"check_expiry"}
+        assert "idx_code_edges_dst_name" in {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='index'")}
         # new rows index their body terms, stemmed
         (tmp_path / "svc.py").write_text("def verify(rec):\n    return rec.expires_at < utc_now()\n")
         nodes, edges = index_repository(tmp_path)

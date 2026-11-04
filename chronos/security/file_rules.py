@@ -88,7 +88,7 @@ def dependency_entries(rel: str, text: str) -> set[str]:
 # (rule id, category, decision, path regex, why)
 PATH_RULES: list[tuple[str, str, str, re.Pattern, str]] = [
     ("integrity.chronos_state", "integrity", "deny", re.compile(r"^\.chronos/"), "is Chronos's own policy, audit and index data"),
-    ("integrity.agent_hooks", "integrity", "deny", re.compile(r"^\.claude/settings(?:\.local)?\.json$|^\.codex/(?:config\.toml|requirements\.toml|hooks)"), "controls the agent's hooks, which could switch Chronos off"),
+    ("integrity.agent_hooks", "integrity", "deny", re.compile(r"^\.claude/settings(?:\.local)?\.json$|^\.codex/"), "controls the agent's hooks, which could switch Chronos off"),
     ("integrity.agent_config", "integrity", "ask", re.compile(r"^\.mcp\.json$|^\.claude/|^\.codex/|^\.gemini/|^\.cursor/|^\.windsurf/|^\.continue/|^\.aider|^\.vscode/(?:settings|tasks|launch)\.json$|^\.idea/workspace\.xml$|^\.devcontainer/"), "changes what tools the agent or editor can run"),
     ("integrity.ci_config", "integrity", "ask", re.compile(r"^\.github/(?:workflows|actions)/|^\.gitlab-ci\.ya?ml$|^\.gitlab/ci/|^\.circleci/|(?:^|/)Jenkinsfile$|^azure-pipelines\.ya?ml$|^bitbucket-pipelines\.yml$|^\.buildkite/|^\.travis\.yml$|^\.drone\.yml$|^cloudbuild\.ya?ml$|^buildspec\.ya?ml$|^\.woodpecker|^\.tekton/|^appveyor\.yml$"), "changes the CI pipeline that checks every change"),
     ("integrity.git_hooks", "integrity", "ask", re.compile(r"^\.husky/|^\.pre-commit-config\.ya?ml$|^\.?lefthook\.ya?ml$|^\.githooks/|^\.lintstagedrc|^lint-staged\.config\.|^\.simple-git-hooks|(?:^|/)CODEOWNERS$"), "changes pre-commit hooks or required reviewers"),

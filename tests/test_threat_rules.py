@@ -248,6 +248,10 @@ def test_log_decisions_do_not_interrupt(repo):
     (".chronos/protected.yml", "integrity.chronos_state", "deny"),
     (".claude/settings.json", "integrity.agent_hooks", "deny"),
     (".claude/settings.local.json", "integrity.agent_hooks", "deny"),
+    (".codex/config.toml", "integrity.agent_hooks", "deny"),
+    (".codex/hooks.json", "integrity.agent_hooks", "deny"),
+    (".codex/prompts/review.md", "integrity.agent_hooks", "deny"),
+    (".codex/skills/x/SKILL.md", "integrity.agent_hooks", "deny"),
     (".mcp.json", "integrity.agent_config", "ask"),
     (".vscode/tasks.json", "integrity.agent_config", "ask"),
     (".github/workflows/ci.yml", "integrity.ci_config", "ask"),
@@ -338,3 +342,17 @@ def test_installed_matcher_covers_mcp_and_webfetch():
 ])
 def test_excluding_secret_files_is_not_reading_them(repo, cmd, secret):
     assert bool(analyze(cmd, repo).secrets) is secret
+
+
+@pytest.mark.parametrize("command", ["echo '[hooks]' > .codex/config.toml", "mkdir -p .codex/prompts && cp x.md .codex/prompts/x.md"])
+def test_bash_writes_to_codex_dir_are_denied(tmp_path, command):
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    get_connection(tmp_path / ".chronos" / "chronos.db").close()
+    payload = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(tmp_path), "session_id": "s", "tool_use_id": "cx"}
+    code, out, _ = cc.run_hook("pre", json.dumps(payload))
+    assert code == 0 and json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_codex_named_files_outside_the_dir_are_not_denied():
+    assert not [h for h in evaluate_path("src/codex/config.toml") if h.decision == "deny"]
+    assert not [h for h in evaluate_path("docs/.codex-notes.md") if h.decision == "deny"]

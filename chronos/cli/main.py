@@ -524,6 +524,17 @@ def main():
             f"  +{sync_stats['edges_added']} new edges, {sync_stats['edges_invalidated']} invalidated, "
             f"{sync_stats['nodes_removed']} stale nodes removed, {sync_stats['duplicates_removed']} duplicate edges purged."
         )
+        emb_cfg = ChronosConfig.load(repo_root).retrieval.embeddings
+        if emb_cfg.enabled:
+            from chronos.context.embeddings import index_from_config
+            print(f"Embedding changed files with {emb_cfg.model} at {emb_cfg.endpoint}...")
+            con = get_connection(db_file)
+            try:
+                print(f"  {index_from_config(con, repo_root, emb_cfg).update()}")
+            except Exception as exc:  # noqa: BLE001
+                print(f"  embeddings skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
+            finally:
+                con.close()
         sys.exit(0)
 
     elif args.command == "resolve":

@@ -85,6 +85,10 @@ class ResolutionResult:
 
 NAMED_FILE_BONUS = 35.0
 ABSTRACT_PENALTY = 20.0
+# Embedding-ranked files: above lexical-only scores (BM25 is capped at 15 plus bonuses), below
+# nothing that names a file explicitly (explicit paths disable the embedding step altogether).
+EMBED_TOP_SCORE = 120.0
+EMBED_RANK_STEP = 10.0
 
 
 def _is_abstract_body(fn) -> bool:
@@ -164,9 +168,13 @@ class DeterministicContextResolver:
         slm_resolver: Optional[Any] = None,
         enable_slm: bool = False,
         slm_config: Optional[Any] = None,
+        embedding_index: Optional[Any] = None,
+        embedding_config: Optional[Any] = None,
     ):
         self.repo_root = Path(repo_root).resolve()
         self.graph_store = graph_store
+        self.embedding_index = embedding_index  # chronos.context.embeddings.EmbeddingIndex, optional
+        self.embedding_config = embedding_config
         if slm_resolver is not None:
             self.slm_resolver = slm_resolver
         elif enable_slm or (slm_config and getattr(slm_config, "enabled", False)):
@@ -190,6 +198,37 @@ class DeterministicContextResolver:
     def _abs(self, path: str) -> Path:
         p = Path(path)
         return p if p.is_absolute() else self.repo_root / p
+
+    def _apply_embeddings(self, prompt: str, candidates_map: Dict[str, "CandidateEvidence"]) -> None:
+        from chronos.context.embeddings import rrf
+
+        cfg = self.embedding_config
+        top_n = int(getattr(cfg, "top_files", 5) or 5)
+        hits = self.embedding_index.search(prompt, top_files=20)
+        if not hits:
+            return
+        embed_order = [h.path for h in hits]
+        if getattr(cfg, "mode", "embeddings") == "rrf":
+            lexical: list[str] = []
+            for c in sorted(candidates_map.values(), key=lambda c: -c.score):
+                f = self._rel(c.path) if c.path else None
+                if f and f not in lexical:
+                    lexical.append(f)
+            order = rrf(lexical, embed_order)
+            why = "Embedding + lexical rank fusion"
+        else:
+            order = embed_order
+            why = "Embedding similarity"
+        by_path = {h.path: h for h in hits}
+        for i, rel in enumerate(order[:top_n]):
+            score = EMBED_TOP_SCORE - EMBED_RANK_STEP * i
+            h = by_path.get(rel)
+            reason = f"{why}: rank {i + 1}" + (f" (closest: {h.best_chunk or 'file header'}, cos {h.score:.2f})" if h else "")
+            if rel in candidates_map:
+                candidates_map[rel].score = max(candidates_map[rel].score, score)
+                candidates_map[rel].reasons.append(reason)
+            else:
+                candidates_map[rel] = CandidateEvidence(node_id=rel, name=Path(rel).stem, path=rel, kind="File", score=score, reasons=[reason])
 
     def harvest_features(self, prompt: str) -> HarvestedFeatures:
         """Extract deterministic features using regex patterns."""
@@ -404,6 +443,11 @@ class DeterministicContextResolver:
             if c.kind != "File" and c.path and c.path.endswith(".py") and c.name in _abstract_python_defs(self._abs(c.path)):
                 c.score -= ABSTRACT_PENALTY
                 c.reasons.append("Abstract definition (implementation preferred)")
+
+        # 4.7 Embedding retriever (optional, off by default): when the prompt names no files, put the
+        #     files whose code is closest in meaning first. Explicit paths keep precedence.
+        if self.embedding_index is not None and not explicit_target_files and not features.explicit_paths:
+            self._apply_embeddings(prompt, candidates_map)
 
         # 5. Filter by minimum relevance threshold and sort
         valid_candidates = [c for c in candidates_map.values() if c.score >= 5.0]

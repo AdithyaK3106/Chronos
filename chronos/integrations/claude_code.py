@@ -699,8 +699,30 @@ def run_background_index(root: Path) -> None:
         marker.touch()
         os.utime(marker, (started, started))
         print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} indexed {root}: {len(nodes)} symbols in {time.time() - started:.0f}s", flush=True)
+        _update_embeddings(root)
     finally:
         _index_lock(root).unlink(missing_ok=True)
+
+
+def _update_embeddings(root: Path) -> None:
+    """Embed new/changed files when `retrieval.embeddings.enabled` (incremental; logs and continues on error)."""
+    try:
+        from chronos.context.embeddings import index_from_config
+        from chronos.core.config import ChronosConfig
+        from chronos.core.db import get_connection
+
+        cfg = ChronosConfig.load(root).retrieval.embeddings
+        if not cfg.enabled:
+            return
+        t0 = time.time()
+        con = get_connection(root / ".chronos" / "chronos.db")
+        try:
+            stats = index_from_config(con, root, cfg).update()
+        finally:
+            con.close()
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} embeddings ({cfg.model}) {root}: {stats} in {time.time() - t0:.0f}s", flush=True)
+    except Exception as exc:  # noqa: BLE001 - the lexical index is already saved
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} embeddings failed for {root}: {type(exc).__name__}: {exc}", flush=True)
 
 
 def ensure_index_fresh(root: Path, con: Any) -> dict[str, Any]:

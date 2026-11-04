@@ -97,6 +97,23 @@ class SLMConfig(BaseModel):
     )
 
 
+class EmbeddingsConfig(BaseModel):
+    """Optional meaning-based retriever (chronos/context/embeddings.py). Off by default."""
+
+    enabled: bool = False
+    model: str = "issue-loc-embed"
+    endpoint: str = "http://127.0.0.1:11434"
+    # "embeddings": the embedding ranking leads (best in artifacts/embed_eval_*: 17/30 top-3 on
+    # held-out vs 13/30 for RRF). "rrf": reciprocal rank fusion with the lexical ranking.
+    mode: Literal["embeddings", "rrf"] = "embeddings"
+    top_files: int = Field(default=5, ge=1, le=20)
+    timeout_seconds: float = Field(default=10.0, gt=0)
+
+
+class RetrievalConfig(BaseModel):
+    embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
+
+
 class ChronosConfig(BaseModel):
     repo_path: str = "."
     db_path: str = ".chronos/chronos.db"
@@ -109,6 +126,7 @@ class ChronosConfig(BaseModel):
     auth_mode: str = "strict"      # 'strict' or 'permissive'
     context_token_budget: int = 4000
     slm: SLMConfig = Field(default_factory=SLMConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
 
     def audit_log_file(self, root: str | Path | None = None) -> Path:

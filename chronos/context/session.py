@@ -43,11 +43,25 @@ class ChronosSessionBootstrap:
         self.repo_path = Path(repo_path).resolve()
         self.con = con
         self.graph_store = SQLiteGraphStore(con)
+        emb_cfg = None
+        emb_index = None
+        try:
+            from chronos.core.config import ChronosConfig
+
+            emb_cfg = ChronosConfig.load(self.repo_path).retrieval.embeddings
+            if emb_cfg.enabled:
+                from chronos.context.embeddings import index_from_config
+
+                emb_index = index_from_config(con, self.repo_path, emb_cfg)
+        except Exception:  # noqa: BLE001 - retrieval without embeddings still works
+            emb_index = None
         self.resolver = DeterministicContextResolver(
             repo_root=self.repo_path,
             graph_store=self.graph_store,
             enable_slm=enable_slm,
             slm_config=slm_config,
+            embedding_index=emb_index,
+            embedding_config=emb_cfg,
         )
         self.memory_store = ChronosMemoryStore(con=self.con)
 

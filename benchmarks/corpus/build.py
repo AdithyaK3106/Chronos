@@ -81,62 +81,9 @@ def changed_old_lines(patch: str) -> dict[str, set[int]]:
 
 
 # ----------------------------------------------------------------------------- gold symbols (any language)
-_DEF_TYPES = {
-    "python": {"function_definition": "name", "class_definition": "name"},
-    "javascript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "generator_function_declaration": "name",
-                   "function_expression": "name", "function": "name", "class": "name"},
-    "typescript": {"function_declaration": "name", "method_definition": "name", "class_declaration": "name", "interface_declaration": "name", "abstract_class_declaration": "name",
-                   "function_expression": "name", "function": "name"},
-    "go": {"function_declaration": "name", "method_declaration": "name", "type_spec": "name"},
-}
-
-
-def _spans(src: bytes, lang: str, ext: str) -> list[tuple[int, int, str]]:
-    from chronos.context.indexer import get_tree_sitter_parser
-
-    key = "tsx" if ext == ".tsx" else lang
-    parser = get_tree_sitter_parser(key)
-    if parser is None:
-        return []
-    tree = parser.parse(src)
-    types = _DEF_TYPES[lang]
-    spans: list[tuple[int, int, str]] = []
-
-    def name_of(node) -> str | None:
-        n = node.child_by_field_name(types[node.type])
-        if n is not None:
-            return src[n.start_byte:n.end_byte].decode("utf-8", "replace")
-        return None
-
-    def walk(node, prefix: str) -> None:
-        for ch in node.children:
-            nm = name_of(ch) if ch.type in types else None
-            # `const f = (...) => {}` / `const f = function () {}`
-            if nm is None and ch.type in ("lexical_declaration", "variable_declaration") and lang in ("javascript", "typescript"):
-                for d in ch.children:
-                    if d.type == "variable_declarator":
-                        val = d.child_by_field_name("value")
-                        if val is not None and val.type in ("arrow_function", "function_expression", "function"):
-                            n = d.child_by_field_name("name")
-                            if n is not None:
-                                q = prefix + src[n.start_byte:n.end_byte].decode()
-                                spans.append((ch.start_point[0] + 1, ch.end_point[0] + 1, q))
-                                walk(val, q + ".")
-                continue
-            if nm is not None:
-                if ch.type == "method_declaration" and lang == "go":
-                    recv = ch.child_by_field_name("receiver")
-                    rt = re.findall(r"\*?(\w+)\s*\)?$", src[recv.start_byte:recv.end_byte].decode()) if recv is not None else []
-                    q = f"{rt[0]}.{nm}" if rt else nm
-                else:
-                    q = prefix + nm
-                spans.append((ch.start_point[0] + 1, ch.end_point[0] + 1, q))
-                walk(ch, q + ".")
-            else:
-                walk(ch, prefix)
-
-    walk(tree.root_node, "")
-    return spans
+# The chunker lives in the product now (the embedding retriever uses it); kept under the old names.
+from chronos.context.embeddings import DEF_TYPES as _DEF_TYPES  # noqa: E402
+from chronos.context.embeddings import code_spans as _spans  # noqa: E402,F401
 
 
 def gold_symbols(root: Path, changed: dict[str, set[int]]) -> list[str]:

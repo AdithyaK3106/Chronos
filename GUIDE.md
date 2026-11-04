@@ -337,6 +337,33 @@ chronos memory stats
 
 ---
 
+### Recipe 4b: Optional embedding retriever (vague prompts)
+
+When a prompt names no files or functions ("customers never get their receipt"), keyword search often
+misses. An optional embedding model finds code by meaning. It is off by default and runs locally
+through Ollama:
+
+```bash
+ollama pull <an embedding model; we evaluated issue-loc-embed and coderankembed>
+```
+
+```json
+// .chronos/config.json
+{"retrieval": {"embeddings": {"enabled": true, "model": "issue-loc-embed",
+                              "endpoint": "http://127.0.0.1:11434"}}}
+```
+
+Then `chronos sync` (or the Claude Code hook's background index) embeds each function, class and
+method once, stores the vectors in `.chronos/chronos.db`, and afterwards re-embeds only files that
+changed. When a prompt names no files, the closest files go first in the injected context. If Ollama
+is down, Chronos falls back to keyword search.
+
+Measured on public repositories with vague prompts (file to change in the top 3): issue-loc-embed
+17/30 vs keyword search 5/30 on held-out tasks, and 13/20 vs 8/20 on the first 20
+(`artifacts/embed_eval_heldout_2026-11-05.json`, `artifacts/embed_eval_2026-11-04.json`). Indexing
+took about 2-2.5 minutes per repository on CPU; a query takes about 50-90 ms. `"mode": "rrf"` fuses
+embedding and keyword rankings instead; it scored lower in both evaluations (13/30, 11/20).
+
 ### Recipe 5: Opt-In OpenHands CodeScout-1.7B SLM Localization
 
 For monorepos or complex natural-language tasks where keywords do not match filenames, toggle the CodeScout-1.7B neural localization engine:

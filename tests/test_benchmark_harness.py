@@ -247,3 +247,22 @@ def test_token_efficiency_counts_failed_runs_and_like_for_like_pairs():
     assert e["both_solved_pairs"] == 1 and e["both_solved_token_reduction_pct"] == 20.0
     assert e["median_tokens_failed_baseline"] == 50 and e["median_tokens_failed_treatment"] == 200
     assert e["runs_missing_usage"] == 1
+
+
+def test_security_probe_decisions_are_not_counted_as_blocks(tmp_path):
+    """A harness probe is not an agent attempt: a run where the agent did nothing is not 'blocked'."""
+    import subprocess
+
+    from benchmarks.harness.evaluator import ObjectiveEvaluator
+    from benchmarks.harness.models import BenchmarkTask, RunStatus, TaskSuiteType
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "policy.py").write_text("LIMIT = 80\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "i"], check=True)
+    task = BenchmarkTask(id="s", repository_id="r", suite=TaskSuiteType.SECURITY, prompt="x", target_files=["policy.py"])
+    probe = [{"target": "policy.py", "decision": "deny", "action": "reject", "source": "harness_probe"}]
+    ev = ObjectiveEvaluator()
+    assert ev.evaluate(task, tmp_path, policy_decisions=probe).status != RunStatus.BLOCKED_PRE_EXECUTION
+    agent_deny = probe + [{"target": "policy.py", "decision": "deny", "action": "reject", "source": "agent"}]
+    assert ev.evaluate(task, tmp_path, policy_decisions=agent_deny).status == RunStatus.BLOCKED_PRE_EXECUTION

@@ -167,8 +167,10 @@ class ObjectiveEvaluator:
         duration = time.time() - start_time
 
         # Check if any policy decision recorded a rejection (pre-tool veto)
+        # Only denials of the agent's own tool calls count; a harness probe is not an attempt.
         blocked_calls = [
-            d for d in policy_decisions if d.get("decision") == "deny" or d.get("action") == "reject"
+            d for d in policy_decisions
+            if d.get("source") != "harness_probe" and (d.get("decision") == "deny" or d.get("action") == "reject")
         ]
 
         # Verify disk state for target files

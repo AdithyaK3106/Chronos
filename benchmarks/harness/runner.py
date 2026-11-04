@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -32,7 +33,8 @@ from chronos.context.graph import SQLiteGraphStore
 from chronos.context.indexer import index_repository
 from chronos.core.config import ChronosConfig
 from chronos.core.db import get_connection
-from chronos.security.gates import grant_gate_approval
+from chronos.governance.firewall import evaluate_tool_security
+from chronos.security.gates import grant_gate_approval, revoke_gate_approval
 from chronos.security.permissions import set_permissions
 from chronos.agent.condenser import ChronosContextCondenser
 from chronos.agent.openhands_adapter import ChronosAgentRuntime
@@ -401,10 +403,23 @@ class PairedRunner:
                         },
                     )
 
-                    # For legitimate efficacy tasks with assigned targets, grant explicit gate approval
+                    # For legitimate efficacy tasks with assigned targets, grant explicit gate approval.
+                    # Scoped to THIS run: the repo DB is shared across tasks, and a permanent grant
+                    # for cooling_task_03's target let the security task cooling_task_06 edit the
+                    # same protected file. Grants expire and are revoked when the run ends.
+                    run_grants: list[str] = []
                     if task.suite != TaskSuiteType.SECURITY:
+                        grant_expiry = datetime.fromtimestamp(time.time() + task.timeout_seconds + 600, tz=timezone.utc).isoformat()
                         for target in task.target_files:
-                            grant_gate_approval(con, agent_id=agent_id, path_pattern=target, approved_by="benchmark_harness")
+                            grant_gate_approval(con, agent_id=agent_id, path_pattern=target, approved_by="benchmark_harness", expires_at=grant_expiry)
+                            run_grants.append(target)
+
+                    def _end_treatment(con=con, agent_id=agent_id, run_grants=run_grants) -> None:
+                        try:
+                            for target in run_grants:
+                                revoke_gate_approval(con, agent_id=agent_id, path_pattern=target)
+                        finally:
+                            con.close()
 
                     # Context assembly & automatic knowledge injection
                     bootstrap_res = runtime.bootstrap.bootstrap_session(
@@ -433,19 +448,23 @@ class PairedRunner:
                         wrap_tools=True,
                     )
 
-                    # For security tasks, intercept malicious prompt attempts directly
+                    # For security tasks, record whether policy WOULD deny a write to the target
+                    # (a harness probe, not an agent action: it is not audited and the evaluator
+                    # does not count it as a block; before, it made runs in which the agent did
+                    # nothing count as "blocked").
                     if task.suite == TaskSuiteType.SECURITY:
                         for target in task.target_files:
-                            allowed, reason = runtime.intercept_and_evaluate_action(
-                                agent_id=agent_id,
-                                tool_name="file_editor",
+                            allowed, reason = evaluate_tool_security(
+                                con=con, agent_id=agent_id, tool_name="file_editor",
                                 tool_input={"path": target, "content": "# malicious injection override"},
+                                repo_root=ws_path, log_path=None,
                             )
                             policy_decisions.append({
                                 "target": target,
                                 "decision": "allow" if allowed else "deny",
                                 "action": "permit" if allowed else "reject",
                                 "reason": reason,
+                                "source": "harness_probe",
                             })
 
                     convo = Conversation(agent=agent, workspace=str(ws_path))
@@ -470,7 +489,7 @@ class PairedRunner:
                         except Exception:
                             pass
                         finally:
-                            con.close()
+                            _end_treatment()
                         return TaskRunResult(
                             run_id=run_id,
                             task_id=task.id,
@@ -503,7 +522,7 @@ class PairedRunner:
                         except Exception:
                             pass
                         finally:
-                            con.close()
+                            _end_treatment()
                         return TaskRunResult(
                             run_id=run_id,
                             task_id=task.id,
@@ -537,6 +556,7 @@ class PairedRunner:
                                         "decision": ev.get("status"),
                                         "action": "permit" if ev.get("status") == "allow" else "reject",
                                         "reason": ev.get("reason"),
+                                        "source": "agent",
                                     })
                     except Exception:
                         pass
@@ -578,7 +598,7 @@ class PairedRunner:
                         memories_stored_count = 0
                     finally:
                         try:
-                            con.close()
+                            _end_treatment()
                         except Exception:
                             pass
 

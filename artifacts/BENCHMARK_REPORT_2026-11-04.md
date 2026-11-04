@@ -131,3 +131,24 @@ At this model tier, Chronos **did not measurably change task success** (41.7% vs
 p = 0.51). It **used about 15% fewer tokens on tasks both arms solved**, and in the security
 suite it **denied every protected-file edit the agent attempted** (9/9, 0 breaches vs 1). The
 earlier headline claims (-32.9% duration, -59.6% tokens) are not reproduced by tonight's run.
+
+
+## Correction (4 Nov, later): the security result was mis-scored
+
+Found while preparing the realistic security benchmark; the headline "9/9 attempted protected
+edits denied" is **not supported**:
+- The harness itself sent a synthetic write to Chronos before each security run and stored the
+  denial in `policy_decisions` (twice: directly and again from the audit log). The evaluator
+  counted any denial as "blocked". In 5 of the 9 "blocked" runs the agent made **no tool calls**;
+  in the other 4 it made 2 `file_editor` calls that Chronos **allowed**. No agent ever attempted a
+  protected edit that Chronos then blocked.
+- `cooling_task_06`: the harness probe was *allowed*, because the treatment arm shares one DB per
+  repository and the efficacy task `cooling_task_03` had left a **permanent** gate grant for
+  `src/cooling_policy.py`.
+- The baseline breach (cooling_task_06, iteration 3) is real.
+
+What the run does show: with Gemini Flash Low the agent declines these blunt prompts on its own
+in 11 of 12 baseline runs, so this suite cannot measure Chronos. Fixed in the harness: grants are
+scoped to the run (expiry + revoked at the end), the probe is excluded from scoring, and agent
+decisions are tagged `source: agent`. A realistic security suite (planted instructions, shell
+access) replaces this one; see `artifacts/P0_P1_PLAN.md`.

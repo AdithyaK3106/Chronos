@@ -1,0 +1,1710 @@
+{
+  "prompt": "vague",
+  "summary": {
+    "issue-loc-embed": {
+      "n": 30,
+      "file_top1": 11,
+      "file_top3": 17,
+      "file_top5": 20,
+      "func_top10": "19/30",
+      "median_query_ms": 53.5,
+      "median_index_s": 148.75
+    },
+    "issue-loc-embed+bm25": {
+      "n": 30,
+      "file_top1": 4,
+      "file_top3": 13,
+      "file_top5": 17,
+      "func_top10": "19/30",
+      "median_query_ms": null,
+      "median_index_s": null
+    },
+    "bm25 (Chronos today)": {
+      "n": 30,
+      "file_top1": 2,
+      "file_top3": 5,
+      "file_top5": 6,
+      "func_top10": "-",
+      "median_query_ms": null,
+      "median_index_s": null
+    }
+  },
+  "rows": [
+    {
+      "instance_id": "psf__requests-2317",
+      "language": "python",
+      "gold_files": [
+        "requests/sessions.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 7,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "requests/packages/urllib3/request.py",
+            "requests/models.py",
+            "requests/utils.py",
+            "requests/packages/urllib3/response.py",
+            "requests/packages/urllib3/packages/six.py"
+          ],
+          "index_s": 80.5,
+          "query_ms": 293,
+          "chunks": 719
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "requests/adapters.py",
+            "requests/packages/urllib3/poolmanager.py",
+            "requests/packages/urllib3/request.py",
+            "test_requests.py",
+            "requests/models.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "test_requests.py",
+            "requests/adapters.py",
+            "requests/packages/urllib3/poolmanager.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "psf__requests-2674",
+      "language": "python",
+      "gold_files": [
+        "requests/adapters.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "requests/packages/urllib3/connectionpool.py",
+            "requests/packages/urllib3/exceptions.py",
+            "requests/packages/urllib3/util/timeout.py",
+            "requests/packages/urllib3/util/retry.py",
+            "requests/exceptions.py"
+          ],
+          "index_s": 74.9,
+          "query_ms": 68,
+          "chunks": 762
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "requests/packages/urllib3/exceptions.py",
+            "requests/exceptions.py",
+            "requests/packages/urllib3/util/timeout.py",
+            "requests/packages/urllib3/connectionpool.py",
+            "requests/packages/urllib3/util/retry.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "requests/exceptions.py",
+            "requests/packages/urllib3/exceptions.py",
+            "requests/packages/urllib3/util/timeout.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "psf__requests-3362",
+      "language": "python",
+      "gold_files": [
+        "requests/utils.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "requests/models.py",
+            "requests/utils.py",
+            "requests/packages/urllib3/response.py",
+            "requests/compat.py",
+            "requests/packages/urllib3/connection.py"
+          ],
+          "index_s": 72.6,
+          "query_ms": 41,
+          "chunks": 826
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "requests/models.py",
+            "requests/packages/urllib3/response.py",
+            "requests/utils.py",
+            "tests/compat.py",
+            "requests/compat.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "requests/models.py",
+            "requests/packages/urllib3/response.py",
+            "tests/compat.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pallets__flask-4992",
+      "language": "python",
+      "gold_files": [
+        "src/flask/config.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/flask/config.py",
+            "src/flask/json/__init__.py",
+            "src/flask/app.py",
+            "src/flask/cli.py",
+            "src/flask/scaffold.py"
+          ],
+          "index_s": 38.9,
+          "query_ms": 41,
+          "chunks": 432
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/flask/config.py",
+            "src/flask/app.py",
+            "src/flask/json/__init__.py",
+            "src/flask/json/provider.py",
+            "src/flask/cli.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "src/flask/app.py",
+            "src/flask/config.py",
+            "src/flask/json/__init__.py",
+            "src/flask/json/provider.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pallets__flask-5063",
+      "language": "python",
+      "gold_files": [
+        "src/flask/cli.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/flask/cli.py",
+            "src/flask/testing.py",
+            "src/flask/app.py",
+            "src/flask/wrappers.py",
+            "src/flask/scaffold.py"
+          ],
+          "index_s": 40.4,
+          "query_ms": 88,
+          "chunks": 427
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/flask/app.py",
+            "src/flask/scaffold.py",
+            "src/flask/cli.py",
+            "tests/test_basic.py",
+            "src/flask/testing.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "tests/test_basic.py",
+            "tests/test_reqctx.py",
+            "src/flask/scaffold.py",
+            "src/flask/app.py",
+            "tests/test_config.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5413",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/_code/code.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/_code/code.py",
+            "src/_pytest/python_api.py",
+            "src/_pytest/_io/saferepr.py",
+            "src/_pytest/config/__init__.py",
+            "src/_pytest/unittest.py"
+          ],
+          "index_s": 144.3,
+          "query_ms": 252,
+          "chunks": 1603
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 4,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/nodes.py",
+            "src/_pytest/terminal.py",
+            "src/_pytest/reports.py",
+            "src/_pytest/_code/code.py",
+            "src/_pytest/monkeypatch.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "src/_pytest/monkeypatch.py",
+            "src/_pytest/nodes.py",
+            "src/_pytest/reports.py",
+            "src/_pytest/terminal.py",
+            "testing/code/test_excinfo.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-6116",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/main.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/main.py",
+            "src/_pytest/doctest.py",
+            "src/_pytest/pytester.py",
+            "src/_pytest/python.py",
+            "src/_pytest/terminal.py"
+          ],
+          "index_s": 153.2,
+          "query_ms": 140,
+          "chunks": 1657
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/doctest.py",
+            "src/_pytest/terminal.py",
+            "src/_pytest/main.py",
+            "testing/python/collect.py",
+            "src/_pytest/pytester.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "testing/python/collect.py",
+            "src/_pytest/terminal.py",
+            "testing/conftest.py",
+            "doc/en/example/nonpython/conftest.py",
+            "src/_pytest/doctest.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-7373",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/mark/evaluate.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/skipping.py",
+            "src/_pytest/mark/evaluate.py",
+            "src/_pytest/outcomes.py",
+            "src/_pytest/mark/expression.py",
+            "src/_pytest/unittest.py"
+          ],
+          "index_s": 160.7,
+          "query_ms": 103,
+          "chunks": 1796
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 4,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/outcomes.py",
+            "src/_pytest/mark/expression.py",
+            "src/_pytest/skipping.py",
+            "src/_pytest/mark/evaluate.py",
+            "testing/test_mark_expression.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "src/_pytest/outcomes.py",
+            "src/_pytest/mark/expression.py",
+            "testing/test_mark_expression.py",
+            "src/_pytest/monkeypatch.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-8365",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/tmpdir.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/tmpdir.py",
+            "src/_pytest/main.py",
+            "src/_pytest/cacheprovider.py",
+            "src/_pytest/pytester.py",
+            "src/_pytest/pathlib.py"
+          ],
+          "index_s": 161.7,
+          "query_ms": 108,
+          "chunks": 1887
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/_pytest/main.py",
+            "src/_pytest/tmpdir.py",
+            "src/_pytest/pytester.py",
+            "src/_pytest/cacheprovider.py",
+            "src/_pytest/config/argparsing.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 4,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "src/_pytest/pytester.py",
+            "src/_pytest/main.py",
+            "src/_pytest/config/argparsing.py",
+            "src/_pytest/tmpdir.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7114",
+      "language": "python",
+      "gold_files": [
+        "pylint/lint/expand_modules.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 7,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "pylint/testutils/_primer/package_to_lint.py",
+            "pylint/testutils/_primer/primer_run_command.py",
+            "pylint/epylint.py",
+            "pylint/lint/pylinter.py",
+            "pylint/lint/utils.py"
+          ],
+          "index_s": 214.7,
+          "query_ms": 45,
+          "chunks": 2255
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 11,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "pylint/epylint.py",
+            "pylint/testutils/_primer/package_to_lint.py",
+            "pylint/testutils/_primer/primer_run_command.py",
+            "tests/functional/d/docstrings.py",
+            "tests/functional/ext/redefined_loop_name/redefined_loop_name.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "pylint/epylint.py",
+            "tests/functional/d/docstrings.py",
+            "tests/functional/ext/redefined_loop_name/redefined_loop_name.py",
+            "tests/functional/m/missing/missing_function_docstring.py",
+            "tests/functional/n/nonlocal_without_binding.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7228",
+      "language": "python",
+      "gold_files": [
+        "pylint/config/argument.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "pylint/checkers/unicode.py",
+            "pylint/config/_pylint_config/utils.py",
+            "pylint/config/config_file_parser.py",
+            "pylint/checkers/strings.py",
+            "pylint/checkers/utils.py"
+          ],
+          "index_s": 205.7,
+          "query_ms": 157,
+          "chunks": 2254
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "pylint/checkers/unicode.py",
+            "pylint/config/_pylint_config/utils.py",
+            "pylint/config/config_file_parser.py",
+            "pylint/checkers/strings.py",
+            "pylint/checkers/utils.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "pylint/checkers/unicode.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3010",
+      "language": "python",
+      "gold_files": [
+        "seaborn/_stats/regression.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "seaborn/_stats/regression.py",
+            "seaborn/regression.py",
+            "seaborn/utils.py",
+            "seaborn/_oldcore.py",
+            "seaborn/categorical.py"
+          ],
+          "index_s": 100.8,
+          "query_ms": 148,
+          "chunks": 960
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "seaborn/_core/plot.py",
+            "seaborn/_core/data.py",
+            "seaborn/_stats/regression.py",
+            "seaborn/regression.py",
+            "seaborn/utils.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "seaborn/_core/plot.py",
+            "seaborn/_core/data.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3190",
+      "language": "python",
+      "gold_files": [
+        "seaborn/_core/scales.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "seaborn/_core/properties.py",
+            "seaborn/_core/scales.py",
+            "seaborn/_core/plot.py",
+            "seaborn/_compat.py",
+            "seaborn/_oldcore.py"
+          ],
+          "index_s": 109.1,
+          "query_ms": 91,
+          "chunks": 997
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 4,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "seaborn/_core/plot.py",
+            "seaborn/palettes.py",
+            "seaborn/_core/properties.py",
+            "seaborn/_core/scales.py",
+            "tests/_marks/test_bar.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "seaborn/palettes.py",
+            "tests/_marks/test_bar.py",
+            "seaborn/_core/plot.py",
+            "doc/sphinxext/gallery_generator.py",
+            "doc/sphinxext/tutorial_builder.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "pydata__xarray-4248",
+      "language": "python",
+      "gold_files": [
+        "xarray/core/formatting.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "xarray/core/dataset.py",
+            "xarray/core/formatting.py",
+            "xarray/core/formatting_html.py",
+            "xarray/core/coordinates.py",
+            "xarray/plot/utils.py"
+          ],
+          "index_s": 186.2,
+          "query_ms": 45,
+          "chunks": 2062
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "xarray/core/dataset.py",
+            "xarray/core/variable.py",
+            "xarray/core/formatting.py",
+            "xarray/core/formatting_html.py",
+            "xarray/core/coordinates.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "xarray/core/dataset.py",
+            "xarray/core/variable.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "django__django-13768",
+      "language": "python",
+      "gold_files": [
+        "django/dispatch/dispatcher.py"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "django/dispatch/dispatcher.py",
+            "django/core/signals.py",
+            "django/core/checks/model_checks.py",
+            "django/db/models/signals.py",
+            "django/core/handlers/exception.py"
+          ],
+          "index_s": 823.5,
+          "query_ms": 79,
+          "chunks": 10527
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "django/dispatch/dispatcher.py",
+            "django/core/signals.py",
+            "tests/settings_tests/tests.py",
+            "django/core/checks/model_checks.py",
+            "tests/signals/tests.py"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "django/dispatch/dispatcher.py",
+            "tests/settings_tests/tests.py",
+            "tests/signals/tests.py",
+            "tests/migrate_signals/tests.py"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-3454",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/props.js"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/diff/props.js",
+            "compat/src/render.js",
+            "demo/preact.js",
+            "demo/people/router.tsx",
+            "src/diff/index.js"
+          ],
+          "index_s": 36.4,
+          "query_ms": 98,
+          "chunks": 424
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "src/clone-element.js",
+            "src/diff/props.js",
+            "test/fixtures/preact.js",
+            "compat/src/render.js",
+            "src/jsx.d.ts"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "test/fixtures/preact.js",
+            "src/jsx.d.ts",
+            "test/ts/jsx-namespacce-test.tsx",
+            "test/_util/helpers.js",
+            "src/clone-element.js"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-3739",
+      "language": "javascript",
+      "gold_files": [
+        "hooks/src/index.js"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 5,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "src/component.js",
+            "demo/reduxUpdate.js",
+            "demo/context.js",
+            "demo/preact.js",
+            "hooks/src/index.js"
+          ],
+          "index_s": 37.4,
+          "query_ms": 80,
+          "chunks": 447
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "src/component.js",
+            "compat/test/browser/component.test.js",
+            "demo/reduxUpdate.js",
+            "compat/test/browser/suspense.test.js",
+            "demo/context.js"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "compat/test/browser/component.test.js",
+            "compat/test/browser/suspense.test.js",
+            "test/benchmarks/performance.test.js",
+            "test/browser/components.test.js"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-4182",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/index.js"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "demo/list.jsx",
+            "demo/stateOrderBug.jsx",
+            "demo/nested-suspense/index.jsx",
+            "hooks/src/index.js",
+            "src/diff/catch-error.js"
+          ],
+          "index_s": 38.9,
+          "query_ms": 40,
+          "chunks": 465
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "demo/reorder.jsx",
+            "demo/list.jsx",
+            "compat/test/browser/suspense.test.js",
+            "demo/stateOrderBug.jsx",
+            "debug/test/browser/component-stack-2.test.js"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "compat/test/browser/suspense.test.js",
+            "debug/test/browser/component-stack-2.test.js",
+            "debug/test/browser/component-stack.test.js",
+            "demo/reorder.jsx",
+            "test/browser/createContext.test.js"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-5085",
+      "language": "typescript",
+      "gold_files": [
+        "index.d.ts",
+        "lib/core/AxiosHeaders.js"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "lib/helpers/parseHeaders.js",
+            "lib/core/AxiosHeaders.js",
+            "lib/core/Axios.js",
+            "lib/helpers/cookies.js",
+            "lib/adapters/http.js"
+          ],
+          "index_s": 21.1,
+          "query_ms": 40,
+          "chunks": 255
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 4,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "lib/core/Axios.js",
+            "lib/helpers/parseHeaders.js",
+            "test/typescript/axios.ts",
+            "lib/core/AxiosHeaders.js",
+            "index.d.ts"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "test/typescript/axios.ts",
+            "index.d.ts",
+            "lib/core/Axios.js",
+            "lib/helpers/combineURLs.js",
+            "lib/core/buildFullPath.js"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-5892",
+      "language": "javascript",
+      "gold_files": [
+        "lib/adapters/http.js"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "lib/adapters/http.js",
+            "lib/core/AxiosHeaders.js",
+            "lib/core/Axios.js",
+            "lib/core/transformData.js",
+            "lib/adapters/xhr.js"
+          ],
+          "index_s": 26.2,
+          "query_ms": 50,
+          "chunks": 309
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "lib/core/Axios.js",
+            "lib/core/AxiosHeaders.js",
+            "lib/adapters/http.js",
+            "index.d.ts",
+            "examples/server.js"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "index.d.ts",
+            "lib/core/Axios.js",
+            "examples/server.js",
+            "lib/utils.js",
+            "lib/core/AxiosHeaders.js"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11870",
+      "language": "typescript",
+      "gold_files": [
+        "packages/runtime-core/src/helpers/renderList.ts"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 6,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "packages/reactivity/src/arrayInstrumentations.ts",
+            "packages/reactivity/__benchmarks__/reactiveArray.bench.ts",
+            "packages/reactivity/src/reactive.ts",
+            "packages/reactivity/src/watch.ts",
+            "packages/reactivity/src/baseHandlers.ts"
+          ],
+          "index_s": 188.8,
+          "query_ms": 44,
+          "chunks": 2023
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 6,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "packages/reactivity/src/reactive.ts",
+            "packages/reactivity/src/arrayInstrumentations.ts",
+            "packages/reactivity/__benchmarks__/reactiveArray.bench.ts",
+            "packages/reactivity/src/watch.ts",
+            "packages/reactivity/src/baseHandlers.ts"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "packages/reactivity/src/reactive.ts"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11899",
+      "language": "typescript",
+      "gold_files": [
+        "packages/compiler-sfc/src/style/pluginScoped.ts"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "packages/compiler-sfc/src/style/pluginScoped.ts",
+            "packages/runtime-dom/src/modules/style.ts",
+            "packages/compiler-dom/src/transforms/transformStyle.ts",
+            "packages/runtime-dom/src/helpers/useCssVars.ts",
+            "packages-private/template-explorer/src/theme.ts"
+          ],
+          "index_s": 181.7,
+          "query_ms": 51,
+          "chunks": 2023
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "packages/compiler-sfc/src/style/pluginScoped.ts",
+            "packages/runtime-dom/src/jsx.ts",
+            "packages/compiler-core/src/transforms/vSlot.ts",
+            "packages/runtime-dom/src/modules/style.ts",
+            "packages/compiler-sfc/src/script/definePropsDestructure.ts"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "packages/compiler-sfc/src/style/pluginScoped.ts",
+            "packages/compiler-sfc/src/script/definePropsDestructure.ts",
+            "packages/reactivity/src/arrayInstrumentations.ts",
+            "packages/runtime-dom/src/jsx.ts",
+            "packages/compiler-core/src/transforms/vSlot.ts"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11915",
+      "language": "typescript",
+      "gold_files": [
+        "packages/compiler-core/src/tokenizer.ts"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "packages/compiler-core/src/ast.ts",
+            "packages/vue/src/index.ts",
+            "packages/vue-compat/src/index.ts",
+            "packages/compiler-dom/src/transforms/vModel.ts",
+            "packages/compiler-dom/src/transforms/stringifyStatic.ts"
+          ],
+          "index_s": 188.0,
+          "query_ms": 100,
+          "chunks": 2023
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "packages/compiler-core/src/ast.ts",
+            "packages/vue-compat/__tests__/filters.spec.ts",
+            "packages/vue/src/index.ts",
+            "packages/vue/__tests__/e2e/e2eUtils.ts",
+            "packages/vue-compat/src/index.ts"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "packages/vue-compat/__tests__/filters.spec.ts",
+            "packages/vue/__tests__/e2e/e2eUtils.ts",
+            "packages/vue/jsx.d.ts",
+            "packages/vue/jsx-runtime/index.d.ts",
+            "packages/reactivity/src/reactive.ts"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-6051",
+      "language": "go",
+      "gold_files": [
+        "caddyconfig/caddyfile/lexer.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "caddyconfig/caddyfile/lexer.go",
+            "caddyconfig/caddyfile/formatter.go",
+            "caddyconfig/caddyfile/parse.go",
+            "caddyconfig/httpcaddyfile/builtins.go",
+            "caddyconfig/caddyfile/adapter.go"
+          ],
+          "index_s": 197.4,
+          "query_ms": 42,
+          "chunks": 2192
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 1,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "caddyconfig/caddyfile/lexer.go",
+            "caddyconfig/caddyfile/dispenser.go",
+            "modules/caddyhttp/matchers.go",
+            "caddyconfig/caddyfile/formatter.go",
+            "caddyconfig/caddyfile/parse.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "modules/caddyhttp/matchers.go",
+            "caddyconfig/caddyfile/lexer.go",
+            "listen.go",
+            "caddyconfig/caddyfile/dispenser.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-6345",
+      "language": "go",
+      "gold_files": [
+        "modules/caddypki/acmeserver/caddyfile.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "modules/caddytls/internalissuer.go",
+            "modules/caddypki/ca.go",
+            "caddyconfig/httpcaddyfile/options.go",
+            "modules/caddypki/certificates.go",
+            "caddy.go"
+          ],
+          "index_s": 212.7,
+          "query_ms": 41,
+          "chunks": 2372
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "modules/caddypki/ca.go",
+            "caddyconfig/httpcaddyfile/tlsapp.go",
+            "modules/caddytls/internalissuer.go",
+            "internal/filesystems/map.go",
+            "caddyconfig/httpcaddyfile/options.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "internal/filesystems/map.go",
+            "modules/caddypki/ca.go",
+            "caddyconfig/httpcaddyfile/tlsapp.go",
+            "modules/caddyhttp/fileserver/caddyfile.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-3227",
+      "language": "go",
+      "gold_files": [
+        "tree.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 5,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "gin.go",
+            "ginS/gins.go",
+            "path.go",
+            "fs.go",
+            "tree.go"
+          ],
+          "index_s": 32.5,
+          "query_ms": 42,
+          "chunks": 576
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 7,
+          "func_top5": false,
+          "func_top10": true,
+          "files": [
+            "gin.go",
+            "path.go",
+            "render/redirect.go",
+            "context.go",
+            "ginS/gins.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "render/redirect.go",
+            "context.go",
+            "path.go",
+            "gin.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-3820",
+      "language": "go",
+      "gold_files": [
+        "binding/form_mapping.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 6,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "binding/form.go",
+            "binding/binding.go",
+            "binding/binding_nomsgpack.go",
+            "binding/multipart_form_mapping.go",
+            "context.go"
+          ],
+          "index_s": 32.8,
+          "query_ms": 39,
+          "chunks": 580
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 7,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "binding/binding.go",
+            "gin.go",
+            "binding/form.go",
+            "binding/binding_nomsgpack.go",
+            "binding/multipart_form_mapping.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "gin.go",
+            "binding/binding.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "prometheus__prometheus-13845",
+      "language": "go",
+      "gold_files": [
+        "model/labels/labels.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 7,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "storage/remote/codec.go",
+            "web/ui/module/codemirror-promql/src/client/prometheus.ts",
+            "model/labels/labels_dedupelabels.go",
+            "promql/value.go",
+            "model/labels/labels_stringlabels.go"
+          ],
+          "index_s": 491.7,
+          "query_ms": 56,
+          "chunks": 6252
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "storage/remote/codec.go",
+            "tsdb/record/record.go",
+            "web/ui/module/codemirror-promql/src/client/prometheus.ts",
+            "discovery/kubernetes/endpointslice_adaptor.go",
+            "model/labels/labels_dedupelabels.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "tsdb/record/record.go",
+            "discovery/kubernetes/endpointslice_adaptor.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "gohugoio__hugo-12171",
+      "language": "go",
+      "gold_files": [
+        "hugolib/content_map_page.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 2,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "hugolib/page__tree.go",
+            "hugolib/content_map_page.go",
+            "hugolib/pagecollections.go",
+            "hugolib/page__common.go",
+            "hugolib/site.go"
+          ],
+          "index_s": 459.5,
+          "query_ms": 45,
+          "chunks": 5937
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "file_rank": 3,
+          "func_top5": true,
+          "func_top10": true,
+          "files": [
+            "hugolib/page__tree.go",
+            "common/paths/pathparser.go",
+            "hugolib/content_map_page.go",
+            "hugolib/site_sections.go",
+            "hugolib/pagecollections.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "common/paths/pathparser.go",
+            "hugolib/site_sections.go",
+            "hugolib/page__tree.go",
+            "resources/page/page_nop.go",
+            "resources/page/site.go"
+          ]
+        }
+      }
+    },
+    {
+      "instance_id": "gohugoio__hugo-12562",
+      "language": "go",
+      "gold_files": [
+        "hugolib/content_map_page.go"
+      ],
+      "arms": {
+        "issue-loc-embed": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "file_rank": 5,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "hugolib/page__new.go",
+            "hugolib/pagecollections.go",
+            "hugolib/hugo_sites.go",
+            "resources/page/page_paths.go",
+            "hugolib/content_map_page.go"
+          ],
+          "index_s": 457.9,
+          "query_ms": 44,
+          "chunks": 6184
+        },
+        "issue-loc-embed+bm25": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": 9,
+          "func_top5": false,
+          "func_top10": false,
+          "files": [
+            "hugolib/page.go",
+            "hugolib/page__new.go",
+            "helpers/path.go",
+            "hugolib/pagecollections.go",
+            "create/content.go"
+          ]
+        },
+        "bm25 (Chronos today)": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "file_rank": null,
+          "func_top5": null,
+          "func_top10": null,
+          "files": [
+            "helpers/path.go",
+            "create/content.go",
+            "hugolib/page.go",
+            "magefile.go"
+          ]
+        }
+      }
+    }
+  ]
+}

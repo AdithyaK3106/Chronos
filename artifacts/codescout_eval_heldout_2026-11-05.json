@@ -1,0 +1,1007 @@
+{
+  "prompt": "vague",
+  "summary": {
+    "A": {
+      "n": 30,
+      "file_top1": 2,
+      "file_top3": 5,
+      "file_top5": 6,
+      "function": "2/30",
+      "median_s": 0.1,
+      "max_s": 2.1
+    }
+  },
+  "rows": [
+    {
+      "instance_id": "psf__requests-2317",
+      "language": "python",
+      "gold_files": [
+        "requests/sessions.py"
+      ],
+      "gold_symbols": [
+        "Session.request"
+      ],
+      "index_s": 0.8,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "test_requests.py",
+            "requests/adapters.py",
+            "requests/packages/urllib3/poolmanager.py"
+          ],
+          "symbols": [
+            "test_data_argument_accepts_tuples",
+            "HTTPAdapter.proxy_headers",
+            "UtilsTestCase.test_super_len_io_streams",
+            "PoolManager._new_pool",
+            "UtilsTestCase.test_get_environ_proxies"
+          ],
+          "seconds": 2.12
+        }
+      }
+    },
+    {
+      "instance_id": "psf__requests-2674",
+      "language": "python",
+      "gold_files": [
+        "requests/adapters.py"
+      ],
+      "gold_symbols": [
+        "HTTPAdapter.send"
+      ],
+      "index_s": 1.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/exceptions.py",
+            "requests/packages/urllib3/exceptions.py",
+            "requests/packages/urllib3/util/timeout.py"
+          ],
+          "symbols": [
+            "Timeout",
+            "TimeoutError",
+            "Timeout.read_timeout",
+            "Timeout.get_connect_duration",
+            "Timeout.clone"
+          ],
+          "seconds": 0.03
+        }
+      }
+    },
+    {
+      "instance_id": "psf__requests-3362",
+      "language": "python",
+      "gold_files": [
+        "requests/utils.py"
+      ],
+      "gold_symbols": [
+        "stream_decode_response_unicode"
+      ],
+      "index_s": 1.7,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "requests/models.py",
+            "requests/packages/urllib3/response.py",
+            "tests/compat.py"
+          ],
+          "symbols": [
+            "Response.content",
+            "Response.text",
+            "HTTPResponse.read",
+            "Response.json",
+            "u"
+          ],
+          "seconds": 0.06
+        }
+      }
+    },
+    {
+      "instance_id": "pallets__flask-4992",
+      "language": "python",
+      "gold_files": [
+        "src/flask/config.py"
+      ],
+      "gold_symbols": [
+        "Config.from_file"
+      ],
+      "index_s": 0.8,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "src/flask/app.py",
+            "src/flask/config.py",
+            "src/flask/json/__init__.py",
+            "src/flask/json/provider.py"
+          ],
+          "symbols": [
+            "Flask",
+            "Config",
+            "load",
+            "JSONProvider.load",
+            "Config.from_file"
+          ],
+          "seconds": 0.08
+        }
+      }
+    },
+    {
+      "instance_id": "pallets__flask-5063",
+      "language": "python",
+      "gold_files": [
+        "src/flask/cli.py"
+      ],
+      "gold_symbols": [
+        "routes_command"
+      ],
+      "index_s": 0.7,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "tests/test_basic.py",
+            "tests/test_reqctx.py",
+            "src/flask/scaffold.py",
+            "src/flask/app.py",
+            "tests/test_config.py"
+          ],
+          "symbols": [
+            "subdomain",
+            "sub",
+            "Scaffold.route",
+            "Flask",
+            "Flask"
+          ],
+          "seconds": 0.07
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5413",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/_code/code.py"
+      ],
+      "gold_symbols": [
+        "ExceptionInfo.__str__",
+        "ExceptionInfo"
+      ],
+      "index_s": 3.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/_pytest/monkeypatch.py",
+            "src/_pytest/nodes.py",
+            "src/_pytest/reports.py",
+            "src/_pytest/terminal.py",
+            "testing/code/test_excinfo.py"
+          ],
+          "symbols": [
+            "MonkeyPatch.context",
+            "Item.location",
+            "CollectReport.location",
+            "TerminalReporter.line",
+            "TWMock.line"
+          ],
+          "seconds": 0.13
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-6116",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/main.py"
+      ],
+      "gold_symbols": [
+        "pytest_addoption"
+      ],
+      "index_s": 2.6,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "testing/python/collect.py",
+            "src/_pytest/terminal.py",
+            "testing/conftest.py",
+            "doc/en/example/nonpython/conftest.py",
+            "src/_pytest/doctest.py"
+          ],
+          "symbols": [
+            "TestFunction.test_single_tuple_unwraps_values",
+            "TerminalReporter.line",
+            "TWMock.line",
+            "YamlFile.collect",
+            "DoctestModule.collect"
+          ],
+          "seconds": 0.14
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-7373",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/mark/evaluate.py"
+      ],
+      "gold_symbols": [
+        "cached_eval",
+        "MarkEvaluator._istrue"
+      ],
+      "index_s": 3.2,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "src/_pytest/outcomes.py",
+            "src/_pytest/mark/expression.py",
+            "testing/test_mark_expression.py",
+            "src/_pytest/monkeypatch.py"
+          ],
+          "symbols": [
+            "skip",
+            "Expression.evaluate",
+            "evaluate",
+            "expression",
+            "MonkeyPatch.context"
+          ],
+          "seconds": 0.16
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-8365",
+      "language": "python",
+      "gold_files": [
+        "src/_pytest/tmpdir.py"
+      ],
+      "gold_symbols": [
+        "TempPathFactory.getbasetemp"
+      ],
+      "index_s": 3.6,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "src/_pytest/pytester.py",
+            "src/_pytest/main.py",
+            "src/_pytest/config/argparsing.py",
+            "src/_pytest/tmpdir.py"
+          ],
+          "symbols": [
+            "Pytester.path",
+            "resolve_collection_argument",
+            "Argument.names",
+            "TempPathFactory.mktemp",
+            "tmp_path"
+          ],
+          "seconds": 0.14
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7114",
+      "language": "python",
+      "gold_files": [
+        "pylint/lint/expand_modules.py"
+      ],
+      "gold_symbols": [
+        "expand_modules"
+      ],
+      "index_s": 4.7,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pylint/epylint.py",
+            "tests/functional/d/docstrings.py",
+            "tests/functional/ext/redefined_loop_name/redefined_loop_name.py",
+            "tests/functional/m/missing/missing_function_docstring.py",
+            "tests/functional/n/nonlocal_without_binding.py"
+          ],
+          "symbols": [
+            "lint",
+            "inner",
+            "inner",
+            "inner",
+            "inner"
+          ],
+          "seconds": 0.26
+        }
+      }
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7228",
+      "language": "python",
+      "gold_files": [
+        "pylint/config/argument.py"
+      ],
+      "gold_symbols": [
+        "_regexp_csv_transfomer"
+      ],
+      "index_s": 5.1,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "pylint/checkers/unicode.py"
+          ],
+          "symbols": [
+            "UnicodeChecker",
+            "_BadChar.description",
+            "_byte_to_str_length",
+            "UnicodeChecker._is_unicode",
+            "_fix_utf16_32_line_stream"
+          ],
+          "seconds": 0.17
+        }
+      }
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3010",
+      "language": "python",
+      "gold_files": [
+        "seaborn/_stats/regression.py"
+      ],
+      "gold_symbols": [
+        "PolyFit.__call__"
+      ],
+      "index_s": 2.8,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "seaborn/_core/plot.py",
+            "seaborn/_core/data.py"
+          ],
+          "symbols": [
+            "Plot",
+            "PlotData.__contains__",
+            "PlotData",
+            "Plot.show",
+            "PlotData.join"
+          ],
+          "seconds": 0.12
+        }
+      }
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3190",
+      "language": "python",
+      "gold_files": [
+        "seaborn/_core/scales.py"
+      ],
+      "gold_symbols": [
+        "ContinuousBase._setup"
+      ],
+      "index_s": 2.5,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "seaborn/palettes.py",
+            "tests/_marks/test_bar.py",
+            "seaborn/_core/plot.py",
+            "doc/sphinxext/gallery_generator.py",
+            "doc/sphinxext/tutorial_builder.py"
+          ],
+          "symbols": [
+            "color",
+            "TestBars.color",
+            "Plot.scale",
+            "setup",
+            "setup"
+          ],
+          "seconds": 0.11
+        }
+      }
+    },
+    {
+      "instance_id": "pydata__xarray-4248",
+      "language": "python",
+      "gold_files": [
+        "xarray/core/formatting.py"
+      ],
+      "gold_symbols": [
+        "inline_variable_array_repr"
+      ],
+      "index_s": 4.4,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "xarray/core/dataset.py",
+            "xarray/core/variable.py"
+          ],
+          "symbols": [
+            "Dataset",
+            "Dataset.rename_vars",
+            "Dataset.rename",
+            "Dataset.swap_dims",
+            "Variable.to_dict"
+          ],
+          "seconds": 0.16
+        }
+      }
+    },
+    {
+      "instance_id": "django__django-13768",
+      "language": "python",
+      "gold_files": [
+        "django/dispatch/dispatcher.py"
+      ],
+      "gold_symbols": [
+        "Signal.send_robust"
+      ],
+      "index_s": 26.2,
+      "arms": {
+        "A": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "django/dispatch/dispatcher.py",
+            "tests/settings_tests/tests.py",
+            "tests/signals/tests.py",
+            "tests/migrate_signals/tests.py"
+          ],
+          "symbols": [
+            "receiver",
+            "OverrideSettingsIsolationOnExceptionTests.receiver",
+            "LazyModelRefTests.receiver",
+            "Signal",
+            "Receiver"
+          ],
+          "seconds": 0.74
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-3454",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/props.js"
+      ],
+      "gold_symbols": [
+        "setProperty"
+      ],
+      "index_s": 2.1,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "test/fixtures/preact.js",
+            "src/jsx.d.ts",
+            "test/ts/jsx-namespacce-test.tsx",
+            "test/_util/helpers.js",
+            "src/clone-element.js"
+          ],
+          "symbols": [
+            "h",
+            "Element",
+            "Element",
+            "normalizePath",
+            "cloneElement"
+          ],
+          "seconds": 0.03
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-3739",
+      "language": "javascript",
+      "gold_files": [
+        "hooks/src/index.js"
+      ],
+      "gold_symbols": [
+        "useReducer"
+      ],
+      "index_s": 1.1,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "compat/test/browser/component.test.js",
+            "compat/test/browser/suspense.test.js",
+            "test/benchmarks/performance.test.js",
+            "test/browser/components.test.js"
+          ],
+          "symbols": [
+            "Parent.render",
+            "Parent.render",
+            "Updater.render",
+            "Parent.render",
+            "Parent.render"
+          ],
+          "seconds": 0.03
+        }
+      }
+    },
+    {
+      "instance_id": "preactjs__preact-4182",
+      "language": "javascript",
+      "gold_files": [
+        "src/diff/index.js"
+      ],
+      "gold_symbols": [
+        "diff"
+      ],
+      "index_s": 1.1,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "compat/test/browser/suspense.test.js",
+            "debug/test/browser/component-stack-2.test.js",
+            "debug/test/browser/component-stack.test.js",
+            "demo/reorder.jsx",
+            "test/browser/createContext.test.js"
+          ],
+          "symbols": [
+            "Stateful.render",
+            "Thrower.render",
+            "Thrower.render",
+            "Reorder.render",
+            "State.render"
+          ],
+          "seconds": 0.04
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-5085",
+      "language": "typescript",
+      "gold_files": [
+        "index.d.ts",
+        "lib/core/AxiosHeaders.js"
+      ],
+      "gold_symbols": [
+        "AxiosHeaders",
+        "normalizeValue",
+        "setHeader"
+      ],
+      "index_s": 0.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "test/typescript/axios.ts",
+            "index.d.ts",
+            "lib/core/Axios.js",
+            "lib/helpers/combineURLs.js",
+            "lib/core/buildFullPath.js"
+          ],
+          "symbols": [
+            "handleStringResponse",
+            "Axios",
+            "Axios",
+            "combineURLs",
+            "buildFullPath"
+          ],
+          "seconds": 0.01
+        }
+      }
+    },
+    {
+      "instance_id": "axios__axios-5892",
+      "language": "javascript",
+      "gold_files": [
+        "lib/adapters/http.js"
+      ],
+      "gold_symbols": [
+        "httpAdapter.dispatchHttpRequest.handleResponse"
+      ],
+      "index_s": 0.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "index.d.ts",
+            "lib/core/Axios.js",
+            "examples/server.js",
+            "lib/utils.js",
+            "lib/core/AxiosHeaders.js"
+          ],
+          "symbols": [
+            "Axios",
+            "Axios",
+            "getIndexTemplate",
+            "stripBOM",
+            "matchHeaderValue"
+          ],
+          "seconds": 0.01
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11870",
+      "language": "typescript",
+      "gold_files": [
+        "packages/runtime-core/src/helpers/renderList.ts"
+      ],
+      "gold_symbols": [
+        "renderList"
+      ],
+      "index_s": 3.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "packages/reactivity/src/reactive.ts"
+          ],
+          "symbols": [
+            "shallowReactive",
+            "shallowReadonly",
+            "UnwrapNestedRefs",
+            "markRaw",
+            "readonly"
+          ],
+          "seconds": 0.03
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11899",
+      "language": "typescript",
+      "gold_files": [
+        "packages/compiler-sfc/src/style/pluginScoped.ts"
+      ],
+      "gold_symbols": [
+        "rewriteSelector"
+      ],
+      "index_s": 2.9,
+      "arms": {
+        "A": {
+          "file_top1": true,
+          "file_top3": true,
+          "file_top5": true,
+          "function": false,
+          "files": [
+            "packages/compiler-sfc/src/style/pluginScoped.ts",
+            "packages/compiler-sfc/src/script/definePropsDestructure.ts",
+            "packages/reactivity/src/arrayInstrumentations.ts",
+            "packages/runtime-dom/src/jsx.ts",
+            "packages/compiler-core/src/transforms/vSlot.ts"
+          ],
+          "symbols": [
+            "Rule",
+            "Scope",
+            "apply",
+            "StyleValue",
+            "trackSlotScopes"
+          ],
+          "seconds": 0.03
+        }
+      }
+    },
+    {
+      "instance_id": "vuejs__core-11915",
+      "language": "typescript",
+      "gold_files": [
+        "packages/compiler-core/src/tokenizer.ts"
+      ],
+      "gold_symbols": [
+        "Tokenizer.stateInRCDATA"
+      ],
+      "index_s": 3.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "packages/vue-compat/__tests__/filters.spec.ts",
+            "packages/vue/__tests__/e2e/e2eUtils.ts",
+            "packages/vue/jsx.d.ts",
+            "packages/vue/jsx-runtime/index.d.ts",
+            "packages/reactivity/src/reactive.ts"
+          ],
+          "symbols": [
+            "double",
+            "text",
+            "Element",
+            "Element",
+            "markRaw"
+          ],
+          "seconds": 0.04
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-6051",
+      "language": "go",
+      "gold_files": [
+        "caddyconfig/caddyfile/lexer.go"
+      ],
+      "gold_symbols": [
+        "lexer.finalizeHeredoc"
+      ],
+      "index_s": 2.3,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": true,
+          "file_top5": true,
+          "function": true,
+          "files": [
+            "modules/caddyhttp/matchers.go",
+            "caddyconfig/caddyfile/lexer.go",
+            "listen.go",
+            "caddyconfig/caddyfile/dispenser.go"
+          ],
+          "symbols": [
+            "MatchQuery.Match",
+            "lexer.finalizeHeredoc",
+            "lexer.next",
+            "fakeCloseListener.Close",
+            "Dispenser.ValRaw"
+          ],
+          "seconds": 0.04
+        }
+      }
+    },
+    {
+      "instance_id": "caddyserver__caddy-6345",
+      "language": "go",
+      "gold_files": [
+        "modules/caddypki/acmeserver/caddyfile.go"
+      ],
+      "gold_symbols": [
+        "parseACMEServer"
+      ],
+      "index_s": 1.8,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "internal/filesystems/map.go",
+            "modules/caddypki/ca.go",
+            "caddyconfig/httpcaddyfile/tlsapp.go",
+            "modules/caddyhttp/fileserver/caddyfile.go"
+          ],
+          "symbols": [
+            "FilesystemMap.key",
+            "CA",
+            "AuthorityConfig",
+            "subjectQualifiesForPublicCert",
+            "FileServer.UnmarshalCaddyfile"
+          ],
+          "seconds": 0.05
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-3227",
+      "language": "go",
+      "gold_files": [
+        "tree.go"
+      ],
+      "gold_symbols": [
+        "node.addRoute",
+        "node.getValue"
+      ],
+      "index_s": 0.6,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "render/redirect.go",
+            "context.go",
+            "path.go",
+            "gin.go"
+          ],
+          "symbols": [
+            "Redirect",
+            "Context.Redirect",
+            "Redirect.Render",
+            "cleanPath",
+            "redirectFixedPath"
+          ],
+          "seconds": 0.02
+        }
+      }
+    },
+    {
+      "instance_id": "gin-gonic__gin-3820",
+      "language": "go",
+      "gold_files": [
+        "binding/form_mapping.go"
+      ],
+      "gold_symbols": [
+        "setWithProperType"
+      ],
+      "index_s": 0.6,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "gin.go",
+            "binding/binding.go"
+          ],
+          "symbols": [
+            "New",
+            "BindingUri",
+            "Engine.RunUnix",
+            "BindingBody",
+            "Default"
+          ],
+          "seconds": 0.02
+        }
+      }
+    },
+    {
+      "instance_id": "prometheus__prometheus-13845",
+      "language": "go",
+      "gold_files": [
+        "model/labels/labels.go"
+      ],
+      "gold_symbols": [
+        "Labels.DropMetricName"
+      ],
+      "index_s": 7.0,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "tsdb/record/record.go",
+            "discovery/kubernetes/endpointslice_adaptor.go"
+          ],
+          "symbols": [
+            "Encoder.Series",
+            "endpointSliceAdaptorV1.name",
+            "endpointSliceAdaptorV1Beta1.name",
+            "endpointSlicePortAdaptorV1.name",
+            "endpointSlicePortAdaptorV1beta1.name"
+          ],
+          "seconds": 0.11
+        }
+      }
+    },
+    {
+      "instance_id": "gohugoio__hugo-12171",
+      "language": "go",
+      "gold_files": [
+        "hugolib/content_map_page.go"
+      ],
+      "gold_symbols": [
+        "pageMap.getPagesInSection"
+      ],
+      "index_s": 5.2,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "common/paths/pathparser.go",
+            "hugolib/site_sections.go",
+            "hugolib/page__tree.go",
+            "resources/page/page_nop.go",
+            "resources/page/site.go"
+          ],
+          "symbols": [
+            "Path.Section",
+            "Site.Sections",
+            "pageTree.Sections",
+            "nopPage.Sections",
+            "siteWrapper.Sections"
+          ],
+          "seconds": 0.1
+        }
+      }
+    },
+    {
+      "instance_id": "gohugoio__hugo-12562",
+      "language": "go",
+      "gold_files": [
+        "hugolib/content_map_page.go"
+      ],
+      "gold_symbols": [
+        "newPageMap"
+      ],
+      "index_s": 5.8,
+      "arms": {
+        "A": {
+          "file_top1": false,
+          "file_top3": false,
+          "file_top5": false,
+          "function": false,
+          "files": [
+            "helpers/path.go",
+            "create/content.go",
+            "hugolib/page.go",
+            "magefile.go"
+          ],
+          "symbols": [
+            "IsEmpty",
+            "NewContent",
+            "pageState.RegularPagesRecursive",
+            "pageState.RegularPages",
+            "Hugo"
+          ],
+          "seconds": 0.13
+        }
+      }
+    }
+  ]
+}

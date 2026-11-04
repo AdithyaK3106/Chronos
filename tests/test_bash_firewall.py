@@ -173,7 +173,7 @@ def test_install_adds_bash_pre_and_post_hooks(tmp_path, monkeypatch):
     cc.install(scope="project", repo=tmp_path, with_mcp=False)
     hooks = json.loads((tmp_path / ".claude" / "settings.json").read_text())["hooks"]
     assert "Bash" in hooks["PreToolUse"][0]["matcher"].split("|")
-    assert hooks["PostToolUse"][0]["matcher"] == "Bash"
+    assert hooks["PostToolUse"][0]["matcher"] == cc.POST_MATCHER
     assert hooks["PostToolUse"][0]["hooks"][0]["command"].endswith("hook claude post")
     assert set(cc.status(scope="project", repo=tmp_path)["hooks_installed"]) == {"PreToolUse", "PostToolUse", "UserPromptSubmit"}
     cc.uninstall(scope="project", repo=tmp_path)

